@@ -30,22 +30,23 @@ final class CannedReportCard {
 
         if (state.submitCount() == 0) {
             return new GeneratedReport(
-                    "You never submitted the work. The unfinished scaffolding stayed unfinished.",
+                    "You never submitted the work. The unfinished scaffolding stayed exactly where it was.",
                     List.of(
                             "Not one submission the entire session.",
                             "%d %s stayed untouched.".formatted(assessment.untouchedFiles(),
                                     assessment.untouchedFiles() == 1 ? "file" : "files"),
-                            assessment.remainingGaps() + " scaffold gaps still remained."),
+                            "%d marked gaps still remained.".formatted(assessment.remainingGaps())),
                     List.of());
         }
 
         if (assessment.remainingGaps() > 0) {
             return new GeneratedReport(
-                    "You submitted with %d of %d scaffold gaps still open. That confidence was doing heavy lifting."
+                    "You left %d of %d marked gaps open. Calling that finished took nerve."
                             .formatted(assessment.remainingGaps(), assessment.totalGaps()),
                     List.of(
                             "The unfinished scaffolding was still visible.",
-                            "%d of %d files changed at all.".formatted(assessment.changedFiles(), assessment.totalFiles()),
+                            "%d of %d files changed at all.".formatted(assessment.changedFiles(),
+                                    assessment.totalFiles()),
                             "You submitted it %d times anyway.".formatted(state.submitCount())),
                     List.of());
         }
@@ -62,15 +63,16 @@ final class CannedReportCard {
         }
 
         return new GeneratedReport(
-                "Every starter file changed, which is more than the fallback can prove. The rest needs judgment.",
-                List.of("The model report was unavailable.", "You submitted it %d times.".formatted(state.submitCount())),
+                "Every starter file changed. Whether it actually works remains unproven.",
+                List.of("You submitted it %d times.".formatted(state.submitCount()),
+                        "The implementation still needs a real review."),
                 List.of());
     }
 
     private static Assessment assess(SessionState state, Problem problem) {
         int changedFiles = 0;
         int untouchedFiles = 0;
-        int totalGaps = 0;
+        int originalGaps = 0;
         int remainingGaps = 0;
 
         for (Problem.ProblemFile file : problem.files()) {
@@ -81,9 +83,12 @@ final class CannedReportCard {
             } else {
                 changedFiles++;
             }
-            totalGaps += countGaps(starter);
+            originalGaps += countGaps(starter);
             remainingGaps += countGaps(current);
         }
+        // A candidate can add a TODO of their own. Never produce "one of zero"
+        // in that edge case.
+        int totalGaps = Math.max(originalGaps, remainingGaps);
         return new Assessment(changedFiles, untouchedFiles, problem.files().size(), totalGaps, remainingGaps);
     }
 

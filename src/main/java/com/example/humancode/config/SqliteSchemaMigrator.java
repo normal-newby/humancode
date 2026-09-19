@@ -30,8 +30,21 @@ public class SqliteSchemaMigrator implements ApplicationRunner {
                 return;
             }
 
-            connection.setAutoCommit(false);
-            try (Statement statement = connection.createStatement()) {
+            try {
+                migrateTelemetryEvents(connection);
+            } catch (SQLException e) {
+                if (isReadOnly(e)) {
+                    log.warn("Skipping telemetry schema migration because this database is read-only");
+                    return;
+                }
+                throw e;
+            }
+        }
+    }
+
+    private void migrateTelemetryEvents(Connection connection) throws SQLException {
+        connection.setAutoCommit(false);
+        try (Statement statement = connection.createStatement()) {
                 statement.executeUpdate("""
                         CREATE TABLE telemetry_events_next (
                             id integer,
@@ -55,15 +68,18 @@ public class SqliteSchemaMigrator implements ApplicationRunner {
                 statement.executeUpdate("DROP TABLE telemetry_events");
                 statement.executeUpdate("ALTER TABLE telemetry_events_next RENAME TO telemetry_events");
                 statement.executeUpdate("CREATE INDEX idx_event_session ON telemetry_events (session_id, at)");
-                connection.commit();
-                log.info("Migrated telemetry_events from legacy RUN values to SUBMIT");
-            } catch (SQLException e) {
-                connection.rollback();
-                throw e;
-            } finally {
-                connection.setAutoCommit(true);
-            }
+            connection.commit();
+            log.info("Migrated telemetry_events from legacy RUN values to SUBMIT");
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(true);
         }
+    }
+
+    private boolean isReadOnly(SQLException error) {
+        return error.getMessage() != null && error.getMessage().contains("SQLITE_READONLY");
     }
 
     private boolean telemetryNeedsSubmitValue(Connection connection) throws SQLException {
