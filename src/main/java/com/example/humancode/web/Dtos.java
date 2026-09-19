@@ -18,7 +18,8 @@ public final class Dtos {
     }
 
     /**
-     * @param difficulty {@code easy}, {@code medium} or {@code hard}. Anything
+     * @param difficulty {@code very-easy}, {@code easy}, {@code medium} or
+     *                   {@code hard}. Anything
      *                   else, including null, means "surprise me" — the
      *                   behaviour from before the selector existed.
      */

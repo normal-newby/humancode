@@ -11,13 +11,20 @@ import java.util.Optional;
  * that leniently in one place rather than comparing strings at four call sites.
  */
 public enum Difficulty {
+    /**
+     * Below easy on purpose: one thing to write, no rules to hold in your head.
+     * It exists so a candidate can meet the interviewer without also meeting a
+     * problem — the joke needs about four minutes of code to play out, not
+     * fifteen.
+     */
+    VERY_EASY,
     EASY,
     MEDIUM,
     HARD;
 
     /** The lowercase form used in problem JSON, the API and the UI. */
     public String label() {
-        return name().toLowerCase(Locale.ROOT);
+        return name().toLowerCase(Locale.ROOT).replace('_', '-');
     }
 
     /**
@@ -29,8 +36,12 @@ public enum Difficulty {
         if (raw == null || raw.isBlank()) {
             return Optional.empty();
         }
+        // `very-easy` on the wire and in problem JSON, `very easy` if a hand-written
+        // file spells it out, VERY_EASY in Java. One level with two words in it is
+        // not worth a second parser.
+        String value = raw.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
         try {
-            return Optional.of(valueOf(raw.trim().toUpperCase(Locale.ROOT)));
+            return Optional.of(valueOf(value));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }

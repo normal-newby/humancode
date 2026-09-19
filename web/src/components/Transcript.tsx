@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { MetaLine, type TurnStamp } from './MetaLine'
 import { TypedText } from './TypedText'
 import { TypingIndicator } from './TypingIndicator'
@@ -126,8 +126,59 @@ function Turn({ entry }: { entry: TurnEntry }) {
 export function Transcript({ statement, type, entries, incoming, connected }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const statementRef = useRef<HTMLDivElement>(null)
   /** Auto-scroll only while the candidate is already at the bottom. */
   const stuck = useRef(true)
+
+  /**
+   * The pinned prompt is clamped once there is anything under it.
+   *
+   * <p>It is sticky inside a scroll container that is only about half the
+   * screen, so a problem statement of any length simply *is* the log — their
+   * heckles land in a strip with no room left to show it. Pinned still means
+   * pinned (§4.2): the opening lines never leave, and `more` puts the rest
+   * back. It stays open while it is being delivered, because that beat is the
+   * problem being set, and folds itself away the moment the first block lands.
+   */
+  const [collapsed, setCollapsed] = useState(false)
+  const [clipped, setClipped] = useState(false)
+  /** The statement has finished typing itself out. */
+  const [delivered, setDelivered] = useState(false)
+  /** Once they have chosen for themselves, stop choosing for them. */
+  const chosen = useRef(false)
+  const started = entries.length > 0 || incoming
+
+  const handleDelivered = useCallback(() => setDelivered(true), [])
+
+  // Never mid-delivery: their first heckle can land while the problem is still
+  // typing itself out, and folding it then means the candidate never reads the
+  // half they were not shown.
+  useEffect(() => {
+    if (!started || !delivered || chosen.current) return
+    setCollapsed(true)
+  }, [delivered, started])
+
+  const toggle = useCallback(() => {
+    chosen.current = true
+    setCollapsed((previous) => !previous)
+  }, [])
+
+  // Whether `more` would show anything. Measured rather than guessed from the
+  // statement's length: what clips depends on the wrap, which depends on the
+  // window.
+  useLayoutEffect(() => {
+    // The clamp lives on the <p> TypedText renders, and it is the thing whose
+    // overflow is hidden — the wrapper around it reports no overflow at all
+    // and would say nothing is ever clipped.
+    const element = statementRef.current?.firstElementChild
+    if (!element || !collapsed) return
+    const measure = () => setClipped(element.scrollHeight - element.clientHeight > 1)
+    measure()
+    // What clips depends on the wrap, so a resized window can silently make
+    // the toggle a lie in either direction.
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [collapsed, delivered, statement, entries.length])
 
   const follow = useCallback((smooth = false) => {
     if (!stuck.current) return
@@ -150,13 +201,37 @@ export function Transcript({ statement, type, entries, incoming, connected }: Pr
     <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-[84ch] px-6">
         {/* Their standing prompt. It is what you are still being asked. */}
-        <div className="dimmable-soft sticky top-0 z-10 bg-canvas pt-8 pb-3 transition-opacity duration-300">
+        {/* Once it is folded the session is under way and the top gap is just
+            space the log does not have — a short window leaves the whole scroll
+            container barely taller than this block. */}
+        <div
+          className={`dimmable-soft sticky top-0 z-10 bg-canvas pb-3 transition-opacity duration-300 ${
+            collapsed ? 'pt-4' : 'pt-8'
+          }`}
+        >
           <Block marker="▌" tone="text-faint">
-            <TypedText
-              text={statement}
-              animate
-              className="text-[15px] leading-relaxed text-ink"
-            />
+            <div ref={statementRef} className={collapsed ? 'overflow-hidden' : undefined}>
+              {/* The clamp is spelled out, not built from COLLAPSED_LINES:
+                  Tailwind scans source text, and a class it never sees written
+                  is a class it never generates. */}
+              <TypedText
+                text={statement}
+                animate
+                onDone={handleDelivered}
+                className={`text-[15px] leading-relaxed text-ink ${collapsed ? 'line-clamp-3' : ''}`}
+              />
+            </div>
+            {(collapsed ? clipped : started && delivered) && (
+              <button
+                type="button"
+                onClick={toggle}
+                aria-expanded={!collapsed}
+                className="mt-1 flex items-baseline gap-2 text-xs lowercase text-faint transition-colors hover:text-sub"
+              >
+                <span aria-hidden>└</span>
+                <span>{collapsed ? 'the rest of it' : 'fold it away'}</span>
+              </button>
+            )}
           </Block>
           {type === 'BUG_FIX' && (
             <Result tone="text-hot">bug hunt: the app is already written. find what breaks.</Result>

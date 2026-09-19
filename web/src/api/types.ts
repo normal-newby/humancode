@@ -5,7 +5,7 @@ export type Mood = 'NEUTRAL' | 'AMUSED' | 'IMPATIENT' | 'EXASPERATED' | 'IMPRESS
 export type EventType = 'EDIT' | 'PASTE' | 'FOCUS' | 'BLUR'
 
 /** What the candidate asks for before starting. */
-export type Difficulty = 'easy' | 'medium' | 'hard'
+export type Difficulty = 'very-easy' | 'easy' | 'medium' | 'hard'
 
 /** Whether this session begins with a scaffold or a deliberately broken app. */
 export type ProblemType = 'BUILD' | 'BUG_FIX'
@@ -15,7 +15,17 @@ export const PROBLEM_TYPES: { value: ProblemType; label: string; description: st
   { value: 'BUG_FIX', label: 'bug fix', description: 'find and repair a broken app' },
 ]
 
-export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
+/**
+ * The wire value and the word on screen, which differ for exactly one level:
+ * `very-easy` travels with a hyphen so it survives the server's enum, and
+ * reads as two words in a row of lowercase words.
+ */
+export const DIFFICULTIES: { value: Difficulty; label: string }[] = [
+  { value: 'very-easy', label: 'very easy' },
+  { value: 'easy', label: 'easy' },
+  { value: 'medium', label: 'medium' },
+  { value: 'hard', label: 'hard' },
+]
 
 /**
  * One file in the candidate's editor. However many files a problem needs —

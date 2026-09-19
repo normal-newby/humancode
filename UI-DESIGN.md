@@ -88,7 +88,7 @@ Call these out in review. Any one of them collapses the whole concept back into 
 |---|---|
 | Split pane with a draggable divider | One column, no resize handles, nothing docked to an edge |
 | Bordered cards with rounded corners around every panel | **No borders anywhere.** Zones are separated by whitespace and contrast alone |
-| Green/yellow/red difficulty pills | Lowercase plain text: `easy`, `medium`, `hard`, in `--color-sub` |
+| Green/yellow/red difficulty pills | Lowercase plain text: `very easy`, `easy`, `medium`, `hard`, in `--color-sub` |
 | Tabs: Description / Solutions / Submissions | There is one view. There are no tabs anywhere |
 | A console drawer that slides up from the bottom | There is no test output on screen at all. The interviewer tells you — §4.7 |
 | A pass count, a failure list, a green check anywhere in the session | The run result is a signal for the model, never a readout for the candidate |
@@ -224,6 +224,27 @@ column and its content hanging beside it, so `>` and `•` align all the way dow
 **Their standing prompt is pinned** to the top of the scroll container, at `--color-ink` even after
 everything else has dimmed. It is what you are still being asked and it does not go away. A `┄`
 hairline in `--color-faint` sits under it so it reads as pinned rather than as the newest line.
+
+**The pinned prompt folds itself to three lines once the session is under way.** Pinned still means
+pinned — the opening lines never leave, and a `└ the rest of it` / `└ fold it away` toggle under it
+puts the whole statement back, in `--color-faint` like any other aside. This is not decoration: the
+scroll container is what is left of the screen after a 38vh editor, about 210px on a laptop, and an
+unfolded four-sentence statement is 170px of it. Their heckles were landing in the 40px strip
+underneath, which is to say they were not landing at all.
+
+Two rules the first attempt got wrong, both found by running a session rather than by reading the
+code:
+
+- **It never folds mid-delivery.** Their first line can arrive while the statement is still typing
+  itself out (§4.6), and folding then means the candidate never reads the half they were not shown.
+  The fold waits for the typewriter to finish, however long they have been idle.
+- **The toggle only appears when something is actually hidden**, which has to be measured on the
+  `<p>` that carries the clamp. The wrapper around it reports no overflow at all, so measuring there
+  says nothing is ever clipped and the toggle never appears — which is the same bug again, minus the
+  way out.
+
+Once folded, the block's top padding drops from `pt-8` to `pt-4`: the session is under way and the
+gap above their prompt is space the log does not have.
 
 Below it the log alternates, the way an agent transcript does:
 
@@ -513,16 +534,16 @@ The start screen is the only place a difficulty word appears. One question above
 
 ```
 how hard should this be
-easy   medium   hard
+very easy   easy   medium   hard
 ```
 
-The legend is `--color-faint`, the three words are `--color-sub`, and the chosen one is
+The legend is `--color-faint`, the four words are `--color-sub`, and the chosen one is
 `--color-accent` and underlined. Nothing else changes — no pill, no fill, no dot, no border, and no
 colour that means anything. §2 bans the green/yellow/red difficulty badge by name because it is the
 single most LeetCode thing a screen can wear, and a picker is exactly where it would come back in.
 
-**It is three radios under the hood**, visually hidden inside their labels, so arrow keys move between
-them and a screen reader is handed one labelled group rather than three unrelated buttons (§10). The
+**It is four radios under the hood**, visually hidden inside their labels, so arrow keys move between
+them and a screen reader is handed one labelled group rather than four unrelated buttons (§10). The
 whole `fieldset` disables while the session is starting, and the words drop to 40% — the same
 disabled treatment the `begin` link uses.
 

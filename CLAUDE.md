@@ -578,9 +578,18 @@ on anything else.
 
 ### Difficulty
 
-The candidate picks **easy, medium or hard** before starting; it rides on `POST /api/sessions` as
-`{"difficulty": "hard"}` and anything unrecognised, including null, means "any" — the behaviour from
-before the selector existed. `Difficulty.parse` is the one place that decides.
+The candidate picks **very easy, easy, medium or hard** before starting; it rides on
+`POST /api/sessions` as `{"difficulty": "hard"}` and anything unrecognised, including null, means
+"any" — the behaviour from before the selector existed. `Difficulty.parse` is the one place that
+decides, and it is the only place that knows `very-easy`, `very easy` and `VERY_EASY` are one level:
+the wire and the problem JSON use the hyphen, Java uses the underscore, and `label()` converts.
+
+**`VERY_EASY` is below easy on purpose and the calibration has to keep it there.** One thing to
+write, three or four lines, no second requirement — a candidate meeting the interviewer without also
+meeting a problem. Both calibrations say so explicitly, because "very easy" on its own reliably
+returns an easy problem with a smaller statement. On the Python side it also has to *countermand* an
+instruction: the prompt asks for malformed entries in the sample data, and a one-rule puzzle has no
+room for them, so that bullet defers to the calibration rather than fighting it.
 
 Two things it touches:
 
@@ -594,7 +603,12 @@ Two things it touches:
   empty rather than handing over the wrong level, and the source falls back to a bank problem *of
   that difficulty*.
 
-The bank carries at least one of each (`longest-valid-parentheses` is the hard one), so the `dev`
+Two costs that come with a fourth level: `ProblemPool` warms `pool-size` problems **per
+difficulty**, so a cold prod start now generates a third more than it did, and the bank needs a
+very-easy problem per runtime or `ProblemBank.random` falls back loudly to another level.
+`lights-out` and `late-arrivals` are those two.
+
+The bank carries at least one of each (`permissions-tree` is the hard one), so the `dev`
 profile serves every level offline. `ProblemBankTest.coversEveryDifficulty` fails if that stops being
 true.
 

@@ -110,7 +110,7 @@ for (const problem of problems) {
 // The difficulty census is the point of the bank run: the picker offers three
 // levels and ProblemBank falls back loudly when one is missing, so a bank with
 // no hard problem should be visible here rather than at a demo.
-const census = ['easy', 'medium', 'hard']
+const census = ['very-easy', 'easy', 'medium', 'hard']
   .map((level) => `${level} ${problems.filter((p) => p.difficulty === level).length}`)
   .join(', ')
 

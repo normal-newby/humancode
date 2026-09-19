@@ -27,6 +27,19 @@ class DifficultyTest {
     }
 
     @Test
+    @DisplayName("the two-word level travels as very-easy and parses however it is written")
+    void parsesVeryEasy() {
+        // The browser sends the hyphen, a hand-written bank file might not, and
+        // Java spells it with an underscore. All three are the same level.
+        assertEquals("very-easy", Difficulty.VERY_EASY.label());
+        assertEquals(Optional.of(Difficulty.VERY_EASY), Difficulty.parse("very-easy"));
+        assertEquals(Optional.of(Difficulty.VERY_EASY), Difficulty.parse("Very Easy"));
+        assertEquals(Optional.of(Difficulty.VERY_EASY), Difficulty.parse("VERY_EASY"));
+        assertTrue(Difficulty.VERY_EASY.matches(problem("very-easy")));
+        assertFalse(Difficulty.EASY.matches(problem("very-easy")));
+    }
+
+    @Test
     @DisplayName("anything unrecognised means 'any', not an error")
     void unknownIsEmpty() {
         // The API takes this straight from a request body. A typo must start a
