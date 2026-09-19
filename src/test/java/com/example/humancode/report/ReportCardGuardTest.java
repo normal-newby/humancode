@@ -34,6 +34,29 @@ class ReportCardGuardTest {
     }
 
     @Test
+    @DisplayName("a working app with nothing to complain about is a valid report")
+    void acceptsAReportWithNoInsults() {
+        // The bug this pins cost a real session: the model judged the app to be
+        // working, stayed unimpressed and returned no barbs, a floor of one
+        // insult rejected the whole thing, and the canned fallback then told a
+        // candidate with working code that their app did not work.
+        GeneratedReport report = new GeneratedReport(GeneratedReport.Outcome.WORKS,
+                "Hmm. Not bad.", List.of(), List.of("You got there eventually."), -5);
+
+        assertTrue(guard.isSafe(report), () -> guard.reject(report).orElse(""));
+    }
+
+    @Test
+    @DisplayName("a rejection says which rule fired and quotes the text")
+    void rejectionNamesTheRule() {
+        String reason = guard.reject(report(GeneratedReport.Outcome.BROKEN,
+                "One. Two. Three. Four. Five.", 20)).orElseThrow();
+
+        assertTrue(reason.contains("sentences"), reason);
+        assertTrue(reason.contains("One. Two. Three. Four. Five."), reason);
+    }
+
+    @Test
     void stillRejectsAnEssay() {
         String sprawl = "You did a thing. ".repeat(4)
                 + "And then you did many more things that all took a very long time indeed to arrive at. "

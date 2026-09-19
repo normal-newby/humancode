@@ -18,7 +18,19 @@ public record HumancodeProperties(Ai ai, Interview interview, Problems problems)
             String model,
             /** Quip path: reactive one-liners. Fires often, must feel instant. */
             String quipModel,
-            Duration requestTimeout) {
+            Duration requestTimeout,
+            /**
+             * Deadline for the one report-card call, applied per request.
+             *
+             * <p>It needs its own because it reasons: it has to check every
+             * requirement against the finished files, which is the only
+             * verification in the app (CLAUDE.md §6), and that runs past the
+             * client-wide {@code requestTimeout}. Worse than slow, the
+             * client-wide one does not fail a long call, it retries it — so the
+             * short deadline buys nothing and costs three attempts. Same lesson
+             * as {@code problems.generation-timeout}, same fix.
+             */
+            @DefaultValue("120s") Duration reportTimeout) {
     }
 
     public record Problems(

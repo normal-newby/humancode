@@ -142,7 +142,7 @@ public class PromptAssembler {
                 # What changed since your last line
 
                 %s
-
+                %s
                 # Behaviour so far
 
                 - Elapsed: %d seconds
@@ -177,6 +177,7 @@ public class PromptAssembler {
                 """.formatted(
                 renderCurrentFiles(state),
                 changes(state),
+                inFlightNote(state),
                 state.elapsed().toSeconds(),
                 state.idleFor().toSeconds(),
                 state.charsInserted(),
@@ -245,13 +246,23 @@ public class PromptAssembler {
                 - Times submitted: %d
                 - Impatience before you opened it: %d/100
 
+                Before you decide anything, read the files and work out what this app
+                actually does when it runs. Take each requirement in turn and find the code
+                that meets it, or satisfy yourself that nothing does. You are the only check
+                there is, so a complaint you cannot point at in the files is one you must
+                not make. Do not say something is missing without having looked for it, and
+                do not describe behaviour you have not traced — if you are about to claim a
+                click does the wrong thing, find the handler and follow it first. Being
+                unimpressed by working code is your job. Being wrong about it is not.
+
+                Never submitting at all is not a finished app. Handing over untouched
+                starter files is BROKEN, however long they sat there. Submitting many times
+                is not progress and earns nothing.
+
                 The one-sentence shape rule from the rules above applies to each insult and
-                compliment line, not to the verdict — the verdict may run one to three
-                sentences, and on a good one it should run short. Before writing, silently
-                check every requirement against the files. Never submitting at all is not a
-                finished app. Handing over untouched starter files is BROKEN, however long
-                they sat there. Submitting many times is not progress and earns nothing.
-                Do not repeat any line you already said live during the session.
+                compliment line, not to the verdict — the verdict may run up to four
+                sentences, and on a good one it should run short. Do not repeat any line you
+                already said live during the session.
                 """.formatted(
                 renderCurrentFiles(state),
                 allLines(state),
@@ -280,11 +291,15 @@ public class PromptAssembler {
         return sb.toString();
     }
 
-    /** Every file's current content, fenced per its own language. */
+    /**
+     * Every file's current content, fenced per its own language — settled, so a
+     * line still being typed is not in it. See {@link SessionState#settledCode()}.
+     */
     private String renderCurrentFiles(SessionState state) {
+        Map<String, String> settled = state.settledCode();
         StringBuilder sb = new StringBuilder();
         for (Problem.ProblemFile file : state.problem().files()) {
-            String content = state.code(file.name());
+            String content = settled.get(file.name());
             sb.append("--- ").append(file.name()).append(" ---\n");
             sb.append("```").append(file.language()).append('\n');
             sb.append(content == null || content.isBlank() ? "(empty)" : content).append('\n');
@@ -303,7 +318,7 @@ public class PromptAssembler {
      */
     private String changes(SessionState state) {
         List<String> fileOrder = state.problem().files().stream().map(Problem.ProblemFile::name).toList();
-        String diff = CodeDiff.unifiedAcrossFiles(fileOrder, state.previousCode(), state.code());
+        String diff = CodeDiff.unifiedAcrossFiles(fileOrder, state.previousCode(), state.settledCode());
         if (diff.isEmpty()) {
             return "(not one character has changed since you last spoke)";
         }
@@ -313,6 +328,32 @@ public class PromptAssembler {
 
                 ```diff
                 %s```""".formatted(diff);
+    }
+
+    /**
+     * Explains the gap that {@link SessionState#settledCode()} leaves behind.
+     *
+     * <p>The line they are mid-way through is not in the snapshot or the diff,
+     * which is the point — but a file that stops short without explanation
+     * invites "you wrote one line and gave up", and that is the same unfairness
+     * wearing a different hat. So say what was held back and why.
+     *
+     * @return a note for the tail, or an empty string when nothing is in flight
+     */
+    private String inFlightNote(SessionState state) {
+        List<String> midLine = state.filesMidLine();
+        if (midLine.isEmpty()) {
+            return "";
+        }
+        return """
+
+                # One line is still under their fingers
+
+                They are typing right now, and the unfinished last line of %s has been
+                held back from everything above. Do not remark on a file stopping where it
+                stops, and do not count the missing line against them. React to what is
+                finished, or to the clock.
+                """.formatted(String.join(" and ", midLine));
     }
 
     /** Last few lines only. Repeating yourself is the main failure mode. */

@@ -18,6 +18,7 @@ import com.example.humancode.interview.InterviewDirector;
 import com.example.humancode.interview.SessionService;
 import com.example.humancode.interview.SessionState;
 import com.example.humancode.telemetry.EventType;
+import com.example.humancode.telemetry.LineActivity;
 import com.example.humancode.telemetry.TelemetryEvent;
 import com.example.humancode.telemetry.TelemetryEventRepository;
 import com.example.humancode.telemetry.TriggerEngine;
@@ -94,8 +95,10 @@ public class TelemetryController {
             final long pasted = pastedThisBatch;
             triggers.onPaste(state, pasted).ifPresent(trigger -> director.fire(state, trigger));
         } else {
-            int completedLines = completedLinesAcrossFiles(previousFiles, batch.files());
-            triggers.onMeaningfulEdit(state, insertedThisBatch, deletedThisBatch, completedLines)
+            // Whether they crossed a line boundary decides whether anything is
+            // allowed to fire at all — see TriggerEngine.onMeaningfulEdit.
+            LineActivity lines = LineActivity.between(previousFiles, batch.files());
+            triggers.onMeaningfulEdit(state, insertedThisBatch, deletedThisBatch, lines)
                     .ifPresent(trigger -> director.fire(state, trigger));
         }
 
@@ -129,27 +132,5 @@ public class TelemetryController {
                 state.pasteCount(),
                 state.submitCount(),
                 state.impatience());
-    }
-
-    private int completedLinesAcrossFiles(Map<String, String> previousFiles, Map<String, String> currentFiles) {
-        if (currentFiles == null) {
-            return 0;
-        }
-        int total = 0;
-        for (Map.Entry<String, String> entry : currentFiles.entrySet()) {
-            total += completedLines(previousFiles.get(entry.getKey()), entry.getValue());
-        }
-        return total;
-    }
-
-    private int completedLines(String previousCode, String currentCode) {
-        if (previousCode == null || currentCode == null) {
-            return 0;
-        }
-        return Math.toIntExact(Math.max(0, newlineCount(currentCode) - newlineCount(previousCode)));
-    }
-
-    private long newlineCount(String code) {
-        return code.chars().filter(character -> character == '\n').count();
     }
 }

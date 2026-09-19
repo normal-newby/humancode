@@ -122,13 +122,31 @@ public class TriggerEngine {
 
     /**
      * React to completed pieces of work rather than individual keystrokes.
-     * Telemetry arrives in 1.5-second batches, and {@link Trigger#of} applies
-     * the shared cooldown before a model call is made. That keeps this lively
-     * without turning a fast typist into an API bill.
+     *
+     * <p><strong>Nothing here fires while the candidate is mid-line.</strong>
+     * Telemetry arrives in 1.5-second batches, so a rule that only counts
+     * characters fires against whatever fragment the timer caught — and then the
+     * interviewer is reacting to {@code const total = arr.fil}, which is not a
+     * decision to answer for, it is a person typing. {@link LineActivity#settled()}
+     * is the gate: a newline means they committed to that line, deleted lines
+     * mean they threw one away, and everything in between is still in progress.
+     *
+     * <p>Typing that never settles is not thereby immune. It is the idle rule's
+     * job, on the director's timer — stopping mid-line for twenty seconds is a
+     * thing worth asking about, and a half-written line they have abandoned is
+     * fair game in a way that the same line still under their fingers is not.
+     * {@code PromptAssembler} tells the model which of the two it is looking at.
+     *
+     * <p>{@link Trigger#of} still applies the shared cooldown on top, so a fast
+     * typist crossing a line boundary every second does not become an API bill.
      */
     public Optional<Trigger> onMeaningfulEdit(SessionState state, long inserted, long deleted,
-            int completedLines) {
+            LineActivity lines) {
         if (state.phase() != Phase.CODING) {
+            return Optional.empty();
+        }
+
+        if (!lines.settled()) {
             return Optional.empty();
         }
 
@@ -139,17 +157,21 @@ public class TriggerEngine {
                     16));
         }
 
+        // Gated on a settled buffer like everything else, which is what moved it
+        // off "12 characters have appeared" — that always landed mid-identifier,
+        // and being immediate it skipped the cooldown to do it. Now it lands on
+        // the first line they actually finish, which is the beat it was after.
         if (state.charsInserted() >= FIRST_IMPLEMENTATION_CHARS && state.fireOnce("first-implementation")) {
             return Optional.of(Trigger.immediate(Trigger.Kind.FIRST_IMPLEMENTATION,
-                    "Candidate has started their implementation (%d characters written so far)."
+                    "Candidate has finished their first line of real code (%d characters written so far)."
                             .formatted(state.charsInserted()),
                     0));
         }
 
-        if (completedLines > 0) {
+        if (lines.completed() > 0) {
             return Optional.of(Trigger.of(Trigger.Kind.LINE_COMPLETED,
                     "Candidate completed %d line%s of code."
-                            .formatted(completedLines, completedLines == 1 ? "" : "s"),
+                            .formatted(lines.completed(), lines.completed() == 1 ? "" : "s"),
                     0));
         }
 

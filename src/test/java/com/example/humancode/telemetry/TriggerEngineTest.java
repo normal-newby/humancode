@@ -23,7 +23,7 @@ import com.example.humancode.problem.Problem;
 class TriggerEngineTest {
 
     private static final HumancodeProperties PROPS = new HumancodeProperties(
-            new HumancodeProperties.Ai("", "gpt-5", "gpt-5-mini", Duration.ofSeconds(30)),
+            new HumancodeProperties.Ai("", "gpt-5", "gpt-5-mini", Duration.ofSeconds(30), Duration.ofSeconds(120)),
             new HumancodeProperties.Interview(
                     Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500),
                     Duration.ofSeconds(90), 40),
@@ -43,6 +43,11 @@ class TriggerEngineTest {
         return new SessionState("s1", PROBLEM, "javascript");
     }
 
+    /** One newline added: the candidate pressed enter and settled the buffer. */
+    private LineActivity oneLine() {
+        return new LineActivity(1, 0);
+    }
+
     @Test
     @DisplayName("a quiet, freshly-started session produces no trigger")
     void quietSessionIsSilent() {
@@ -59,17 +64,48 @@ class TriggerEngineTest {
     }
 
     @Test
-    @DisplayName("the first meaningful edit gets one immediate acknowledgement")
+    @DisplayName("mid-line typing produces nothing at all, however much of it there is")
+    void nothingFiresWhileTheCandidateIsMidLine() {
+        SessionState state = session();
+        state.recordEdit(400, 0);
+
+        // 400 characters clears every character threshold in the class. None of
+        // them may fire, because the candidate has not finished a line: this is
+        // the whole point of the gate.
+        assertTrue(engine.onMeaningfulEdit(state, 400, 0, LineActivity.NONE).isEmpty(),
+                "reacting to an unfinished line is the behaviour the gate exists to stop");
+    }
+
+    @Test
+    @DisplayName("the first finished line gets one immediate acknowledgement")
     void firstImplementationFiresOnce() {
         SessionState state = session();
         state.recordEdit(20, 0);
 
-        Trigger first = engine.onMeaningfulEdit(state, 20, 0, 0).orElseThrow();
+        Trigger first = engine.onMeaningfulEdit(state, 20, 0, oneLine()).orElseThrow();
         assertEquals(Trigger.Kind.FIRST_IMPLEMENTATION, first.kind());
         assertFalse(first.cooldown(), "the first implementation should feel immediate");
 
-        assertTrue(engine.onMeaningfulEdit(state, 20, 0, 0).isEmpty(),
+        // It does not repeat, but the next finished line is still a reaction
+        // opportunity, so this one falls through to LINE_COMPLETED rather than
+        // to silence.
+        assertEquals(Trigger.Kind.LINE_COMPLETED,
+                engine.onMeaningfulEdit(state, 20, 0, oneLine()).orElseThrow().kind(),
                 "the first-edit acknowledgement must not repeat");
+    }
+
+    @Test
+    @DisplayName("the first implementation waits for a line rather than for 12 characters")
+    void firstImplementationWaitsForALine() {
+        SessionState state = session();
+        state.recordEdit(20, 0);
+
+        assertTrue(engine.onMeaningfulEdit(state, 20, 0, LineActivity.NONE).isEmpty(),
+                "this one is immediate, so firing it mid-word skips the cooldown too");
+
+        assertEquals(Trigger.Kind.FIRST_IMPLEMENTATION,
+                engine.onMeaningfulEdit(state, 20, 0, oneLine()).orElseThrow().kind(),
+                "and it must still land on the line they do finish");
     }
 
     @Test
@@ -78,7 +114,7 @@ class TriggerEngineTest {
         SessionState state = session();
         state.recordEdit(4, 0);
 
-        Trigger trigger = engine.onMeaningfulEdit(state, 4, 0, 1).orElseThrow();
+        Trigger trigger = engine.onMeaningfulEdit(state, 4, 0, oneLine()).orElseThrow();
         assertEquals(Trigger.Kind.LINE_COMPLETED, trigger.kind());
         assertTrue(trigger.cooldown());
     }
@@ -89,9 +125,21 @@ class TriggerEngineTest {
         SessionState state = session();
         state.recordEdit(0, 100);
 
-        Trigger trigger = engine.onMeaningfulEdit(state, 0, 100, 0).orElseThrow();
+        // Deleting lines settles the buffer too. Throwing work away is a
+        // decision, not typing in progress.
+        Trigger trigger = engine.onMeaningfulEdit(state, 0, 100, new LineActivity(0, 3)).orElseThrow();
         assertEquals(Trigger.Kind.HEAVY_DELETE, trigger.kind());
         assertTrue(trigger.cooldown());
+    }
+
+    @Test
+    @DisplayName("deleting inside one line is still mid-line")
+    void backspacingWithinALineIsSilent() {
+        SessionState state = session();
+        state.recordEdit(0, 100);
+
+        assertTrue(engine.onMeaningfulEdit(state, 0, 100, LineActivity.NONE).isEmpty(),
+                "holding backspace is not a decision to answer for");
     }
 
     @Test

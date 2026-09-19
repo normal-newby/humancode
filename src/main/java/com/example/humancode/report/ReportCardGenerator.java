@@ -11,6 +11,7 @@ import com.example.humancode.config.OpenAiClientHolder;
 import com.example.humancode.interview.SessionState;
 import com.example.humancode.problem.Problem;
 import com.openai.client.OpenAIClient;
+import com.openai.core.RequestOptions;
 import com.openai.models.Reasoning;
 import com.openai.models.ReasoningEffort;
 import com.openai.models.responses.ResponseCreateParams;
@@ -38,12 +39,30 @@ import lombok.extern.slf4j.Slf4j;
 public class ReportCardGenerator {
 
     /**
-     * More headroom than the quip path's 400: a verdict plus up to four
-     * insults and two compliments is several times the visible tokens of one
-     * reaction line, and this is a reasoning model — see the quip path's own
-     * scars (CLAUDE.md §5) for what happens when the cap is too tight.
+     * Far more headroom than the quip path's 400, and most of it is not for the
+     * visible answer. {@link #EFFORT} makes this a genuinely reasoning call, and
+     * reasoning tokens come out of this same budget — the exact trap CLAUDE.md §5
+     * documents, where the call returns 200 with {@code status=incomplete}, no
+     * message, and a report that silently comes back canned.
      */
-    private static final long MAX_OUTPUT_TOKENS = 1_600L;
+    private static final long MAX_OUTPUT_TOKENS = 6_000L;
+
+    /**
+     * Not {@code MINIMAL}, which is right for a heckle and wrong for a verdict.
+     *
+     * <p>The quip path reasons about nothing: it looks at a diff and lands a
+     * joke. This call has to check every rubric item against the finished files
+     * and decide whether an app works, with no runner to check it (CLAUDE.md §6)
+     * — so its judgement is the only verification there is. On minimal effort it
+     * was observed asserting that zeroing a quantity left the row on screen, in
+     * a session whose render rebuilt the list from a filter on exactly that
+     * quantity. That is not a tone problem, it is a wrong verdict delivered
+     * confidently, and it is the one failure this whole feature cannot survive.
+     *
+     * <p>It costs seconds and tokens at the one moment in the session where
+     * nobody is typing and a pause reads as deliberation.
+     */
+    private static final ReasoningEffort EFFORT = ReasoningEffort.MEDIUM;
 
     /**
      * The closing bump is clamped to the range the schema asks for rather than
@@ -96,13 +115,21 @@ public class ReportCardGenerator {
                     .model(props.ai().model())
                     .instructions(prompts.instructions(state, problem))
                     .input(prompts.reportInput(state))
-                    .reasoning(Reasoning.builder().effort(ReasoningEffort.MINIMAL).build())
+                    .reasoning(Reasoning.builder().effort(EFFORT).build())
                     .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .text(GeneratedReport.class)
                     .build();
 
+            // Its own deadline, not the client-wide 30s. A reasoning call runs past
+            // that, and the client-wide timeout does not fail a slow call, it
+            // retries it — so the short deadline costs three attempts and still
+            // ends in the canned report (CLAUDE.md §6).
+            RequestOptions options = RequestOptions.builder()
+                    .timeout(props.ai().reportTimeout())
+                    .build();
+
             long started = System.nanoTime();
-            StructuredResponse<GeneratedReport> response = client.responses().create(params);
+            StructuredResponse<GeneratedReport> response = client.responses().create(params, options);
             long millis = (System.nanoTime() - started) / 1_000_000;
 
             Optional<GeneratedReport> report = response.output().stream()
@@ -124,8 +151,13 @@ public class ReportCardGenerator {
                 return null;
             }
 
-            if (!guard.isSafe(report.get())) {
-                log.warn("Rejected an unsafe generated report for session {}", state.sessionId());
+            Optional<String> rejected = guard.reject(report.get());
+            if (rejected.isPresent()) {
+                // Say which rule and quote the text. The fallback that follows is
+                // silent everywhere else, so this line is the only evidence the
+                // model ever wrote anything at all.
+                log.warn("Rejected the generated report for session {}: {}",
+                        state.sessionId(), rejected.get());
                 return null;
             }
 

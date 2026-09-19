@@ -65,6 +65,35 @@ caching work, because the model sees a stable prefix plus a small volatile suffi
 
 If you find yourself calling the API on every edit, stop and fix the trigger engine.
 
+### Nothing fires while they are mid-line
+
+Telemetry lands in 1.5-second batches, so a rule that only counts characters fires against whatever
+fragment the timer caught, and the interviewer ends up reacting to `const total = arr.fil`. That is
+not a decision to answer for, it is a person typing, and reacting to it is the fastest way to make
+the app feel like it is jogging your elbow rather than watching your work.
+
+Two mechanisms, and they are not interchangeable:
+
+- **`LineActivity.settled()` gates every edit-driven trigger.** A newline means they committed to
+  that line; deleted lines mean they threw one away decisively. Anything else returns empty from
+  `onMeaningfulEdit`, however many characters it carried. This is why `FIRST_IMPLEMENTATION` no
+  longer fires at 12 characters — it was `immediate`, so it skipped the cooldown to land
+  mid-identifier. It now lands on the first line they finish.
+- **`SessionState.settledCode()` keeps the fragment out of the prompt.** The batch that carries a
+  finished line often carries the start of the next one, so the gate alone is not enough. The
+  snapshot and the diff are both built from the settled buffers, and `markCodeSpokenFor()` records
+  the same thing — baseline on the raw buffer and the hidden fragment reappears next time as a
+  deletion, so it gets reacted to one line late.
+
+Telling the model not to react to it was tried first and **lost** to the stronger instruction a few
+lines below it to react to what just changed. Do not re-attempt that; the fix has to be that the
+fragment is not there.
+
+Past `STILL_TYPING` (4s) the same fragment is not in flight, it is abandoned, and it comes back into
+view on its own — an abandoned half-line is exactly what the interviewer should be asking about. Both
+halves are observable in one session: mid-typing it said *"A function called renderCart returning 1,
+huh."*, and twenty seconds later *"Impressive ambition adding 'const subtot' then stopping."*
+
 ### What actually costs money
 
 There is exactly one `@Scheduled` in the app: `InterviewDirector.tick()`, every 2s. That tick is local
@@ -82,6 +111,9 @@ reason: it is a one-shot, timer-gated event, not a reaction to typing, so there 
 protect it from — see below, it costs no model call either way. `SUBMITTED` (what `TESTS_PASSED`/
 `TESTS_FAILED` used to be, before there was anything to run) respects the cooldown normally, so
 hammering the submit button while debugging does not generate one call per press.
+
+**`FIRST_IMPLEMENTATION` being `immediate` is exactly why it needed the line gate below.** Skipping
+the cooldown to land mid-identifier is worse than landing late.
 
 With `humancode.problems.source=generated` (the `prod` profile) there is **one generation call per
 session started**, but it no longer happens in front of the user: `ProblemPool` keeps a couple warm and
@@ -337,6 +369,46 @@ read, so the number the candidate is left looking at includes what taking delive
 clamped to -10..30 in `ReportCardGenerator` rather than trusted: `bumpImpatience` already clamps the
 meter to 0-100, but one runaway value could still pin it and make every ending look identical.
 
+#### The report card is a reasoning call, and everything downstream had to admit it
+
+`ReasoningEffort.MINIMAL` is right for a heckle and wrong for a verdict. With no runner (§6) this one
+call **is** the verification, and on minimal effort it was observed stating that zeroing a quantity
+left the row on screen — in a session whose `render` rebuilt the list from a filter on exactly that
+quantity. A wrong verdict delivered confidently is the one failure this feature cannot survive, so it
+runs at `MEDIUM`. Three things follow, and each one cost a live session to find:
+
+- **Reasoning tokens come out of `maxOutputTokens`**, so the cap went 1600 → 6000. This is the §5
+  trap above, and at `MEDIUM` it is much easier to hit.
+- **The call now runs past the client-wide 30s `request-timeout`, which does not fail a slow call,
+  it retries it.** `humancode.ai.report-timeout` (120s) is applied per request via `RequestOptions`,
+  the same fix as `problems.generation-timeout`.
+- **The prompt has to forbid unverified claims**, not just ask for a verdict: find the handler and
+  follow it before saying a click misbehaves. Being unimpressed by working code is the job; being
+  wrong about it is not.
+
+#### The guard's floors were silently overruling the model
+
+Two of them, both found by running real sessions, both invisible because a rejection is the canned
+report rather than an error:
+
+- **`MIN_INSULTS` was 1.** A model that correctly judged an app to be working returned no barbs — the
+  `WORKS` register is restraint, and there was nothing to be barbed about. The guard threw the whole
+  report away and the canned fallback, which *cannot* prove an app works, announced that it did not.
+  Working code was told it was broken by a rule meant to keep the tone sharp. It is 0.
+- **`MAX_VERDICT_SENTENCES` was 3.** The annoyed register spends two sentences before it says
+  anything (*"What is this? My app does not work."*) and the prompt then asks what they tried and what
+  happened instead. It is 4; the word cap is what actually bounds length.
+
+Both are pinned in `ReportCardGuardTest`. The reason they were findable at all is that
+`ReportCardGuard.reject` now returns **which rule fired and the offending text**, and
+`ReportCardGenerator` logs it — a bare "rejected an unsafe report" tells you nothing when the rules
+are word counts a re-tuned prompt drifts past by one.
+
+Verified end to end against the live model, one session each: working code →
+`Hmm. Not bad.` (impatience 0); half-built → *"My app leaves zero quantity rows on screen and never
+shows the empty state."* (+3); barely started → *"What is this? My app does not work. I opened my cart
+to change quantities and there are no plus or minus buttons."* (+24).
+
 Curveballs are neither of these. They cost no model call at all — see §2.
 
 ### Prompt caching
@@ -588,6 +660,10 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 - `OPENAI_API_KEY` via `.env` or the environment — see §5.2. Never commit a key, never put a literal
   one in `application.properties`.
 - After touching any problem JSON, run `cd web && npm run check:problems`.
+- **Drive a real session before believing a change to the interviewer's judgement.** The failures
+  that matter here — a guard floor overruling the model, a verdict about code the model did not
+  read, a reaction to a half-typed word — all look like success in the logs and pass every unit
+  test. Start it on `dev`, type badly on purpose, and read what it says.
 - **Run the app through Maven**, not by launching `HumancodeApplication` from the IDE. The IDE build
   skips the `web/dist` → `static` copy, so you get Spring's whitelabel error page instead of the UI.
   If port 8080 is already held by an older `spring-boot:run`, new endpoints 404 — restart it.

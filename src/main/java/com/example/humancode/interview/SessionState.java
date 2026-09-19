@@ -46,6 +46,15 @@ public final class SessionState {
     private volatile Instant lastKeystrokeAt;
     private volatile Instant lastUtteranceAt;
 
+    /**
+     * Within this long of the last keystroke the candidate counts as still
+     * typing. Comfortably longer than one telemetry batch, so a fragment a batch
+     * caught is still recognised as in flight when the reaction is assembled;
+     * far shorter than the idle threshold, so a line they walked away from stops
+     * being protected by it.
+     */
+    private static final Duration STILL_TYPING = Duration.ofSeconds(4);
+
     /** 0-100. Drives the meter, the avatar, and the interviewer's tone. */
     private final AtomicInteger impatience = new AtomicInteger(0);
 
@@ -122,13 +131,88 @@ public final class SessionState {
     }
 
     /**
+     * The buffers with any line they are <em>still typing</em> left off.
+     *
+     * <p>This is what the interviewer is shown, and the reason is simple: a line
+     * under someone's fingers is not a decision they have made. Telemetry lands
+     * in 1.5-second batches, so a batch that carries a finished line often
+     * carries the first few characters of the next one too, and a model handed
+     * {@code const subtot} will say something about {@code const subtot} — which
+     * reads as the interviewer jogging your elbow rather than reading your work.
+     * Telling it not to in the prompt was tried first and lost to the stronger
+     * instruction a few lines further down to react to what just changed. So the
+     * fragment does not go in the prompt at all.
+     *
+     * <p>Only while they are typing. Past {@link #STILL_TYPING} the same
+     * fragment is not in flight, it is abandoned, and an abandoned half-line is
+     * exactly the sort of thing the interviewer should be asking about — so it
+     * comes back into view, on its own, with no rule anywhere to special-case
+     * it.
+     */
+    public Map<String, String> settledCode() {
+        Map<String, String> settled = orderedCopy(code);
+        if (!stillTyping()) {
+            return settled;
+        }
+        settled.replaceAll((file, content) -> settle(content));
+        return settled;
+    }
+
+    /**
+     * Whether a trailing fragment is under their fingers right now.
+     *
+     * <p>Having never typed at all counts as not typing. Without that clause the
+     * fallback inside {@link #idleFor()} measures from the start of the session,
+     * so a candidate who has not touched the keyboard looks like the busiest
+     * person in the room for the first four seconds and the starter file's last
+     * line gets held back for no reason.
+     */
+    private boolean stillTyping() {
+        return firstKeystrokeAt != null && idleFor().compareTo(STILL_TYPING) < 0;
+    }
+
+    /** The names of any files currently holding a line mid-typing, in order. */
+    public List<String> filesMidLine() {
+        if (!stillTyping()) {
+            return List.of();
+        }
+        List<String> midLine = new java.util.ArrayList<>();
+        orderedCopy(code).forEach((file, content) -> {
+            if (content != null && !content.equals(settle(content))) {
+                midLine.add(file);
+            }
+        });
+        return List.copyOf(midLine);
+    }
+
+    /** Everything up to and including the last newline, or the lot if it ends on one. */
+    private static String settle(String content) {
+        if (content == null || content.isEmpty() || content.endsWith("\n")) {
+            return content;
+        }
+        int lastBreak = content.lastIndexOf('\n');
+        if (lastBreak < 0) {
+            // A single unfinished line and nothing else. Hiding it would show the
+            // interviewer an empty file and provoke "you have written nothing",
+            // which is worse than showing the fragment.
+            return content;
+        }
+        return content.substring(0, lastBreak + 1);
+    }
+
+    /**
      * Moves the diff baseline up to the current buffers. Called once the
      * interviewer has actually spoken, so the next reaction sees only what
      * happened after this line — never call it on a suppressed trigger, or the
      * work done in between becomes invisible.
+     *
+     * <p>It records the <em>settled</em> buffers, matching what was actually
+     * shown. Baseline on the raw buffer instead and the half-line that was
+     * hidden this time reappears in the next diff as a deletion, so the
+     * interviewer ends up reacting to the fragment anyway, one line late.
      */
     public void markCodeSpokenFor() {
-        previousCode.putAll(code);
+        previousCode.putAll(settledCode());
     }
 
     private Map<String, String> orderedCopy(Map<String, String> source) {

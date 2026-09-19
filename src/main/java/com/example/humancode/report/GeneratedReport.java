@@ -35,7 +35,7 @@ public record GeneratedReport(
         Outcome outcome,
 
         @JsonPropertyDescription("""
-                What you actually say when you open it, one to three sentences. You are not \
+                What you actually say when you open it, at most four sentences and fewer when \nyou can. You are not \
                 summarising the session back to them and you are not narrating what they \
                 did, you are reacting to your app. \
                 On WORKS you are understated and hard to please, and you show almost no \
@@ -52,11 +52,14 @@ public record GeneratedReport(
         String verdict,
 
         @JsonPropertyDescription("""
-                Two to four short barbed lines, each one sentence of 3 to 12 words, second \
-                person. Lead with what is wrong with the app itself and what you now cannot \
-                do with it. Only after that reach for how they worked, a slow start, a \
-                thrash, a late paste, a number on the clock. Never repeat a line already \
-                said live in this session.""")
+                Short barbed lines, each one sentence of 3 to 12 words, second person. Lead \
+                with what is wrong with the app itself and what you now cannot do with it. \
+                Only after that reach for how they worked, a slow start, a thrash, a late \
+                paste, a number on the clock. Two to four of them on BROKEN, one or two on \
+                PARTIAL, and on WORKS an empty list is usually right, because you are \
+                unimpressed rather than hunting for something to be annoyed about. Never \
+                invent a fault to fill this in, and never repeat a line already said live \
+                in this session.""")
         List<String> insults,
 
         @JsonPropertyDescription("""

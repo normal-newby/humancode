@@ -124,7 +124,7 @@ class ProblemPoolTest {
 
     private ProblemPool pool(Path cache, int size) {
         HumancodeProperties props = new HumancodeProperties(
-                new HumancodeProperties.Ai("", "gpt-5", "gpt-5-mini", Duration.ofSeconds(30)),
+                new HumancodeProperties.Ai("", "gpt-5", "gpt-5-mini", Duration.ofSeconds(30), Duration.ofSeconds(120)),
                 new HumancodeProperties.Interview(
                         Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500),
                         Duration.ofSeconds(90), 40),
