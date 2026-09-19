@@ -448,7 +448,13 @@ export default function App() {
             column's children are blocks and must stay left-aligned. */}
         <div className="flex flex-1 items-center justify-center px-6">
           <div className="w-full max-w-[52ch]">
-            <h1 className="text-2xl lowercase tracking-tight text-ink">humancode</h1>
+            <img
+              src="/brand/gpdetox-logo-white.svg"
+              alt="gpdetox"
+              width="221"
+              height="64"
+              className="h-auto w-[172px]"
+            />
             <p className="mt-4 text-sm leading-relaxed text-sub">
               the interview, inverted. they prompt. you generate. they watch the tokens go by and
               form opinions.

@@ -9,7 +9,7 @@ import { CWD, WindowTab } from './WindowTab'
  * link that says one thing and a prelude that types another breaks the one beat
  * this screen is for.
  */
-export const BOOT_COMMAND = 'codex'
+export const BOOT_COMMAND = 'gpdetox'
 
 /** ms per character of the command — brisk. They have done this before. */
 const KEY_MS = 55
@@ -31,7 +31,7 @@ const REDUCED_MS = 500
  * output (UI-DESIGN.md §4.1), and on this screen that is about to be the
  * candidate.
  */
-const HEADER = 'codex cli  v1.0.3'
+const HEADER = 'gpdetox cli  v1.0.0'
 
 interface Receipt {
   text: string
@@ -131,7 +131,7 @@ export function BootSequence({ ready, onDone }: Props) {
       <div className="mx-auto w-full max-w-[84ch] px-6 pt-8">
         <Block marker="$" tone="text-faint">
           <p className="text-[15px] leading-relaxed text-ink">
-            <span className="sr-only">the interviewer runs codex</span>
+            <span className="sr-only">the interviewer runs gpdetox</span>
             <span aria-hidden>
               {BOOT_COMMAND.slice(0, chars)}
               {/* Solid while it is being typed, blinking once it is not — their
