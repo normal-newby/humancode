@@ -29,6 +29,13 @@ public class Session {
     @Column(nullable = false)
     private String problemId;
 
+    /**
+     * Compatibility value for databases created before personas were removed
+     * from the public session API. The legacy SQLite column is still NOT NULL.
+     */
+    @Column(nullable = false)
+    private String persona;
+
     @Column(nullable = false)
     private String language;
 
@@ -49,6 +56,7 @@ public class Session {
     public Session(String id, String problemId, String language, Instant startedAt) {
         this.id = id;
         this.problemId = problemId;
+        this.persona = "senior-engineer";
         this.language = language;
         this.startedAt = startedAt;
         this.phase = Phase.INTRO;
