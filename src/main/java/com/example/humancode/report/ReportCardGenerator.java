@@ -73,6 +73,10 @@ public class ReportCardGenerator {
     private static final int MIN_CLOSING_DELTA = -10;
     private static final int MAX_CLOSING_DELTA = 30;
 
+    /** Matches {@link GeneratedReport#ratingDelta()}'s own documented range. */
+    private static final int MIN_RATING_DELTA = -15;
+    private static final int MAX_RATING_DELTA = 30;
+
     private final OpenAiClientHolder clientHolder;
     private final PromptAssembler prompts;
     private final HumancodeProperties props;
@@ -98,6 +102,7 @@ public class ReportCardGenerator {
         GeneratedReport safe = canned ? CannedReportCard.forSession(state, problem) : content;
 
         state.bumpImpatience(Math.clamp(safe.impatienceDelta(), MIN_CLOSING_DELTA, MAX_CLOSING_DELTA));
+        int ratingDelta = Math.clamp(safe.ratingDelta(), MIN_RATING_DELTA, MAX_RATING_DELTA);
 
         return new ReportCard(
                 safe.verdict(),
@@ -105,6 +110,7 @@ public class ReportCardGenerator {
                 safe.compliments(),
                 problem.similarProblems() == null ? List.of() : problem.similarProblems(),
                 stats(state),
+                ratingDelta,
                 canned);
     }
 
@@ -164,8 +170,9 @@ public class ReportCardGenerator {
             // The outcome is the one thing that explains a surprising ending and the
             // one thing the candidate never sees, so the log is the only place it
             // is readable at all.
-            log.info("Generated report card for session {} in {}ms (outcome={}, impatienceDelta={})",
-                    state.sessionId(), millis, report.get().outcome(), report.get().impatienceDelta());
+            log.info("Generated report card for session {} in {}ms (outcome={}, impatienceDelta={}, ratingDelta={})",
+                    state.sessionId(), millis, report.get().outcome(), report.get().impatienceDelta(),
+                    report.get().ratingDelta());
             return report.get();
 
         } catch (RuntimeException e) {

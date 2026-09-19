@@ -15,6 +15,13 @@ public record ReportCard(
         List<String> compliments,
         List<String> similarProblems,
         Stats stats,
+        /**
+         * How this session moves the candidate's saved rating, -15 to 30 — unlike
+         * everything else here, this is not scoped to one session. The client is
+         * the one that persists it (no accounts to hang it on server-side) and
+         * folds it into the running total shown in the corner of every screen.
+         */
+        int ratingDelta,
         /** True when the model was unavailable, failed, or got rejected by the guard. */
         boolean canned) {
 

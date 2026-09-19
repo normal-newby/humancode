@@ -44,7 +44,8 @@ final class CannedReportCard {
                                     assessment.untouchedFiles() == 1 ? "file" : "files"),
                             "%d marked gaps still remained.".formatted(assessment.remainingGaps())),
                     List.of(),
-                    28);
+                    28,
+                    -15);
         }
 
         if (assessment.remainingGaps() > 0) {
@@ -58,7 +59,8 @@ final class CannedReportCard {
                                     assessment.totalFiles()),
                             "You submitted it %d times anyway.".formatted(state.submitCount())),
                     List.of(),
-                    24);
+                    24,
+                    -10);
         }
 
         if (assessment.untouchedFiles() > 0) {
@@ -71,7 +73,8 @@ final class CannedReportCard {
                             "I asked for %d things.".formatted(problem.rubric().size()),
                             "You handed it over %d times.".formatted(state.submitCount())),
                     List.of(),
-                    12);
+                    12,
+                    -3);
         }
 
         return new GeneratedReport(
@@ -80,7 +83,8 @@ final class CannedReportCard {
                 List.of("You submitted it %d times.".formatted(state.submitCount()),
                         "I still have to review all of this."),
                 List.of(),
-                4);
+                4,
+                3);
     }
 
     private static Assessment assess(SessionState state, Problem problem) {

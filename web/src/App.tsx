@@ -13,15 +13,17 @@ import { BOOT_COMMAND, BootSequence } from './components/BootSequence'
 import { DifficultyPicker } from './components/DifficultyPicker'
 import { LanguagePicker, type SessionLanguage } from './components/LanguagePicker'
 import { LiveTurn } from './components/LiveTurn'
+import { Logo } from './components/Logo'
 import { ProblemTypePicker } from './components/ProblemTypePicker'
 import type { TurnStamp } from './components/MetaLine'
 import { ReportView } from './components/ReportView'
 import { StatusLine } from './components/StatusLine'
-import { Transcript, type Entry, type PromptEntry } from './components/Transcript'
+import { Result, Transcript, type Entry, type PromptEntry } from './components/Transcript'
 import { WindowTab } from './components/WindowTab'
 import { useSessionStream } from './hooks/useSessionStream'
 import { useTelemetry } from './hooks/useTelemetry'
 import { useTypingFocus } from './hooks/useTypingFocus'
+import { loadRating, saveRating } from './lib/rating'
 
 /** Beyond this, the closed-turn label collapses to a count rather than naming every file. */
 const MAX_NAMED_FILES_IN_LABEL = 2
@@ -69,6 +71,10 @@ export default function App() {
   const [problemType, setProblemType] = useState<ProblemType>('BUILD')
   const [report, setReport] = useState<ReportCard | null>(null)
   const [finishing, setFinishing] = useState(false)
+  /** Hovering or focusing the start control — see the aside under it. */
+  const [readying, setReadying] = useState(false)
+  /** The saved rating, across every session this browser has finished — see lib/rating.ts. */
+  const [rating, setRating] = useState<number>(() => loadRating())
 
   /** The prelude is on screen (§4.8a). */
   const [booting, setBooting] = useState(false)
@@ -370,7 +376,17 @@ export default function App() {
       if (!result.report) {
         throw new Error('The report did not arrive.')
       }
+      const { ratingDelta } = result.report
       setReport(result.report)
+      // Applied and persisted right here, synchronously with the report
+      // landing — not in an effect — so the very first paint of the report
+      // screen's WindowTab already shows the updated total, not last
+      // session's.
+      setRating((current) => {
+        const next = current + ratingDelta
+        saveRating(next)
+        return next
+      })
       setSession(null)
       setStartedAt(null)
       startedAtRef.current = null
@@ -435,28 +451,22 @@ export default function App() {
   }, [sessionId])
 
   if (report) {
-    return <ReportView report={report} onRestart={() => setReport(null)} />
+    return <ReportView report={report} rating={rating} onRestart={() => setReport(null)} />
   }
 
   if (booting) {
-    return <BootSequence ready={pending !== null} onDone={handleBootDone} />
+    return <BootSequence ready={pending !== null} onDone={handleBootDone} rating={rating} />
   }
 
   if (!session) {
     return (
       <main className="flex min-h-screen flex-col bg-canvas">
-        <WindowTab />
+        <WindowTab rating={rating} />
         {/* The centring lives on a wrapper, not on the column itself — the
             column's children are blocks and must stay left-aligned. */}
         <div className="flex flex-1 items-center justify-center px-6">
           <div className="w-full max-w-[52ch]">
-            <img
-              src="/brand/gpdetox-logo-white.svg"
-              alt="gpdetox"
-              width="221"
-              height="64"
-              className="h-auto w-[172px]"
-            />
+            <Logo />
             <p className="mt-4 text-sm leading-relaxed text-sub">
               the interview, inverted. they prompt. you generate. they watch the tokens go by and
               form opinions.
@@ -465,15 +475,30 @@ export default function App() {
             <LanguagePicker value={language} onChange={setLanguage} disabled={starting} />
             <ProblemTypePicker value={problemType} onChange={setProblemType} disabled={starting} />
 
-            <button
-              type="button"
-              onClick={begin}
-              disabled={starting}
-              className="mt-10 text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
-            >
-              <span aria-hidden className="text-faint">$ </span>
-              {BOOT_COMMAND}
-            </button>
+            <div className="mt-10">
+              <button
+                type="button"
+                onClick={begin}
+                disabled={starting}
+                onMouseEnter={() => setReadying(true)}
+                onMouseLeave={() => setReadying(false)}
+                onFocus={() => setReadying(true)}
+                onBlur={() => setReadying(false)}
+                className="text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
+              >
+                <span aria-hidden className="text-faint">$ </span>
+                {BOOT_COMMAND}
+              </button>
+              {/* The compliant beat before you actually commit — same `⎿`
+                  aside grammar as their notes, not a second button label, so
+                  the command above still reads exactly as what the boot
+                  sequence types (see BootSequence's own note on that).
+                  Not aria-hidden: onFocus reveals it too, so a keyboard user
+                  tabbing to the button gets the same beat a mouse hover does. */}
+              <div className={`transition-opacity duration-200 ${readying ? 'opacity-100' : 'opacity-0'}`}>
+                <Result tone="text-faint">yes, boss?</Result>
+              </div>
+            </div>
             {error && <p className="mt-6 text-xs text-hot">{error}</p>}
           </div>
         </div>
@@ -495,7 +520,7 @@ export default function App() {
     <div data-typing={typing} className="flex h-screen flex-col bg-canvas text-ink">
       {/* Not dimmable. It is the window, not the session — §7 recedes what you
           produced and what it cost, never the frame around it. */}
-      <WindowTab status="coding" />
+      <WindowTab status="coding" rating={rating} />
 
       <Transcript
         statement={session.problem.statement}

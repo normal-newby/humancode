@@ -71,6 +71,13 @@ export interface ReportCard {
   compliments: string[]
   similarProblems: string[]
   stats: ReportCardStats
+  /**
+   * How this session moves the candidate's saved rating, -15 to 30. Unlike
+   * everything else here, not scoped to this session — the client persists
+   * it (localStorage; there is no account to hang it on server-side) and
+   * folds it into the running total shown in the corner of every screen.
+   */
+  ratingDelta: number
   /** True when the model was unavailable, failed, or got rejected by the guard. */
   canned: boolean
 }

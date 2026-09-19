@@ -41,7 +41,7 @@ class ReportCardGuardTest {
         // insult rejected the whole thing, and the canned fallback then told a
         // candidate with working code that their app did not work.
         GeneratedReport report = new GeneratedReport(GeneratedReport.Outcome.WORKS,
-                "Hmm. Not bad.", List.of(), List.of("You got there eventually."), -5);
+                "Hmm. Not bad.", List.of(), List.of("You got there eventually."), -5, 10);
 
         assertTrue(guard.isSafe(report), () -> guard.reject(report).orElse(""));
     }
@@ -84,6 +84,6 @@ class ReportCardGuardTest {
     }
 
     private GeneratedReport report(GeneratedReport.Outcome outcome, String verdict, int delta) {
-        return new GeneratedReport(outcome, verdict, List.of("You took your time about it."), List.of(), delta);
+        return new GeneratedReport(outcome, verdict, List.of("You took your time about it."), List.of(), delta, 0);
     }
 }

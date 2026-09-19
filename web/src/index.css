@@ -146,6 +146,36 @@ body {
   animation: hc-face-pop 220ms ease-out;
 }
 
+/* The wordmark, once, on launch (Logo, the start screen's centre lockup). A
+   mirror rather than a spin — it is still legibly "gpdetox" throughout, just
+   briefly seen from the other side of the glass, which is the whole premise
+   of the app in one gesture. Applied to the wordmark's own <g>, never the
+   droplet path beside it. */
+@keyframes hc-logo-mirror {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  15%,
+  70% {
+    transform: scaleX(-1);
+  }
+  85% {
+    transform: scaleX(1);
+  }
+}
+
+.animate-logo-mirror {
+  display: inline-block;
+  animation: hc-logo-mirror 1.8s ease-in-out;
+  /* Mirrors around the wordmark's own bounding box, not the SVG's (0,0) —
+     without this an SVG <g>'s transform-origin defaults to the viewBox
+     origin, and the flip swings the letters out to the side instead of
+     mirroring them in place. Harmless on non-SVG elements too. */
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

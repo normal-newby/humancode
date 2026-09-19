@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReportCard } from '../api/types'
+import { useCountUp } from '../hooks/useCountUp'
 import { MetaLine, type TurnStamp } from './MetaLine'
 import { Block, Result } from './Transcript'
 import { TypedText } from './TypedText'
@@ -8,6 +9,8 @@ import { WindowTab } from './WindowTab'
 
 interface Props {
   report: ReportCard
+  /** The saved rating, already folded in — passed straight through to the tab. */
+  rating: number
   onRestart: () => void
 }
 
@@ -32,7 +35,7 @@ interface Props {
  * before they look, and nothing here should be tempted into rendering the
  * outcome that decided the tone. The server never sends it.
  */
-export function ReportView({ report, onRestart }: Props) {
+export function ReportView({ report, rating, onRestart }: Props) {
   const [verdictDone, setVerdictDone] = useState(false)
   const { stats } = report
 
@@ -49,9 +52,16 @@ export function ReportView({ report, onRestart }: Props) {
     `impatience ended at ${stats.finalImpatience} percent`,
   ].join(', ')
 
+  // Counts from 0 toward the delta once the verdict has finished revealing —
+  // the same beat the insults and compliments wait for, so the rating lands
+  // as part of what they said, not ahead of it.
+  const ratingValue = useCountUp(report.ratingDelta, verdictDone)
+  const ratingPositive = report.ratingDelta > 0
+  const ratingSign = ratingPositive ? '+' : ''
+
   return (
     <main className="flex min-h-screen flex-col bg-canvas">
-      <WindowTab status="session ended" />
+      <WindowTab status="session ended" rating={rating} />
 
       <div className="mx-auto w-full max-w-[84ch] px-6 pt-12 pb-16">
         {/* What the process did. Codex signs off with its own usage; this is
@@ -82,6 +92,15 @@ export function ReportView({ report, onRestart }: Props) {
                     {line}
                   </Result>
                 ))}
+                {/* The saved rating moving, counted rather than dropped in whole —
+                    it is the one number in this whole screen, so it gets a beat
+                    of its own instead of arriving silently like the others. */}
+                {report.ratingDelta !== 0 && (
+                  <Result tone={ratingPositive ? 'text-calm' : 'text-hot'}>
+                    rating {ratingSign}
+                    {ratingValue}
+                  </Result>
+                )}
                 {report.similarProblems.length > 0 && (
                   <Result>similar problems: {report.similarProblems.join(', ')}</Result>
                 )}

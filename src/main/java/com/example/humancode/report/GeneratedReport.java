@@ -74,7 +74,17 @@ public record GeneratedReport(
                 Negative only on WORKS, and only slightly. Around zero on PARTIAL. Well \
                 above 15 on BROKEN, because you now have to deal with an app that does not \
                 work.""")
-        int impatienceDelta) {
+        int impatienceDelta,
+
+        @JsonPropertyDescription("""
+                How this delivery changes your opinion of them as a hire, from -15 to 30 \
+                — and unlike impatienceDelta, this one follows them: it is saved and \
+                carried into every future session they run for any client, not just this \
+                one. Reward genuine skill on WORKS fairly, including toward the top of the \
+                range for something delivered cleanly and without drama. Do not soften \
+                PARTIAL or BROKEN out of sympathy for how hard they seemed to be trying \
+                — a client who gets a broken app does not care that you meant well.""")
+        int ratingDelta) {
 
     /** Whether the app they handed over actually does what was asked. */
     public enum Outcome {
