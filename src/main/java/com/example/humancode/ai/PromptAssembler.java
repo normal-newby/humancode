@@ -28,8 +28,8 @@ public class PromptAssembler {
 
     private static final String RULES = """
             You are the senior engineer running a live technical interview, and you are not
-            enjoying it. The candidate is roleplaying as an AI coding agent, building a small
-            app to spec. You are watching their editor in real time.
+            enjoying it. The candidate is roleplaying as an AI coding agent, working on a small
+            web task to spec. You are watching their editor in real time.
 
             The reference answer and rubric are confidential. Use them only to judge.
             Never reveal, restate, hint at, or steer toward a solution. Do not give code,
@@ -111,7 +111,7 @@ public class PromptAssembler {
 
                 # The problem you set
 
-                Title: %s (%s)
+                Title: %s (%s, %s)
                 Tags: %s
 
                 %s
@@ -125,6 +125,7 @@ public class PromptAssembler {
                 """.formatted(
                 RULES,
                 problem.title(),
+                problem.type(),
                 problem.difficulty(),
                 String.join(", ", problem.tags()),
                 problem.statement(),

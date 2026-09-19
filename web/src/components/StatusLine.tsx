@@ -69,7 +69,7 @@ export function StatusLine({
         <button
           type="button"
           onClick={onSubmit}
-          disabled={running}
+          disabled={running || finishing}
           className="lowercase transition-colors hover:text-ink disabled:opacity-40"
         >
           <span aria-hidden className="mr-1.5 text-faint">
@@ -81,6 +81,7 @@ export function StatusLine({
           type="button"
           onClick={onEnd}
           disabled={finishing}
+          title={armed ? 'Click again to end the session' : 'Click once, then again to end'}
           className={`lowercase transition-colors hover:text-ink disabled:opacity-40 ${armed ? 'text-hot' : ''}`}
         >
           <span aria-hidden className="mr-1.5 text-faint">

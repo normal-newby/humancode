@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { finishSession, startSession, submitTurn } from './api/client'
 import type {
   Difficulty,
+  ProblemType,
   ProblemFile,
   ReportCard,
   SessionResponse,
@@ -10,6 +11,7 @@ import type {
 } from './api/types'
 import { DifficultyPicker } from './components/DifficultyPicker'
 import { LiveTurn } from './components/LiveTurn'
+import { ProblemTypePicker } from './components/ProblemTypePicker'
 import type { TurnStamp } from './components/MetaLine'
 import { ReportView } from './components/ReportView'
 import { StatusLine } from './components/StatusLine'
@@ -60,6 +62,7 @@ export default function App() {
   const [escFlash, setEscFlash] = useState(false)
   /** Their choice, sent with the session. Medium is the honest default. */
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const [problemType, setProblemType] = useState<ProblemType>('BUILD')
   const [report, setReport] = useState<ReportCard | null>(null)
   const [finishing, setFinishing] = useState(false)
 
@@ -150,7 +153,7 @@ export default function App() {
     setStarting(true)
     setError(null)
     try {
-      const started = await startSession({ difficulty })
+      const started = await startSession({ difficulty, problemType })
       setSession(started)
       setReport(null)
       const now = Date.now()
@@ -174,7 +177,7 @@ export default function App() {
     } finally {
       setStarting(false)
     }
-  }, [difficulty])
+  }, [difficulty, problemType])
 
   // Local clock: telemetry only flushes when there are events, so the server's
   // elapsed count stalls the moment you stop typing — which is exactly when the
@@ -301,21 +304,27 @@ export default function App() {
    * judges the current diff against the rubric, same as every other reaction.
    */
   const submit = useCallback(async () => {
-    if (!sessionId || running) return
+    if (!sessionId || running || finishing) return
     setRunning(true)
+    setError(null)
     closeTurn(false, null)
     try {
       await submitTurn(sessionId)
     } catch (e) {
-      console.warn('[humancode] submit failed', e)
+      setError(
+        e instanceof Error
+          ? `Could not submit this turn. Your work is still here; try again. ${e.message}`
+          : 'Could not submit this turn. Your work is still here; try again.',
+      )
     } finally {
       setRunning(false)
     }
-  }, [closeTurn, running, sessionId])
+  }, [closeTurn, finishing, running, sessionId])
 
   const end = useCallback(async () => {
-    if (!sessionId) return
+    if (!sessionId || finishing) return
     setFinishing(true)
+    setError(null)
     try {
       // The last batch has to land before the report is written, or the
       // interviewer grades a buffer up to 1.5s stale — and it has to be the
@@ -324,17 +333,32 @@ export default function App() {
       await flush()
       stop()
       const result = await finishSession(sessionId)
+      if (!result.report) {
+        throw new Error('The report did not arrive.')
+      }
       setReport(result.report)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setFinishing(false)
       setSession(null)
       setStartedAt(null)
       startedAtRef.current = null
       setArmed(false)
+    } catch (e) {
+      const detail = e instanceof Error && e.message ? ` ${e.message}` : ''
+      setError(`Could not finish the session. Your work is still open; try ending again.${detail}`)
+    } finally {
+      setFinishing(false)
     }
-  }, [flush, sessionId, stop])
+  }, [finishing, flush, sessionId, stop])
+
+  /** Mouse and keyboard both require a deliberate second end action. */
+  const requestEnd = useCallback(() => {
+    if (!sessionId || finishing) return
+    if (armed) {
+      setArmed(false)
+      void end()
+      return
+    }
+    setArmed(true)
+  }, [armed, end, finishing, sessionId])
 
   /**
    * `^d` ends the session, on the second press — the terminal's own way out,
@@ -351,17 +375,11 @@ export default function App() {
       }
       if (!event.ctrlKey || event.key.toLowerCase() !== 'd') return
       event.preventDefault()
-      setArmed((previous) => {
-        if (previous) {
-          void end()
-          return false
-        }
-        return true
-      })
+      requestEnd()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [end, sessionId])
+  }, [requestEnd, sessionId])
 
   useEffect(() => {
     if (!armed) return
@@ -396,6 +414,7 @@ export default function App() {
             form opinions.
           </p>
           <DifficultyPicker value={difficulty} onChange={setDifficulty} disabled={starting} />
+          <ProblemTypePicker value={problemType} onChange={setProblemType} disabled={starting} />
 
           <button
             type="button"
@@ -425,12 +444,19 @@ export default function App() {
     <div data-typing={typing} className="flex h-screen flex-col bg-canvas text-ink">
       <Transcript
         statement={session.problem.statement}
+        type={session.problem.type}
         entries={entries}
         incoming={composing}
         connected={stream.connected}
       />
 
       <div className="shrink-0">
+        {error && (
+          <p role="alert" className="mx-auto w-full max-w-[84ch] px-6 pb-2 text-xs text-hot">
+            <span aria-hidden>⎿ </span>
+            {error}
+          </p>
+        )}
         <LiveTurn
           files={files}
           stamp={liveStamp}
@@ -449,7 +475,7 @@ export default function App() {
           armed={armed}
           escFlash={escFlash}
           onSubmit={submit}
-          onEnd={end}
+          onEnd={requestEnd}
         />
       </div>
     </div>

@@ -43,16 +43,21 @@ public class GeneratedProblemSource implements ProblemSource {
     }
 
     @Override
-    public Problem next(String id, Difficulty difficulty) {
+    public Problem next(String id, Difficulty difficulty, ProblemType type) {
         // An explicit request still wins — useful for reproducing a bug report.
         if (id != null && !id.isBlank()) {
-            return bank.require(id);
+            Problem problem = bank.require(id);
+            if (type != null && problem.type() != type) {
+                throw new IllegalArgumentException("Problem '" + id + "' is " + problem.type().label()
+                        + ", not " + type.label());
+            }
+            return problem;
         }
 
         // Three tiers, cheapest first: something already warm, then a blocking
         // generation, then the bank. Only the first is fast enough to be
         // invisible, which is the entire point of the pool.
-        Optional<Problem> warm = pool.take(difficulty);
+        Optional<Problem> warm = pool.take(difficulty, type);
         if (warm.isPresent()) {
             return warm.get();
         }
@@ -61,18 +66,18 @@ public class GeneratedProblemSource implements ProblemSource {
         // session, and starting a second one would cost another full call to
         // make this candidate wait 90 seconds. The bank is instant and correct.
         if (pool.busy(difficulty)) {
-            Problem fallback = bank.random(difficulty);
+            Problem fallback = bank.random(difficulty, type);
             log.warn("Pool still filling; starting this session on bank problem '{}'", fallback.id());
             return fallback;
         }
 
         log.info("Nothing warm and nothing in flight; generating one inline");
-        Optional<Problem> generated = generator.generate(difficulty);
+        Optional<Problem> generated = generator.generate(difficulty, type);
         if (generated.isPresent()) {
             return generated.get();
         }
 
-        Problem fallback = bank.random(difficulty);
+        Problem fallback = bank.random(difficulty, type);
         log.warn("Generation unavailable; falling back to bank problem '{}'", fallback.id());
         return fallback;
     }

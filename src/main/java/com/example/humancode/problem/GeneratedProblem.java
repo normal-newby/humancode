@@ -6,13 +6,13 @@ import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 
 /**
- * The structured shape the model returns when generating a problem: a small
- * app to build, in however many files it actually needs.
+ * The structured shape the model returns when generating a problem: either a
+ * small app to build or a deliberately broken app to repair.
  *
  * <p>Jackson 2 annotations on purpose — that is what the OpenAI SDK's schema
  * generator reads. See CLAUDE.md §5.
  */
-@JsonClassDescription("A small app-building interview task, as a set of files to write.")
+@JsonClassDescription("A small web interview task, as a set of files to build or repair.")
 public record GeneratedProblem(
 
         @JsonPropertyDescription("Short problem title, e.g. 'Todo List'.")
@@ -47,7 +47,17 @@ public record GeneratedProblem(
         List<String> curveballs,
 
         @JsonPropertyDescription("Three similarly-shaped small app ideas.")
-        List<String> similarProblems) {
+        List<String> similarProblems,
+
+        @JsonPropertyDescription("BUILD when the candidate fills a scaffold, BUG_FIX when they repair a broken app.")
+        ProblemType type) {
+
+    /** Keeps fixtures and older callers working while generated tasks gain a type. */
+    public GeneratedProblem(String title, Difficulty difficulty, List<String> tags, String statement,
+            List<GeneratedFile> files, List<String> rubric, List<String> curveballs,
+            List<String> similarProblems) {
+        this(title, difficulty, tags, statement, files, rubric, curveballs, similarProblems, ProblemType.BUILD);
+    }
 
     public enum Difficulty {
         EASY,

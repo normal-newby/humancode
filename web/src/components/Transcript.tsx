@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { MetaLine, type TurnStamp } from './MetaLine'
 import { TypedText } from './TypedText'
 import { TypingIndicator } from './TypingIndicator'
+import type { ProblemType } from '../api/types'
 
 /** A prompt from the human on the other side. */
 export interface PromptEntry {
@@ -29,6 +30,7 @@ export type Entry = PromptEntry | TurnEntry
 
 interface Props {
   statement: string
+  type: ProblemType
   entries: Entry[]
   /** Their caret, blinking before a prompt lands. */
   incoming: boolean
@@ -121,7 +123,7 @@ function Turn({ entry }: { entry: TurnEntry }) {
  * are the human prompting, `⏺` blocks are your output. Their standing prompt is
  * pinned at the top; everything since scrolls under it.
  */
-export function Transcript({ statement, entries, incoming, connected }: Props) {
+export function Transcript({ statement, type, entries, incoming, connected }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   /** Auto-scroll only while the candidate is already at the bottom. */
@@ -156,6 +158,9 @@ export function Transcript({ statement, entries, incoming, connected }: Props) {
               className="text-[15px] leading-relaxed text-ink"
             />
           </Block>
+          {type === 'BUG_FIX' && (
+            <Result tone="text-hot">bug hunt: the app is already written. find what breaks.</Result>
+          )}
           <div
             aria-hidden
             className="mt-3 overflow-hidden text-xs whitespace-nowrap text-faint select-none"

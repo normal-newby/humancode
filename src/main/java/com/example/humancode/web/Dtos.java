@@ -22,7 +22,7 @@ public final class Dtos {
      *                   else, including null, means "surprise me" — the
      *                   behaviour from before the selector existed.
      */
-    public record StartSessionRequest(String problemId, String language, String difficulty) {
+    public record StartSessionRequest(String problemId, String language, String difficulty, String problemType) {
     }
 
     public record SessionResponse(

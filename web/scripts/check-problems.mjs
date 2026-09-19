@@ -47,7 +47,7 @@ let failures = 0
 const problems = load()
 
 for (const problem of problems) {
-  const { id, statement, files, rubric, curveballs, difficulty } = problem
+  const { id, statement, files, rubric, curveballs, difficulty, type = 'BUILD' } = problem
   const problemFailures = []
 
   if (!statement || !statement.trim()) {
@@ -61,6 +61,9 @@ for (const problem of problems) {
   }
   if (!Array.isArray(curveballs) || curveballs.length < MIN_CURVEBALLS) {
     problemFailures.push('has no curveballs')
+  }
+  if (!['BUILD', 'BUG_FIX'].includes(type)) {
+    problemFailures.push(`has an unknown type '${type}'`)
   }
 
   let anyFileHasWork = false

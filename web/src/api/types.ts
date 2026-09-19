@@ -7,6 +7,14 @@ export type EventType = 'EDIT' | 'PASTE' | 'FOCUS' | 'BLUR'
 /** What the candidate asks for before starting. */
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
+/** Whether this session begins with a scaffold or a deliberately broken app. */
+export type ProblemType = 'BUILD' | 'BUG_FIX'
+
+export const PROBLEM_TYPES: { value: ProblemType; label: string; description: string }[] = [
+  { value: 'BUILD', label: 'build', description: 'start with a scaffold and make the app work' },
+  { value: 'BUG_FIX', label: 'bug fix', description: 'find and repair a broken app' },
+]
+
 export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
 
 /**
@@ -30,6 +38,7 @@ export interface Problem {
   id: string
   title: string
   difficulty: string
+  type: ProblemType
   tags: string[]
   statement: string
   files: ProblemFile[]

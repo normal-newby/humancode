@@ -86,11 +86,35 @@ public class ProblemBank {
      * problem, and concludes the whole feature is decorative.
      */
     public Problem random(Difficulty difficulty) {
+        return random(difficulty, null);
+    }
+
+    /** A random problem matching the chosen difficulty and task shape. */
+    public Problem random(Difficulty difficulty, ProblemType type) {
         if (difficulty == null) {
-            return random();
+            List<Problem> matchingType = all().stream()
+                    .filter(problem -> type == null || problem.type() == type)
+                    .toList();
+            if (matchingType.isEmpty()) {
+                throw new IllegalStateException("No " + type.label() + " problem in the bank");
+            }
+            return matchingType.get(ThreadLocalRandom.current().nextInt(matchingType.size()));
         }
-        List<Problem> matching = all().stream().filter(difficulty::matches).toList();
+        List<Problem> matching = all().stream()
+                .filter(difficulty::matches)
+                .filter(problem -> type == null || problem.type() == type)
+                .toList();
         if (matching.isEmpty()) {
+            if (type != null) {
+                List<Problem> sameType = all().stream().filter(problem -> problem.type() == type).toList();
+                if (sameType.isEmpty()) {
+                    throw new IllegalStateException("No " + type.label() + " problem in the bank");
+                }
+                Problem fallback = sameType.get(ThreadLocalRandom.current().nextInt(sameType.size()));
+                log.warn("No {} {} problem in the bank; preserving the selected mode with '{}' ({})",
+                        difficulty.label(), type.label(), fallback.id(), fallback.difficulty());
+                return fallback;
+            }
             Problem any = random();
             log.warn("No {} problem in the bank; falling back to '{}' ({})",
                     difficulty.label(), any.id(), any.difficulty());

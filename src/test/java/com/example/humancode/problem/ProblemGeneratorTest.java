@@ -69,6 +69,13 @@ class ProblemGeneratorTest {
     }
 
     @Test
+    @DisplayName("the requested bug-fix shape wins over a generated build label")
+    void requestedProblemTypeWins() {
+        assertEquals(ProblemType.BUG_FIX,
+                generator.convert(generated(), Difficulty.EASY, ProblemType.BUG_FIX).type());
+    }
+
+    @Test
     @DisplayName("a problem with no files is rejected rather than served as an empty editor")
     void rejectsAProblemWithNoFiles() {
         GeneratedProblem g = new GeneratedProblem("Todo", GeneratedProblem.Difficulty.EASY,

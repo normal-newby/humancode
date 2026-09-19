@@ -1,5 +1,6 @@
 import type {
   Difficulty,
+  ProblemType,
   Metrics,
   SessionResponse,
   TelemetryBatch,
@@ -33,6 +34,7 @@ export function startSession(options: {
   problemId?: string
   language?: string
   difficulty?: Difficulty
+  problemType?: ProblemType
 }): Promise<SessionResponse> {
   return request<SessionResponse>('/sessions', {
     method: 'POST',

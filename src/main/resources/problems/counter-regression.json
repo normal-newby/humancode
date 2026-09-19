@@ -1,0 +1,41 @@
+{
+  "id": "counter-regression",
+  "title": "Counter Regression",
+  "difficulty": "easy",
+  "type": "BUG_FIX",
+  "tags": ["dom", "events", "debugging"],
+  "statement": "This quantity counter used to work. Find and fix the regressions without redesigning it. The count must never be negative, reset must update the screen immediately, and the minus control must accurately reflect whether another decrement is possible.",
+  "files": [
+    {
+      "name": "index.html",
+      "language": "html",
+      "starterContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>quantity counter</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <main>\n    <h1>quantity</h1>\n    <p id=\"count\" aria-live=\"polite\">0</p>\n    <label>step <input id=\"step\" type=\"number\" min=\"1\" value=\"1\" /></label>\n    <div class=\"controls\">\n      <button id=\"decrement\" type=\"button\">minus</button>\n      <button id=\"increment\" type=\"button\">plus</button>\n      <button id=\"reset\" type=\"button\">reset</button>\n    </div>\n  </main>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n",
+      "referenceContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>quantity counter</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <main>\n    <h1>quantity</h1>\n    <p id=\"count\" aria-live=\"polite\">0</p>\n    <label>step <input id=\"step\" type=\"number\" min=\"1\" value=\"1\" /></label>\n    <div class=\"controls\">\n      <button id=\"decrement\" type=\"button\">minus</button>\n      <button id=\"increment\" type=\"button\">plus</button>\n      <button id=\"reset\" type=\"button\">reset</button>\n    </div>\n  </main>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n"
+    },
+    {
+      "name": "styles.css",
+      "language": "css",
+      "starterContent": "body {\n  font-family: sans-serif;\n  max-width: 360px;\n  margin: 48px auto;\n}\n\n#count {\n  font-size: 3rem;\n  font-weight: bold;\n  margin: 16px 0;\n}\n\n.controls {\n  display: flex;\n  gap: 8px;\n  margin-top: 16px;\n}\n\nbutton {\n  padding: 8px 12px;\n}\n",
+      "referenceContent": "body {\n  font-family: sans-serif;\n  max-width: 360px;\n  margin: 48px auto;\n}\n\n#count {\n  font-size: 3rem;\n  font-weight: bold;\n  margin: 16px 0;\n}\n\n.controls {\n  display: flex;\n  gap: 8px;\n  margin-top: 16px;\n}\n\nbutton {\n  padding: 8px 12px;\n}\n"
+    },
+    {
+      "name": "app.js",
+      "language": "javascript",
+      "starterContent": "const countOut = document.getElementById('count');\nconst stepInput = document.getElementById('step');\nconst decrement = document.getElementById('decrement');\nconst increment = document.getElementById('increment');\nconst reset = document.getElementById('reset');\n\nlet count = 0;\n\nfunction step() {\n  return Number(stepInput.value) || 1;\n}\n\nfunction render() {\n  countOut.textContent = String(count);\n  decrement.disabled = count === 0;\n}\n\nincrement.addEventListener('click', () => {\n  count += step();\n  render();\n});\n\ndecrement.addEventListener('click', () => {\n  count -= step();\n  render();\n});\n\nreset.addEventListener('click', () => {\n  count = 0;\n});\n\nrender();\n",
+      "referenceContent": "const countOut = document.getElementById('count');\nconst stepInput = document.getElementById('step');\nconst decrement = document.getElementById('decrement');\nconst increment = document.getElementById('increment');\nconst reset = document.getElementById('reset');\n\nlet count = 0;\n\nfunction step() {\n  return Math.max(1, Number(stepInput.value) || 1);\n}\n\nfunction render() {\n  countOut.textContent = String(count);\n  decrement.disabled = count < step();\n}\n\nincrement.addEventListener('click', () => {\n  count += step();\n  render();\n});\n\ndecrement.addEventListener('click', () => {\n  count = Math.max(0, count - step());\n  render();\n});\n\nreset.addEventListener('click', () => {\n  count = 0;\n  render();\n});\n\nstepInput.addEventListener('input', render);\nrender();\n"
+    }
+  ],
+  "rubric": [
+    "The candidate identifies and fixes the existing regressions instead of replacing the counter with an unrelated implementation.",
+    "Decrementing by a step larger than the current count leaves the count at zero, never negative.",
+    "The minus button is disabled whenever the current step cannot be subtracted, and updates when the step field changes.",
+    "Reset immediately redraws both the displayed count and the control state.",
+    "The supplied controls, live announcement, and step input keep their existing roles after the fixes."
+  ],
+  "curveballs": [
+    "Actually, cap the count at 20 and disable plus at the cap.",
+    "Show a short message whenever reset changes a nonzero count.",
+    "Make the step field reset to one along with the count."
+  ],
+  "similarProblems": ["Broken Form Validator", "Stale Cart Total", "Accordion State Regression"]
+}
