@@ -91,7 +91,7 @@ export default function App() {
 
   const sessionId = session?.sessionId ?? null
   const stream = useSessionStream(sessionId)
-  const { record, setCode } = useTelemetry(sessionId)
+  const { record, setCode, flush, stop } = useTelemetry(sessionId)
   const { typing, mark } = useTypingFocus()
   /** Readable inside callbacks: were you mid-sentence when they cut in? */
   const typingRef = useRef(false)
@@ -317,6 +317,12 @@ export default function App() {
     if (!sessionId) return
     setFinishing(true)
     try {
+      // The last batch has to land before the report is written, or the
+      // interviewer grades a buffer up to 1.5s stale — and it has to be the
+      // last one, because /finish drops the session from the live map and
+      // anything sent after it 404s.
+      await flush()
+      stop()
       const result = await finishSession(sessionId)
       setReport(result.report)
     } catch (e) {
@@ -328,7 +334,7 @@ export default function App() {
       startedAtRef.current = null
       setArmed(false)
     }
-  }, [sessionId])
+  }, [flush, sessionId, stop])
 
   /**
    * `^d` ends the session, on the second press — the terminal's own way out,
