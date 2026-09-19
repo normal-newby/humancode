@@ -43,7 +43,7 @@ public class GeneratedProblemSource implements ProblemSource {
     }
 
     @Override
-    public Problem next(String id) {
+    public Problem next(String id, Difficulty difficulty) {
         // An explicit request still wins — useful for reproducing a bug report.
         if (id != null && !id.isBlank()) {
             return bank.require(id);
@@ -52,7 +52,7 @@ public class GeneratedProblemSource implements ProblemSource {
         // Three tiers, cheapest first: something already warm, then a blocking
         // generation, then the bank. Only the first is fast enough to be
         // invisible, which is the entire point of the pool.
-        Optional<Problem> warm = pool.take();
+        Optional<Problem> warm = pool.take(difficulty);
         if (warm.isPresent()) {
             return warm.get();
         }
@@ -60,19 +60,19 @@ public class GeneratedProblemSource implements ProblemSource {
         // A generation already running means a problem is coming for the next
         // session, and starting a second one would cost another full call to
         // make this candidate wait 90 seconds. The bank is instant and correct.
-        if (pool.busy()) {
-            Problem fallback = bank.random();
+        if (pool.busy(difficulty)) {
+            Problem fallback = bank.random(difficulty);
             log.warn("Pool still filling; starting this session on bank problem '{}'", fallback.id());
             return fallback;
         }
 
         log.info("Nothing warm and nothing in flight; generating one inline");
-        Optional<Problem> generated = generator.generate();
+        Optional<Problem> generated = generator.generate(difficulty);
         if (generated.isPresent()) {
             return generated.get();
         }
 
-        Problem fallback = bank.random();
+        Problem fallback = bank.random(difficulty);
         log.warn("Generation unavailable; falling back to bank problem '{}'", fallback.id());
         return fallback;
     }

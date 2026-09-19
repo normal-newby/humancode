@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "check:problems": "node scripts/check-problems.mjs"
+    "check:problems": "node scripts/check-problems.mjs",
+    "check:pool": "node scripts/check-problems.mjs --pool"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

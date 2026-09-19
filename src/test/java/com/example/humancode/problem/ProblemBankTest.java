@@ -27,6 +27,19 @@ class ProblemBankTest {
     private ProblemBank bank;
 
     @Test
+    @DisplayName("the bank can serve every difficulty the UI offers")
+    void coversEveryDifficulty() {
+        // The dev profile runs on the bank alone. If a level is missing here,
+        // choosing it silently hands the candidate a different one — see
+        // ProblemBank.random(Difficulty).
+        for (Difficulty difficulty : Difficulty.values()) {
+            Problem chosen = bank.random(difficulty);
+            assertTrue(difficulty.matches(chosen),
+                    "no " + difficulty.label() + " problem in the bank; got " + chosen.id());
+        }
+    }
+
+    @Test
     @DisplayName("every problem is executable: entry point, tests, and a matching starter")
     void everyProblemIsRunnable() {
         assertFalse(bank.all().isEmpty(), "the bank must not be empty");

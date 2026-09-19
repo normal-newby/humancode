@@ -62,7 +62,7 @@ class ProblemPoolTest {
         ProblemPool pool = pool(cache, 1);
         pool.warmUp();
 
-        Optional<Problem> taken = pool.take();
+        Optional<Problem> taken = pool.take(Difficulty.MEDIUM);
         assertTrue(taken.isPresent(), "a cached problem should be served without generating");
         assertEquals("gen-cached", taken.get().id());
     }
@@ -75,12 +75,39 @@ class ProblemPoolTest {
 
         ProblemPool pool = pool(cache, 1);
         pool.warmUp();
-        pool.take();
+        pool.take(Difficulty.MEDIUM);
 
         List<Problem> left = mapper.readValue(Files.readString(cache),
                 new tools.jackson.core.type.TypeReference<>() {
                 });
         assertTrue(left.isEmpty(), "the taken problem should be gone from the cache");
+    }
+
+    @Test
+    @DisplayName("a difficulty with nothing warm does not get handed another level")
+    void neverSubstitutesADifficulty(@TempDir Path dir) throws IOException {
+        Path cache = dir.resolve("problem-pool.json");
+        // One medium problem cached, and hard is what gets asked for.
+        Files.writeString(cache, mapper.writeValueAsString(List.of(problem())));
+
+        ProblemPool pool = pool(cache, 1);
+        pool.warmUp();
+
+        assertFalse(pool.take(Difficulty.HARD).isPresent(),
+                "a hard request must not be served a medium problem");
+        assertTrue(pool.take(Difficulty.MEDIUM).isPresent(), "the medium one is still there");
+    }
+
+    @Test
+    @DisplayName("a caller with no preference takes whatever is warm")
+    void anyDifficultyTakesWhatIsThere(@TempDir Path dir) throws IOException {
+        Path cache = dir.resolve("problem-pool.json");
+        Files.writeString(cache, mapper.writeValueAsString(List.of(problem())));
+
+        ProblemPool pool = pool(cache, 1);
+        pool.warmUp();
+
+        assertTrue(pool.take(null).isPresent());
     }
 
     @Test
@@ -92,7 +119,7 @@ class ProblemPoolTest {
         ProblemPool pool = pool(cache, 1);
         pool.warmUp();
 
-        assertFalse(pool.take().isPresent());
+        assertFalse(pool.take(Difficulty.MEDIUM).isPresent());
     }
 
     private ProblemPool pool(Path cache, int size) {

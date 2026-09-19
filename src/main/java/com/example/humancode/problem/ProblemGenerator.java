@@ -68,6 +68,9 @@ public class ProblemGenerator {
     private static final long MAX_OUTPUT_TOKENS = 16_000L;
 
     private static final Pattern JS_IDENTIFIER = Pattern.compile("[A-Za-z_$][A-Za-z0-9_$]*");
+    private static final Pattern RETURN_STATEMENT = Pattern.compile("\\breturn\\b");
+    private static final Pattern BLOCK_COMMENT = Pattern.compile("(?s)/\\*.*?\\*/");
+    private static final Pattern LINE_COMMENT = Pattern.compile("//[^\\n]*");
     /** Two sessions in a row on "stacks" is not a random problem source. */
     private static final int MIN_TESTS = 3;
 
@@ -77,22 +80,26 @@ public class ProblemGenerator {
     private final HumancodeProperties props;
     private final ObjectMapper mapper;
 
-    /** @return empty if generation is unavailable or produced something unusable. */
-    public Optional<Problem> generate() {
+    /**
+     * @param difficulty what to ask for; null picks one the way it used to
+     * @return empty if generation is unavailable or produced something unusable
+     */
+    public Optional<Problem> generate(Difficulty difficulty) {
         Optional<OpenAIClient> client = clientHolder.client();
         if (client.isEmpty()) {
             return Optional.empty();
         }
 
         String seed = nextSeed();
-        String difficulty = ThreadLocalRandom.current().nextInt(3) == 0 ? "medium" : "easy";
+        Difficulty level = difficulty != null ? difficulty : randomDifficulty();
 
         try {
             StructuredResponseCreateParams<GeneratedProblem> params = ResponseCreateParams.builder()
                     .model(props.ai().model())
                     .instructions(INSTRUCTIONS)
-                    .input("Write a %s problem about %s. Avoid the most over-used textbook examples."
-                            .formatted(difficulty, seed))
+                    .input(("Write a %s problem about %s. Avoid the most over-used textbook examples."
+                            + " %s")
+                            .formatted(level.label(), seed, calibration(level)))
                     .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .text(GeneratedProblem.class)
                     .build();
@@ -127,9 +134,9 @@ public class ProblemGenerator {
                 return Optional.empty();
             }
 
-            Problem problem = convert(generated.get());
-            log.info("Generated problem '{}' ({} tests, seed '{}') in {}ms",
-                    problem.title(), problem.tests().size(), seed, millis);
+            Problem problem = convert(generated.get(), level);
+            log.info("Generated {} problem '{}' ({} tests, seed '{}') in {}ms",
+                    problem.difficulty(), problem.title(), problem.tests().size(), seed, millis);
             return Optional.of(problem);
 
         } catch (RuntimeException e) {
@@ -140,10 +147,52 @@ public class ProblemGenerator {
             if (detail.length() > 300) {
                 detail = detail.substring(0, 300) + "... [truncated]";
             }
-            log.warn("Problem generation failed ({}). A JSON parse error here usually means the"
-                    + " response was cut off: check MAX_OUTPUT_TOKENS.", detail);
+            // The hint only applies to a parse failure. Printing it on a
+            // validation rejection sends the next reader hunting a token limit
+            // that has nothing to do with it.
+            boolean looksTruncated = e instanceof IllegalStateException
+                    ? false
+                    : detail.contains("parsing JSON") || detail.contains("InvalidData");
+            log.warn("Problem generation failed ({}){}", detail, looksTruncated
+                    ? ". A JSON parse error usually means the response was cut off: check"
+                            + " MAX_OUTPUT_TOKENS."
+                    : "");
             return Optional.empty();
         }
+    }
+
+    /**
+     * Code with its comments removed, for checks that must not read a JSDoc
+     * tag as source. Good enough for this: a comment marker inside a string
+     * literal would confuse it, and a generated starter has no string literals.
+     */
+    private static String stripComments(String code) {
+        return LINE_COMMENT.matcher(BLOCK_COMMENT.matcher(code).replaceAll(" ")).replaceAll(" ");
+    }
+
+    private static Difficulty randomDifficulty() {
+        return ThreadLocalRandom.current().nextInt(3) == 0 ? Difficulty.MEDIUM : Difficulty.EASY;
+    }
+
+    /**
+     * Anchors the level to something concrete.
+     *
+     * <p>"Write a hard problem" on its own gets you an easy problem with an
+     * intimidating statement. The model needs to be told what the word buys in
+     * minutes and in technique.
+     */
+    private static String calibration(Difficulty level) {
+        return switch (level) {
+            case EASY -> "Easy means one idea and one data structure, solvable in 10 to 15 minutes by"
+                    + " a competent candidate. No multi-step algorithm.";
+            case MEDIUM -> "Medium means two ideas composed, or one idea with a non-obvious edge case,"
+                    + " solvable in 20 to 30 minutes. The naive solution should be obvious and wrong"
+                    + " on complexity.";
+            case HARD -> "Hard means the candidate must find a non-obvious insight before writing any"
+                    + " code, and the brute force is clearly infeasible. 30 to 45 minutes. Still one"
+                    + " function, still pure computation, and the reference solution must stay short"
+                    + " enough to verify by hand.";
+        };
     }
 
     /**
@@ -168,7 +217,9 @@ public class ProblemGenerator {
      * wrong test, but a malformed one is caught here rather than in the
      * candidate's face.
      */
-    private Problem convert(GeneratedProblem g) {
+    // Package-private: the validation below is the only thing standing between
+    // a malformed generation and a candidate's screen, so it is tested directly.
+    Problem convert(GeneratedProblem g, Difficulty requested) {
         if (g.entryPoint() == null || !JS_IDENTIFIER.matcher(g.entryPoint()).matches()) {
             throw new IllegalStateException("entry point is not a usable function name: " + g.entryPoint());
         }
@@ -182,10 +233,12 @@ public class ProblemGenerator {
             throw new IllegalStateException("starter code does not declare " + g.entryPoint());
         }
         // The worst possible generated problem is one whose starter code is the
-        // answer. It fails no structural check, and the candidate is handed a
-        // passing solution to stare at.
-        if (g.starterCode().length() >= g.referenceSolution().length()) {
-            throw new IllegalStateException("starter code is as long as the reference solution");
+        // answer: it fails no other structural check, and the candidate is
+        // handed a passing solution to stare at. An empty body cannot return
+        // anything, so that is the thing to look for — but only outside
+        // comments, because every starter carries a JSDoc `@return` tag.
+        if (RETURN_STATEMENT.matcher(stripComments(g.starterCode())).find()) {
+            throw new IllegalStateException("starter code already contains a return statement");
         }
         if (g.statement() == null || g.statement().isBlank()) {
             throw new IllegalStateException("generated problem has no statement");
@@ -209,7 +262,10 @@ public class ProblemGenerator {
         return new Problem(
                 id,
                 g.title(),
-                g.difficulty() == null ? "easy" : g.difficulty().name().toLowerCase(Locale.ROOT),
+                // What was asked for wins over what the model labelled it. The
+                // candidate chose this; a model that writes an easy problem and
+                // calls it hard must not also get to relabel the session.
+                requested.label(),
                 g.tags() == null ? List.of() : g.tags(),
                 g.statement(),
                 // Generated problems carry no worked examples, by design.

@@ -19,6 +19,7 @@ import com.example.humancode.interview.Phase;
 import com.example.humancode.interview.SessionService;
 import com.example.humancode.interview.SessionState;
 import com.example.humancode.problem.Problem;
+import com.example.humancode.problem.Difficulty;
 import com.example.humancode.problem.ProblemBank;
 
 import lombok.RequiredArgsConstructor;
@@ -38,9 +39,10 @@ public class SessionController {
     @ResponseStatus(HttpStatus.CREATED)
     public Dtos.SessionResponse start(@RequestBody(required = false) Dtos.StartSessionRequest request) {
         Dtos.StartSessionRequest req = request == null
-                ? new Dtos.StartSessionRequest(null, null)
+                ? new Dtos.StartSessionRequest(null, null, null)
                 : request;
-        SessionState state = sessions.start(req.problemId(), req.language());
+        SessionState state = sessions.start(req.problemId(), req.language(),
+                Difficulty.parse(req.difficulty()).orElse(null));
         return toResponse(state);
     }
 

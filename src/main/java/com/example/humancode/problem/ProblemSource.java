@@ -9,8 +9,11 @@ package com.example.humancode.problem;
  */
 public interface ProblemSource {
 
-    /** @param id optional specific problem; ignored by sources that generate. */
-    Problem next(String id);
+    /**
+     * @param id         optional specific problem; ignored by sources that generate
+     * @param difficulty what the candidate asked for; null means any
+     */
+    Problem next(String id, Difficulty difficulty);
 
     String describe();
 }

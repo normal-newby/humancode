@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.humancode.problem.Difficulty;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.ProblemSource;
 
@@ -39,8 +40,8 @@ public class SessionService {
     }
 
     @Transactional
-    public SessionState start(String problemId, String language) {
-        Problem problem = problems.next(problemId);
+    public SessionState start(String problemId, String language, Difficulty difficulty) {
+        Problem problem = problems.next(problemId, difficulty);
 
         String resolvedLanguage = language == null || language.isBlank() ? "javascript" : language;
 
@@ -49,7 +50,9 @@ public class SessionService {
         live.put(id, state);
 
         repository.save(new Session(id, problem.id(), resolvedLanguage, state.startedAt()));
-        log.info("Session {} started: problem={}", id, problem.id());
+        log.info("Session {} started: problem={} ({}, asked for {})",
+                id, problem.id(), problem.difficulty(),
+                difficulty == null ? "any" : difficulty.label());
         return state;
     }
 

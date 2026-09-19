@@ -4,6 +4,11 @@ export type Mood = 'NEUTRAL' | 'AMUSED' | 'IMPATIENT' | 'EXASPERATED' | 'IMPRESS
 
 export type EventType = 'EDIT' | 'PASTE' | 'RUN' | 'FOCUS' | 'BLUR'
 
+/** What the candidate asks for before starting. */
+export type Difficulty = 'easy' | 'medium' | 'hard'
+
+export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
+
 export interface ProblemExample {
   input: string
   output: string

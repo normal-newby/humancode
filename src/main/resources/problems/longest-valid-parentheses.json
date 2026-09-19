@@ -1,0 +1,58 @@
+{
+  "id": "longest-valid-parentheses",
+  "title": "Longest Valid Parentheses",
+  "difficulty": "hard",
+  "tags": [
+    "string",
+    "stack",
+    "dynamic-programming"
+  ],
+  "statement": "Given a string containing only the characters '(' and ')', return the length of the longest contiguous substring that is well-formed. A substring is well-formed when every opening bracket has a matching closing bracket after it and no closing bracket appears before its opener. The empty string is well-formed and has length 0.",
+  "examples": [
+    {
+      "input": "s = \"(()\"",
+      "output": "2",
+      "explanation": "The longest well-formed substring is \"()\"."
+    },
+    {
+      "input": "s = \")()())\"",
+      "output": "4",
+      "explanation": "The longest well-formed substring is \"()()\", starting at index 1."
+    }
+  ],
+  "starterCode": "/**\n * @param {string} s\n * @return {number}\n */\nfunction longestValidParentheses(s) {\n  // your code here\n}\n",
+  "entryPoint": "longestValidParentheses",
+  "match": "exact",
+  "tests": [
+    {"args": [""], "expected": 0},
+    {"args": ["("], "expected": 0},
+    {"args": [")"], "expected": 0},
+    {"args": ["()"], "expected": 2},
+    {"args": ["(()"], "expected": 2},
+    {"args": [")()())"], "expected": 4},
+    {"args": ["()(()"], "expected": 2},
+    {"args": ["()(())"], "expected": 6},
+    {"args": ["(()())"], "expected": 6},
+    {"args": ["))))((((" ], "expected": 0},
+    {"args": ["()(()))())("], "expected": 6}
+  ],
+  "referenceSolution": "function longestValidParentheses(s) {\n  let best = 0;\n  const stack = [-1];\n  for (let i = 0; i < s.length; i++) {\n    if (s[i] === '(') {\n      stack.push(i);\n    } else {\n      stack.pop();\n      if (stack.length === 0) {\n        stack.push(i);\n      } else {\n        best = Math.max(best, i - stack[stack.length - 1]);\n      }\n    }\n  }\n  return best;\n}",
+  "optimalComplexity": "O(n) time, O(n) space — one pass with a stack of indices, seeded with -1 as the base for the first valid run.",
+  "rubric": [
+    "Finds a linear solution rather than checking every substring.",
+    "Tracks indices, not just a counter — the length of a run is the distance between boundaries.",
+    "Handles a leading ')' and a trailing '(' without going negative or reporting a false match.",
+    "Returns 0 for the empty string and for input with no matched pair.",
+    "Can explain why the stack is seeded with a sentinel."
+  ],
+  "followUps": [
+    "Can you do it in O(1) extra space? (two passes, left-to-right then right-to-left)",
+    "What if the string also contained square brackets that had to nest correctly?",
+    "How would you return the substring itself rather than its length?"
+  ],
+  "similarProblems": [
+    "Valid Parentheses",
+    "Remove Invalid Parentheses",
+    "Maximum Nesting Depth of Two Valid Parentheses Strings"
+  ]
+}

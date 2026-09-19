@@ -77,4 +77,25 @@ public class ProblemBank {
         List<Problem> all = all();
         return all.get(ThreadLocalRandom.current().nextInt(all.size()));
     }
+
+    /**
+     * A random problem of the requested difficulty.
+     *
+     * <p>Falls back to any problem when the bank has none at that level, and
+     * says so: a silent downgrade means the candidate picks hard, gets an easy
+     * problem, and concludes the whole feature is decorative.
+     */
+    public Problem random(Difficulty difficulty) {
+        if (difficulty == null) {
+            return random();
+        }
+        List<Problem> matching = all().stream().filter(difficulty::matches).toList();
+        if (matching.isEmpty()) {
+            Problem any = random();
+            log.warn("No {} problem in the bank; falling back to '{}' ({})",
+                    difficulty.label(), any.id(), any.difficulty());
+            return any;
+        }
+        return matching.get(ThreadLocalRandom.current().nextInt(matching.size()));
+    }
 }

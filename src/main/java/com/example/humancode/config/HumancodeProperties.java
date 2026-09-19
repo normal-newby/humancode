@@ -25,15 +25,16 @@ public record HumancodeProperties(Ai ai, Interview interview, Problems problems)
             /** {@code bank} in dev, {@code generated} in prod. */
             @DefaultValue("bank") String source,
             /**
-             * How many generated problems to keep warm.
+             * How many generated problems to keep warm <em>per difficulty</em>.
              *
-             * <p>Only meaningful with {@code source=generated}. Each slot is one
-             * model call, paid once and reused by the next session to start, so
-             * this is the whole cost of not making the candidate watch a
-             * spinner. Zero disables pre-generation and restores the blocking
-             * call in front of the begin button.
+             * <p>Only meaningful with {@code source=generated}. Per difficulty,
+             * because the candidate picks one: a pool of three easy problems
+             * cannot answer a request for a hard one. At the default of 1 that
+             * is three warm problems and three calls on a first run, paid once
+             * and then cached to disk. Zero disables pre-generation and restores
+             * the blocking call in front of the begin button.
              */
-            @DefaultValue("2") int poolSize,
+            @DefaultValue("1") int poolSize,
             /**
              * Deadline for one generation call.
              *

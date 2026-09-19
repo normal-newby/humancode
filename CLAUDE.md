@@ -404,6 +404,28 @@ started, which is deliberate — the product is the generated interview, and a d
 serves the same three problems is how you demo the wrong thing. Use the `dev` profile while working
 on anything else.
 
+### Difficulty
+
+The candidate picks **easy, medium or hard** before starting; it rides on `POST /api/sessions` as
+`{"difficulty": "hard"}` and anything unrecognised, including null, means "any" — the behaviour from
+before the selector existed. `Difficulty.parse` is the one place that decides.
+
+Two things it touches:
+
+- **The generator is told what the word buys**, in minutes and in technique
+  (`ProblemGenerator.calibration`). "Write a hard problem" on its own returns an easy problem with an
+  intimidating statement. The requested level then **overwrites** whatever the model labelled it: the
+  candidate chose this, and a model that writes an easy problem and calls it hard does not also get
+  to relabel the session.
+- **`pool-size` is per difficulty.** A pool of three easy problems cannot answer a request for a hard
+  one, and substituting silently would make the whole choice decorative — `ProblemPool.take` returns
+  empty rather than handing over the wrong level, and the source falls back to a bank problem *of
+  that difficulty*.
+
+The bank carries at least one of each (`longest-valid-parentheses` is the hard one), so the `dev`
+profile serves every level offline. `ProblemBankTest.coversEveryDifficulty` fails if that stops being
+true.
+
 `./mvnw test` runs the two `@SpringBootTest` classes under `@ActiveProfiles("dev")`, because a Spring
 context publishes `ApplicationReadyEvent` and would otherwise warm the pool — two model calls and a
 minute of latency on every build. Do not remove those annotations. Do not add a
@@ -453,8 +475,13 @@ because neither looks like an error:
 `generated` falls back to the bank — loudly — when the key is missing or the model returns something
 malformed. `ProblemGenerator.convert` structurally validates first: entry point is a real JS identifier,
 at least three tests with no duplicate `argsJson`, a statement, reference solution and starter code both
-defining the entry point, starter code shorter than the reference (a starter that *is* the answer passes
-every other check), and every `argsJson`/`expectedJson` parsing as JSON.
+defining the entry point, no `return` in the starter's body (a starter that *is* the answer passes every
+other check), and every `argsJson`/`expectedJson` parsing as JSON.
+
+**A rejection is not free and it is not safe by default.** It costs a 40-90 second call and produces
+nothing, and the retry is silent — so an over-strict check reads as "generation is just slow today".
+The first version of the starter-code check compared lengths, which rejected every easy problem whose
+JSDoc'd empty function was longer than its one-line answer. `ProblemGeneratorTest` pins that shape.
 
 A subtly *wrong* test can still get through, and that risk got sharper now that the UI never shows test
 results: a candidate with a correct answer is told they are wrong and has no way to see why. Verifying
@@ -467,6 +494,11 @@ Because a generated problem exists only for the life of its session, `SessionSta
 **`cd web && npm run check:problems`** runs every bank problem's reference solution against its own test
 cases. Run it after touching any problem JSON — a wrong expectation is invisible until a candidate writes
 a correct answer and gets called wrong, which is the worst possible place to find it.
+
+**`npm run check:pool`** does the same for `data/problem-pool.json`, the problems waiting to be served.
+Those were written by a model minutes ago and nobody has ever read them, so this is the one that matters
+before a demo. It is the only automated defence against the residual risk above; it proves the tests are
+self-consistent with their own reference solution, not that the problem is any good.
 
 ---
 

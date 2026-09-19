@@ -15,7 +15,12 @@ public final class Dtos {
     private Dtos() {
     }
 
-    public record StartSessionRequest(String problemId, String language) {
+    /**
+     * @param difficulty {@code easy}, {@code medium} or {@code hard}. Anything
+     *                   else, including null, means "surprise me" — the
+     *                   behaviour from before the selector existed.
+     */
+    public record StartSessionRequest(String problemId, String language, String difficulty) {
     }
 
     public record SessionResponse(

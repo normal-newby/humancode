@@ -14,8 +14,8 @@ public class BankProblemSource implements ProblemSource {
     private final ProblemBank bank;
 
     @Override
-    public Problem next(String id) {
-        return id == null || id.isBlank() ? bank.random() : bank.require(id);
+    public Problem next(String id, Difficulty difficulty) {
+        return id == null || id.isBlank() ? bank.random(difficulty) : bank.require(id);
     }
 
     @Override

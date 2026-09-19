@@ -1,4 +1,5 @@
 import type {
+  Difficulty,
   Metrics,
   RunResult,
   SessionResponse,
@@ -32,6 +33,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function startSession(options: {
   problemId?: string
   language?: string
+  difficulty?: Difficulty
 }): Promise<SessionResponse> {
   return request<SessionResponse>('/sessions', {
     method: 'POST',

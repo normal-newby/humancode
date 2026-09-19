@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { finishSession, sendRunResult, startSession } from './api/client'
-import type { SessionResponse, TelemetryItem, Utterance } from './api/types'
+import type { Difficulty, SessionResponse, TelemetryItem, Utterance } from './api/types'
+import { DifficultyPicker } from './components/DifficultyPicker'
 import { LiveTurn } from './components/LiveTurn'
 import type { TurnStamp } from './components/MetaLine'
 import { StatusLine } from './components/StatusLine'
@@ -44,6 +45,8 @@ export default function App() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [armed, setArmed] = useState(false)
   const [escFlash, setEscFlash] = useState(false)
+  /** Their choice, sent with the session. Medium is the honest default. */
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
 
   /** Utterances waiting behind their typing indicator. */
   const [queue, setQueue] = useState<Utterance[]>([])
@@ -119,7 +122,7 @@ export default function App() {
     setStarting(true)
     setError(null)
     try {
-      const started = await startSession({})
+      const started = await startSession({ difficulty })
       setSession(started)
       const now = Date.now()
       setStartedAt(now)
@@ -141,7 +144,7 @@ export default function App() {
     } finally {
       setStarting(false)
     }
-  }, [])
+  }, [difficulty])
 
   // Local clock: telemetry only flushes when there are events, so the server's
   // elapsed count stalls the moment you stop typing — which is exactly when the
@@ -351,11 +354,13 @@ export default function App() {
             the interview, inverted. they prompt. you generate. they watch the tokens go by and
             form opinions.
           </p>
+          <DifficultyPicker value={difficulty} onChange={setDifficulty} disabled={starting} />
+
           <button
             type="button"
             onClick={begin}
             disabled={starting}
-            className="mt-10 text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
+            className="mt-8 block text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
           >
             {starting ? 'finding someone to judge you…' : 'begin'}
           </button>
