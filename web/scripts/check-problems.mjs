@@ -42,6 +42,14 @@ function load() {
 const MIN_RUBRIC = 3
 const MIN_CURVEBALLS = 1
 
+/**
+ * Python problems are logic puzzles, never apps: there is no preview pane for
+ * them, so anything that opens a window or waits on stdin is a window nobody
+ * can see. ProblemGenerator rejects these at generation time; this catches one
+ * that got into the pool before that check existed, or into the bank by hand.
+ */
+const PYTHON_INTERFACE = /\b(tkinter|Tkinter|curses|pygame|PyQt\d?|PySide\d?|kivy)\b|\binput\s*\(/
+
 let failures = 0
 
 const problems = load()
@@ -76,6 +84,12 @@ for (const problem of problems) {
     }
     if (f.starterContent !== f.referenceContent) {
       anyFileHasWork = true
+    }
+    if (f.language === 'python' || f.name?.endsWith('.py')) {
+      const hit = `${f.starterContent ?? ''}\n${f.referenceContent ?? ''}`.match(PYTHON_INTERFACE)
+      if (hit) {
+        problemFailures.push(`file '${f.name}' builds an interface ('${hit[0].trim()}') instead of a logic puzzle`)
+      }
     }
   }
   if (files?.length && !anyFileHasWork) {

@@ -529,6 +529,39 @@ between starter and reference content, too few rubric items or curveballs) but c
 reference answer is actually correct — there is nothing left to execute it against. Read every bank
 problem's reference content like you'd review a PR before it ships.
 
+### Two runtimes, two shapes
+
+The candidate picks **web** or **python** alongside the difficulty (`ProblemRuntime`), and the two
+are not the same task in a different language:
+
+- **Web** is a small app — HTML/CSS/JS, visible interactive behaviour, rendered in the preview pane.
+- **Python** is a **logic puzzle**: one `.py` file, sample data as a module-level constant, one to
+  three pure functions the candidate fills in, `main()` prints the answer. No interface of any kind.
+
+That distinction is a prompt-level fight, not a preference. The generator's shared instructions ask
+for something with behaviour you can watch, and the seeds are concrete nouns, so a Python request
+phrased as "build a todo list" comes back as **a tkinter app** — a window in a product that has no
+window to show it in. Three things push back, and all three are needed:
+
+- `ProblemGenerator.PYTHON_INSTRUCTIONS` replaces the web block entirely rather than appending
+  caveats to it, and names the ban (`tkinter`, `curses`, `input()`, `sys.argv`) rather than implying
+  it. `PYTHON_SEEDS` are situations with rules in them ("resolving discount rules that overlap on one
+  order"), never nouns that suggest a screen — the seed is the most concrete thing in the prompt and
+  it wins arguments with the instructions.
+- The schema descriptions in `GeneratedProblem` are **runtime-neutral** for the same reason. The one
+  that said "describe the small app to build" sat closer to the output than any instruction did.
+- `ProblemGenerator.requirePureLogic` rejects a Python generation that imports a GUI toolkit or calls
+  `input()` anyway. This is the rare case where a rejection is worth a wasted 40-second call: the
+  fallback is a bank Python problem, which is the right shape by construction, whereas a tkinter task
+  is unusable. `check-problems.mjs` runs the same pattern over the bank and the warm pool.
+
+Difficulty means something different here too — `pythonCalibration` buys how many rules have to agree
+and how they interact, not how many screens there are.
+
+One gap worth knowing: **the pool only warms web problems.** `ProblemPool` tops up with
+`generator.generate(difficulty)`, which defaults to `WEB`, so a Python session generates in front of
+the candidate or takes a bank problem. That is fine on `dev` and noticeable on `prod`.
+
 ### Problem sources
 
 `humancode.problems.source` selects a `ProblemSource`:

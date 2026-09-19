@@ -98,6 +98,55 @@ class ProblemGeneratorTest {
         assertThrows(IllegalStateException.class, () -> generator.convert(g, Difficulty.EASY));
     }
 
+    @Test
+    @DisplayName("a python task that opens a window is rejected, not served")
+    void rejectsAPythonProblemThatBuildsAnInterface() {
+        // The whole point of the python runtime is a logic puzzle. There is no
+        // preview for it, so a generated tkinter app is a window nobody can see.
+        Problem problem = generator.convert(generated(
+                file("app.py", "python", "# your code here",
+                        "import tkinter as tk\n\nroot = tk.Tk()\n")), Difficulty.EASY);
+
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> ProblemGenerator.requirePureLogic(problem));
+        assertTrue(e.getMessage().contains("tkinter"), e.getMessage());
+    }
+
+    @Test
+    @DisplayName("a python task that waits on stdin is rejected too")
+    void rejectsAPythonProblemThatPromptsTheUser() {
+        Problem problem = generator.convert(generated(
+                file("app.py", "python", "# your code here",
+                        "name = input('who? ')\nprint(name)\n")), Difficulty.EASY);
+
+        assertThrows(IllegalStateException.class, () -> ProblemGenerator.requirePureLogic(problem));
+    }
+
+    @Test
+    @DisplayName("an ordinary python puzzle passes the interface check")
+    void acceptsAPurePythonPuzzle() {
+        // The pattern has to be narrow enough that a real puzzle never trips it —
+        // a rejection costs a full generation and falls back to the bank silently.
+        Problem problem = generator.convert(generated(
+                file("shifts.py", "python",
+                        "SHIFTS = []\n\ndef assign(shifts):\n    # your code here\n    pass\n",
+                        "SHIFTS = []\n\ndef assign(shifts):\n    return sorted(s for s in shifts if s)\n")),
+                Difficulty.EASY);
+
+        ProblemGenerator.requirePureLogic(problem);
+    }
+
+    @Test
+    @DisplayName("a browser file is not searched for python interface code")
+    void ignoresNonPythonFiles() {
+        // 'input(' is ordinary JavaScript. Only .py files are in scope.
+        Problem problem = generator.convert(generated(
+                file("app.js", "javascript", "// your code here",
+                        "const value = input(field);\n")), Difficulty.EASY);
+
+        ProblemGenerator.requirePureLogic(problem);
+    }
+
     private static GeneratedFile file(String name, String language, String starter, String reference) {
         return new GeneratedFile(name, language, starter, reference);
     }
