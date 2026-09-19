@@ -157,15 +157,23 @@ public class ProblemPool {
      * @return empty if nothing is warm and nothing landed in time
      */
     public Optional<Problem> take(Difficulty difficulty) {
+        return take(difficulty, null);
+    }
+
+    /**
+     * Takes only a matching task shape when one was selected. A mismatched warm
+     * task stays in the pool for the next compatible session.
+     */
+    public Optional<Problem> take(Difficulty difficulty, ProblemType type) {
         Problem ready = null;
         for (Difficulty level : queuesFor(difficulty)) {
-            ready = warm.get(level).poll();
+            ready = takeMatching(warm.get(level), type);
             if (ready != null) {
                 break;
             }
         }
 
-        if (ready == null && busy(difficulty)) {
+        if (ready == null && type == null && busy(difficulty)) {
             log.info("No warm {} problem; giving the generation in flight {}ms to land",
                     difficulty == null ? "any" : difficulty.label(), NEARLY_READY_MILLIS);
             for (Difficulty level : queuesFor(difficulty)) {
@@ -186,6 +194,18 @@ public class ProblemPool {
         }
         topUp();
         return Optional.ofNullable(ready);
+    }
+
+    private static Problem takeMatching(BlockingQueue<Problem> queue, ProblemType type) {
+        if (type == null) {
+            return queue.poll();
+        }
+        for (Problem candidate : queue) {
+            if (candidate.type() == type && queue.remove(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     /** Fills the gap between what is warm, what is coming, and the target. */

@@ -12,6 +12,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.util.Optional;
+
 /**
  * Every bank problem must give the candidate something to actually build. A
  * problem where every file's starter already matches its answer looks fine on
@@ -76,6 +78,27 @@ class ProblemBankTest {
         assertFalse(candidate.files().isEmpty(), "files must reach the browser or there is nothing to edit");
         for (Problem.ProblemFile file : candidate.files()) {
             assertNull(file.referenceContent(), "the reference answer must never reach the browser");
+        }
+    }
+
+    @Test
+    @DisplayName("the bank includes a bug-fix task with a runnable broken app")
+    void includesBugFixTask() {
+        Optional<Problem> bugFix = bank.all().stream()
+                .filter(problem -> problem.type() == ProblemType.BUG_FIX)
+                .findFirst();
+
+        assertTrue(bugFix.isPresent(), "the bug-fix question type needs a curated example");
+        assertTrue(bugFix.get().files().stream()
+                .anyMatch(file -> !file.starterContent().equals(file.referenceContent())));
+    }
+
+    @Test
+    @DisplayName("a selected mode is never replaced by another mode")
+    void preservesSelectedProblemType() {
+        for (Difficulty difficulty : Difficulty.values()) {
+            assertTrue(bank.random(difficulty, ProblemType.BUG_FIX).type() == ProblemType.BUG_FIX);
+            assertTrue(bank.random(difficulty, ProblemType.BUILD).type() == ProblemType.BUILD);
         }
     }
 }

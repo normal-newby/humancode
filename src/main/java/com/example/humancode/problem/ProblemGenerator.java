@@ -21,16 +21,16 @@ import com.openai.models.responses.StructuredResponseCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** Asks the model for a fresh small-app-building problem, in however many files it needs. */
+/** Asks the model for a fresh web task, either to build or debug. */
 @Slf4j
 @RequiredArgsConstructor
 @Component
 public class ProblemGenerator {
 
     private static final String INSTRUCTIONS = """
-            You write small app-building interview tasks for a web development practice tool.
-            The candidate is not implementing an algorithm — they are building a tiny,
-            self-contained web app (HTML/CSS/JS) that does something visible and interactive.
+            You write small web-development interview tasks for a practice tool. The candidate
+            is not implementing an algorithm. They either build a tiny, self-contained web app
+            or find and repair bugs in one (HTML/CSS/JS).
 
             Produce ONE self-contained task. Hard requirements:
 
@@ -38,13 +38,15 @@ public class ProblemGenerator {
               no external resources — everything must run by opening the HTML file directly.
             - Use however many files the task genuinely needs. Most tasks want three: an HTML
               file, a CSS file and a JS file. A simpler task can get by with fewer.
-            - `starterContent` for a file is what the candidate opens the session with. At
-              least one file's starterContent must differ meaningfully from its
-              referenceContent — leave a real, specific gap for the candidate to fill (a
-              missing event handler, an incomplete style rule), marked with a
-              `// your code here` or `/* your code here */` comment. A file that needs no
-              changes (e.g. a complete HTML shell) may have identical starter and reference
-              content — do not pad it with a fake gap just to seem incomplete.
+            - `starterContent` is what the candidate opens the session with. At least one file
+              must differ meaningfully from its `referenceContent`.
+            - For a BUILD task, leave a real, specific gap for the candidate to fill, marked
+              with `// your code here` or `/* your code here */`. A file that needs no changes
+              may be identical in both versions.
+            - For a BUG_FIX task, give the candidate a complete-looking, runnable app with two
+              to four intentional behavioural bugs. The statement describes the intended
+              behaviour but does not name the broken lines. Do not use `your code here` markers
+              in this type. The reference fixes the bugs without changing the app's scope.
             - `referenceContent` for every file must be a genuinely correct, working answer —
               verify by tracing through it mentally before emitting it.
             - The task must produce something with visible, interactive behaviour (clicking,
@@ -62,6 +64,10 @@ public class ProblemGenerator {
             "a password strength meter", "a simple stopwatch", "a character counter for a textarea",
             "a expandable FAQ accordion", "a star rating widget", "a tabbed content panel",
             "a random quote generator", "a basic drawing canvas with a color picker");
+
+    private static final List<String> BUG_FIX_SEEDS = List.of(
+            "a quantity stepper", "a live character counter", "a tabbed settings panel",
+            "a shopping-cart summary", "a password visibility toggle", "a filterable list");
 
     /**
      * Headroom for reasoning plus several whole files of HTML/CSS/JS as JSON.
@@ -85,21 +91,28 @@ public class ProblemGenerator {
      * @return empty if generation is unavailable or produced something unusable
      */
     public Optional<Problem> generate(Difficulty difficulty) {
+        return generate(difficulty, null);
+    }
+
+    /** Generates the requested task shape when a candidate selected one. */
+    public Optional<Problem> generate(Difficulty difficulty, ProblemType requestedType) {
         Optional<OpenAIClient> client = clientHolder.client();
         if (client.isEmpty()) {
             return Optional.empty();
         }
 
-        String seed = nextSeed();
+        ProblemType type = requestedType == null ? nextType() : requestedType;
+        String seed = nextSeed(type);
         Difficulty level = difficulty != null ? difficulty : randomDifficulty();
 
         try {
             StructuredResponseCreateParams<GeneratedProblem> params = ResponseCreateParams.builder()
                     .model(props.ai().model())
                     .instructions(INSTRUCTIONS)
-                    .input(("Write a %s task: build %s. Avoid the most over-used textbook"
-                            + " examples. %s")
-                            .formatted(level.label(), seed, calibration(level)))
+                    .input(("Write a %s %s task about %s. Set type to %s. Avoid the most over-used"
+                            + " textbook examples. %s")
+                            .formatted(level.label(), type == ProblemType.BUG_FIX ? "bug-fix" : "build",
+                                    seed, type.name(), calibration(level)))
                     .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .text(GeneratedProblem.class)
                     .build();
@@ -130,9 +143,9 @@ public class ProblemGenerator {
                 return Optional.empty();
             }
 
-            Problem problem = convert(generated.get(), level);
-            log.info("Generated {} problem '{}' ({} files, seed '{}') in {}ms",
-                    problem.difficulty(), problem.title(), problem.files().size(), seed, millis);
+            Problem problem = convert(generated.get(), level, type);
+            log.info("Generated {} {} problem '{}' ({} files, seed '{}') in {}ms",
+                    problem.difficulty(), problem.type(), problem.title(), problem.files().size(), seed, millis);
             return Optional.of(problem);
 
         } catch (RuntimeException e) {
@@ -156,6 +169,11 @@ public class ProblemGenerator {
 
     private static Difficulty randomDifficulty() {
         return ThreadLocalRandom.current().nextInt(3) == 0 ? Difficulty.MEDIUM : Difficulty.EASY;
+    }
+
+    /** Debugging should be common enough to appear, without replacing build work. */
+    private static ProblemType nextType() {
+        return ThreadLocalRandom.current().nextInt(3) == 0 ? ProblemType.BUG_FIX : ProblemType.BUILD;
     }
 
     /**
@@ -191,12 +209,13 @@ public class ProblemGenerator {
      * its length, and back-to-back duplicates are the only collision a candidate
      * can actually notice.
      */
-    private String nextSeed() {
+    private String nextSeed(ProblemType type) {
+        List<String> seeds = type == ProblemType.BUG_FIX ? BUG_FIX_SEEDS : SEEDS;
         String previous = lastSeed.get();
         String seed;
         do {
-            seed = SEEDS.get(ThreadLocalRandom.current().nextInt(SEEDS.size()));
-        } while (seed.equals(previous) && SEEDS.size() > 1);
+            seed = seeds.get(ThreadLocalRandom.current().nextInt(seeds.size()));
+        } while (seed.equals(previous) && seeds.size() > 1);
         lastSeed.set(seed);
         return seed;
     }
@@ -212,6 +231,10 @@ public class ProblemGenerator {
     // Package-private: the validation below is the only thing standing between
     // a malformed generation and a candidate's screen, so it is tested directly.
     Problem convert(GeneratedProblem g, Difficulty requested) {
+        return convert(g, requested, g.type() == null ? ProblemType.BUILD : g.type());
+    }
+
+    Problem convert(GeneratedProblem g, Difficulty requested, ProblemType requestedType) {
         if (g.statement() == null || g.statement().isBlank()) {
             throw new IllegalStateException("generated problem has no statement");
         }
@@ -263,6 +286,7 @@ public class ProblemGenerator {
                 files,
                 g.rubric(),
                 g.curveballs(),
-                g.similarProblems() == null ? List.of() : g.similarProblems());
+                g.similarProblems() == null ? List.of() : g.similarProblems(),
+                requestedType);
     }
 }

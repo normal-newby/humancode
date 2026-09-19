@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.humancode.problem.Difficulty;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.ProblemSource;
+import com.example.humancode.problem.ProblemType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +45,11 @@ public class SessionService {
 
     @Transactional
     public SessionState start(String problemId, String language, Difficulty difficulty) {
-        Problem problem = problems.next(problemId, difficulty);
+        return start(problemId, language, difficulty, null);
+    }
+
+    public SessionState start(String problemId, String language, Difficulty difficulty, ProblemType type) {
+        Problem problem = problems.next(problemId, difficulty, type);
 
         String resolvedLanguage = language == null || language.isBlank() ? "javascript" : language;
 
@@ -53,9 +58,9 @@ public class SessionService {
         live.put(id, state);
 
         repository.save(new Session(id, problem.id(), resolvedLanguage, state.startedAt()));
-        log.info("Session {} started: problem={} ({}, asked for {})",
+        log.info("Session {} started: problem={} ({}, {}, asked for {})",
                 id, problem.id(), problem.difficulty(),
-                difficulty == null ? "any" : difficulty.label());
+                problem.type().label(), difficulty == null ? "any" : difficulty.label());
         return state;
     }
 
