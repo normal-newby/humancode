@@ -264,6 +264,51 @@ The closed turn's `Write(...)` label reflects what was actually touched that tur
 merely viewed: one file names itself, a few name themselves, more than a couple collapses to a count
 (`Write(3 files)`) rather than crowding the log with a file listing.
 
+### 4.3b The preview
+
+Problems are small apps now (CLAUDE.md §6), so the last entry in the navigator row is not a file:
+
+```
+⏺ Write(3 files)
+  index.html   styles.css   app.js    preview
+```
+
+Selecting it puts the candidate's own page where the editor was. **It is a swap, not a split** —
+§2 bans the draggable divider and the docked panel, and a 38vh slot cannot honestly hold both a
+page and an editor anyway. You are looking at your code or you are looking at what it does, which
+is what anyone does on one screen.
+
+**This is not §4.7 leaking.** That rule is about a *verdict* — a pass count, a failure list, a
+green check — and none of those exist here or anywhere. A preview shows what you built, not how
+you scored: it answers "does the button toggle" and says nothing whatsoever about whether the
+interviewer thinks you are doing well. The candidate still finds that out by being told. If a
+future change ever renders an assertion result into this frame, it has stopped being a preview and
+§4.7 applies to it.
+
+**It rebuilds when you switch to it, and there is no refresh button.** The two views share one
+slot, so the buffers cannot change while the page is the thing on screen — there is no such thing
+as a stale preview here, and a debounce watching for one would never fire. What the candidate is
+promised is only that what they switch to is current.
+
+Rules that keep it inside §2:
+
+- **The white rectangle is the page's own**, not a card. No border, no radius, no shadow, no
+  chrome of ours around it — the frame is flush in the slot the editor occupies.
+- `preview` sits in the same row as the filenames, in the same plain lowercase, accent when active
+  and `--color-faint` when not, because it is another way to look at your own output. A wider gap
+  is the only thing marking it as not-a-file. No icon, no play button, no separator glyph.
+- **A problem with no HTML file shows no preview entry**, the same way a single-file problem shows
+  no navigator. There would be nothing behind it.
+
+The frame is `sandbox="allow-scripts"` with **no** `allow-same-origin`. Omitting the second flag is
+the whole protection: the page gets an opaque origin and cannot reach the session, the parent
+document or storage. Adding it back would look like a fix the first time a candidate's
+`localStorage` call throws in there; it is not one.
+
+Only files the HTML actually references are inlined. Delete the `<script src="app.js">` tag and the
+preview stops running the script — because that is what the page now does, and a preview that
+disagrees with the page the rubric is judged against is worse than a blank screen.
+
 ### 4.4 Their caret
 
 Before a prompt lands, a `>` and a blinking `▍` appear at the tail of the log — for `850ms`, at the
@@ -613,6 +658,7 @@ Implemented. Recorded here so the intent survives the next refactor:
 | `Transcript.tsx` | §4.2. Their pinned prompt, then alternating `>` prompts and `⏺` closed turns. Holds `Prompt`, `Turn`, `Block` and `Result` internally. |
 | *new* `LiveTurn.tsx` | §4.3. `⏺ Write(file)` + the editor + the ticking meta line. The only place the editor is mounted. |
 | *new* `TypingIndicator.tsx` | §4.4. Their `>` and a blinking `▍` at the tail of the log. |
+| `PreviewPane.tsx` + `lib/buildPreview.ts` | §4.3b. The candidate's page in a sandboxed frame; the lib assembles the files into one document. |
 | `MetaLine.tsx` | §5. Per-turn deltas, frozen when the turn closes; the `live` variant counts the turn in progress. |
 | `StatusLine.tsx` | §4.5. `✻ word… (clock · totals)`, the meter, `⏎ submit`, `^d end`, and the `esc` tell. |
 | `DifficultyPicker.tsx` | §4.8. Three lowercase words on the start screen, radios under the hood. The only difficulty word in the app. |

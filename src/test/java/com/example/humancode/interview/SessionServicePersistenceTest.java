@@ -20,7 +20,9 @@ class SessionServicePersistenceTest {
 
     @Test
     void startsASessionAgainstTheExistingSchema() {
-        SessionState state = sessions.start(null, "javascript");
+        // Null difficulty is "any", which is right here: this is about the row
+        // reaching the table, not about which problem came back.
+        SessionState state = sessions.start(null, "javascript", null);
         try {
             assertNotNull(repository.findById(state.sessionId()).orElse(null));
         } finally {

@@ -128,23 +128,21 @@ Three notes worth keeping:
   BOM, so do not pin it.
 - SQLite is single-writer. `spring.datasource.hikari.maximum-pool-size=1` is deliberate — raising it
   buys nothing and earns intermittent `SQLITE_BUSY` under the telemetry write path.
-- **Renaming a constant in `EventType` or `Phase` breaks every existing database.** Hibernate writes a
+- **Renaming a constant in `EventType` or `Phase` breaks every existing database**, and
+  `SqliteSchemaMigrator` is why it no longer bites. Hibernate writes a
   `check (type in ('EDIT','PASTE',…))` listing the constants *as they were when the table was first
-  created*; `ddl-auto=update` never rewrites it, and SQLite cannot drop a constraint. So the day `RUN`
-  became `SUBMIT`, every telemetry insert started throwing `SQLITE_CONSTRAINT_CHECK` mid-session while
-  a brand-new database worked perfectly — which is why this is worth knowing before you spend an hour
-  on the mapping. There is no escape at the mapping level: `columnDefinition`, `@JdbcTypeCode` and an
-  `AttributeConverter` were all tried, and Hibernate emits the check from the attribute's Java type
-  regardless. The fix is the database. `./data/humancode.db` is gitignored scratch, so deleting it is
-  fine, or rebuild the table to keep the replay log:
+  created*; `ddl-auto=update` never rewrites it, and SQLite cannot drop a constraint. So the day
+  `RUN` became `SUBMIT`, every telemetry insert threw `SQLITE_CONSTRAINT_CHECK` mid-session while a
+  brand-new database worked perfectly. There is no escape at the mapping level — `columnDefinition`,
+  `@JdbcTypeCode` and an `AttributeConverter` were all tried, and Hibernate emits the check from the
+  attribute's Java type regardless — so the repair has to happen in the database, which is what the
+  migrator does at startup: it rebuilds `telemetry_events` when the stored DDL is missing a value it
+  should have.
 
-  ```sql
-  ALTER TABLE telemetry_events RENAME TO telemetry_events_old;
-  -- recreate it with the current constants in the check, then:
-  INSERT INTO telemetry_events SELECT …, CASE type WHEN 'RUN' THEN 'SUBMIT' ELSE type END FROM telemetry_events_old;
-  DROP TABLE telemetry_events_old;
-  CREATE INDEX idx_event_session ON telemetry_events (session_id, at);
-  ```
+  **The migrator only knows about the rename it was written for.** Its trigger is
+  `sql.contains("'SUBMIT'")` and its rebuild hardcodes today's five constants, so the *next* enum
+  change needs both updated, in `SqliteSchemaMigrator`, or the constraint silently goes stale again.
+  `sessions.phase` has the same frozen check and no migration at all; `Phase` has not changed yet.
 
 ### Frontend wiring
 
@@ -408,6 +406,16 @@ option but a materially bigger one — a new execution surface, new failure mode
 cuts against UI-DESIGN.md's single-column, no-panels rule. Reading the diff was already most of what
 made reactions specific (see above); extending that same mechanism to verification cost nothing new
 to build.
+
+**There is now an iframe, and it is still not a runner.** `web/src/lib/buildPreview.ts` assembles
+the candidate's files into one document and `PreviewPane` renders it, so they can see the app they
+are building instead of writing HTML blind (UI-DESIGN.md §4.3b). Read against the paragraph above,
+two of the three costs were real and one was avoidable: it *is* a new execution surface, and it
+does have its own failure modes — but it is not a panel, because it takes over the editor's slot
+rather than sitting beside it. What it deliberately does **not** do is assert anything. Nothing
+reads the frame, nothing scores it, and no result leaves it; verification is still the interviewer
+reading the diff against the rubric. The moment something starts asserting against that DOM, this
+section is wrong and the runner is back.
 
 **`POST /api/sessions/{id}/submit`** (was `/run`) replaced the old test-result endpoint. It takes no
 body — there is no local result to report — increments `SessionState.submitCount()`, and fires

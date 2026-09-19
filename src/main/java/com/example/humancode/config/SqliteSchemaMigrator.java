@@ -15,7 +15,21 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** Repairs SQLite constraints that Hibernate's update mode cannot alter. */
+/**
+ * Repairs SQLite schema that Hibernate's update mode cannot alter.
+ *
+ * <p>Two kinds of thing land here, both of which look like application bugs
+ * and are not. A {@code check (col in (...))} freezes an enum's constants at
+ * the moment the table was created and neither Hibernate nor SQLite will
+ * rewrite it; and Hibernate's {@code add column} DDL omits a default, so
+ * SQLite refuses any new {@code NOT NULL} column on a table that already has
+ * rows. Both leave a database that is a few commits old throwing at runtime
+ * while a brand-new one works perfectly.
+ *
+ * <p><b>Each repair is written for one specific change and does not
+ * generalise.</b> Renaming another enum constant, or adding another non-null
+ * column, needs a new check and a new step here — see CLAUDE.md §3.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -23,22 +37,62 @@ public class SqliteSchemaMigrator implements ApplicationRunner {
 
     private final DataSource dataSource;
 
+    /** One repair step, so the read-only handling is written once. */
+    private interface Repair {
+        void apply(Connection connection) throws SQLException;
+    }
+
     @Override
     public void run(ApplicationArguments args) throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
-            if (!telemetryNeedsSubmitValue(connection)) {
+            if (telemetryNeedsSubmitValue(connection)) {
+                repair(connection, this::migrateTelemetryEvents, "telemetry_events");
+            }
+            if (sessionsMissingPersona(connection)) {
+                repair(connection, this::addPersonaColumn, "sessions");
+            }
+        }
+    }
+
+    private void repair(Connection connection, Repair step, String table) throws SQLException {
+        try {
+            step.apply(connection);
+        } catch (SQLException e) {
+            if (isReadOnly(e)) {
+                log.warn("Skipping the {} migration because this database is read-only", table);
                 return;
             }
+            throw e;
+        }
+    }
 
-            try {
-                migrateTelemetryEvents(connection);
-            } catch (SQLException e) {
-                if (isReadOnly(e)) {
-                    log.warn("Skipping telemetry schema migration because this database is read-only");
-                    return;
-                }
-                throw e;
-            }
+    /**
+     * Adds the column Hibernate cannot.
+     *
+     * <p>{@code Session.persona} exists only to keep databases that predate
+     * the persona removal working, where the column is still {@code NOT NULL}.
+     * A database created in between — after personas went, before the field
+     * came back — has no column at all, and Hibernate's
+     * {@code alter table sessions add column persona varchar(255) not null}
+     * is rejected outright, because SQLite will not add a non-null column
+     * without a default. Every read of a session then fails on
+     * {@code no such column: persona}. Supplying the default is the whole fix.
+     */
+    private void addPersonaColumn(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "ALTER TABLE sessions ADD COLUMN persona varchar(255) NOT NULL DEFAULT 'senior-engineer'");
+        }
+        log.info("Added the legacy sessions.persona column, defaulted for existing rows");
+    }
+
+    /** False when there is no sessions table yet — Hibernate will create it correctly. */
+    private boolean sessionsMissingPersona(Connection connection) throws SQLException {
+        try (PreparedStatement query = connection.prepareStatement("""
+                SELECT sql FROM sqlite_master
+                WHERE type = 'table' AND name = 'sessions'
+                """); ResultSet result = query.executeQuery()) {
+            return result.next() && !result.getString(1).contains("persona");
         }
     }
 
