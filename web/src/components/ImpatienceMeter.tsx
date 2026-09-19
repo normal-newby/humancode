@@ -2,8 +2,9 @@ const GRADIENT =
   'linear-gradient(90deg, var(--color-calm) 0%, var(--color-warm) 55%, var(--color-hot) 100%)'
 
 /**
- * Green is calm, red is furious (UI-DESIGN.md §6). Lives inline in the status
- * line, which is where a terminal puts a percentage with a bar.
+ * Green is calm, red is furious (UI-DESIGN.md §6). It is the patience of the
+ * human on the other side, which is why it says so — an unlabelled meter in
+ * this layout reads as something about the model, and it is the opposite.
  *
  * <p>The gradient sits on the full-width track and a surface-coloured cover
  * eats the unfilled portion from the right. Putting the gradient on a growing
@@ -19,7 +20,7 @@ export function ImpatienceMeter({ impatience }: { impatience: number }) {
 
   return (
     <span className="flex items-center gap-2">
-      <span className="lowercase">impatience</span>
+      <span className="lowercase">human impatience</span>
       <span
         className={`tabular-nums ${furious ? 'animate-meter-pulse text-hot' : 'text-sub'}`}
       >
@@ -32,7 +33,7 @@ export function ImpatienceMeter({ impatience }: { impatience: number }) {
         aria-valuenow={clamped}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label="interviewer impatience"
+        aria-label="human impatience"
       >
         {/* Masks the unreached portion of the gradient. */}
         <span

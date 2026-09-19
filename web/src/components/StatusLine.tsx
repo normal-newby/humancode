@@ -7,19 +7,20 @@ interface Props {
   elapsedSeconds: number
   totals: { written: number; deleted: number; pastes: number }
   impatience: number
-  /** Drives the word: typing, sitting there, or waiting on a run. */
+  /** Drives the word: typing, sitting there, or waiting on a submit. */
   activity: Activity
   running: boolean
-  /** Escape has been pressed once and is waiting for the confirming second. */
+  /** `^d` has been pressed once and is waiting for the confirming second. */
   armed: boolean
-  onRun: () => void
+  /** They pressed `esc`. It is not their key to press. */
+  escFlash: boolean
+  onSubmit: () => void
   onEnd: () => void
 }
 
 /**
- * Everything that used to be a rail, on one line under the composer
- * (UI-DESIGN.md §4.5). Session totals use the same glyphs as the meta lines so
- * the eye connects them; the per-turn numbers up there are deltas of these.
+ * The footer (UI-DESIGN.md §4.5), in the shape a coding agent puts it: a
+ * spinner, what you are doing, and what it has cost so far in one parenthesis.
  *
  * <p>The clock is local, driven by a 1s interval in `App` — telemetry only
  * flushes when there are events, so a server-derived clock stalls the moment
@@ -32,50 +33,46 @@ export function StatusLine({
   activity,
   running,
   armed,
-  onRun,
+  escFlash,
+  onSubmit,
   onEnd,
 }: Props) {
   const word = useActivity(activity, impatience)
 
   return (
-    <div className="mx-auto flex w-full max-w-[84ch] flex-wrap items-center gap-x-7 gap-y-2 px-6 pt-4 pb-5 text-[13px] text-sub">
-      {/* Not dimmable: this is the interviewer's read on you, and §7 says the
-          interviewer never recedes — least of all while you are typing, which
-          is the state it is reporting. */}
+    <div className="mx-auto flex w-full max-w-[84ch] flex-wrap items-center gap-x-7 gap-y-2 px-6 pt-3 pb-5 text-[13px] text-sub">
+      {/* Not dimmable: this is the read on you, and §7 says that never recedes
+          — least of all while you are typing, which is the state it reports. */}
       <span className="flex items-center gap-2">
         <Spinner />
         <span className="lowercase">{word}…</span>
-      </span>
-
-      <span className="dimmable flex flex-wrap items-center gap-x-7 gap-y-2">
-        <span className="tabular-nums">
-          <span className="sr-only">elapsed </span>
-          {clock(elapsedSeconds)}
-        </span>
-
-        <span className="tabular-nums">
+        <span className="tabular-nums text-faint">
           <span className="sr-only">
-            {totals.written} characters written, {totals.deleted} deleted, {totals.pastes} pastes
+            {clock(elapsedSeconds)} elapsed, {totals.written} characters written,{' '}
+            {totals.deleted} deleted, {totals.pastes} pastes
           </span>
           <span aria-hidden>
-            ↑{compact(totals.written)} ↓{compact(totals.deleted)} ⧉{totals.pastes}
+            ({clock(elapsedSeconds)} · ↑{compact(totals.written)} ↓{compact(totals.deleted)} ⧉
+            {totals.pastes})
           </span>
         </span>
+      </span>
 
+      <span className="dimmable">
         <ImpatienceMeter impatience={impatience} />
       </span>
 
       <span className="dimmable ml-auto flex items-center gap-5">
         <button
           type="button"
-          onClick={onRun}
+          onClick={onSubmit}
           disabled={running}
           className="lowercase transition-colors hover:text-ink disabled:opacity-40"
         >
           <span aria-hidden className="mr-1.5 text-faint">
             ⏎
           </span>
-          {running ? 'running…' : 'run'}
+          {running ? 'submitting…' : 'submit'}
         </button>
         <button
           type="button"
@@ -83,10 +80,15 @@ export function StatusLine({
           className={`lowercase transition-colors hover:text-ink ${armed ? 'text-hot' : ''}`}
         >
           <span aria-hidden className="mr-1.5 text-faint">
-            esc
+            ^d
           </span>
           {armed ? 'again to end' : 'end'}
         </button>
+        {/* The tell. In a terminal this hint belongs to whoever is waiting on
+            the model, and here that is not you. */}
+        <span className={`lowercase ${escFlash ? 'text-hot' : 'text-faint'}`}>
+          {escFlash ? 'esc is theirs' : 'esc to interrupt'}
+        </span>
       </span>
     </div>
   )

@@ -1,13 +1,18 @@
 # HumanCode — UI Design
 
-The interface has one job: make it feel like **the machine is running the interview and you are the
-one being evaluated.** Every layout decision below follows from that inversion.
+The interface has one job: make it feel like **you are the model and there is a human on the other
+side of the glass, prompting you and losing patience.** Every decision below follows from that.
 
-Reference point is **Claude Code**, not an IDE and not a practice site. A coding agent's terminal
-works because it is one column of transcript: the machine speaks, stamps what it just did in a dim
-line underneath, and waits at a prompt box at the bottom. You are always reading upward at something
-that has already formed an opinion. That grammar is free comedy for this product — we are reusing the
-*shape* of an agent's log, with the roles swapped.
+Reference point is **Claude Code**, not an IDE and not a practice site — with the roles swapped. In a
+coding agent's terminal the human types `>` and the machine answers under a `⏺`, stamping what the
+answer cost underneath. Here the human on the other side sends the `>` prompts, and the `⏺` blocks
+are yours: your code is the output being generated, your keystrokes are the tokens, and the footer
+counts them while someone waits.
+
+That swap is the whole product. It makes three things literal that were only jokes before: the meta
+line is a usage stamp on your own output, the footer spinner narrates the thing generating text
+(which is you), and a heckle arriving mid-keystroke is an **interrupt** — the most recognisable
+artifact in the reference, and the best beat in the app.
 
 We borrow the grammar, never the branding. No vendor logo, no vendor wordmark, no vendor model names
 in the chrome. The accent below is ours.
@@ -20,45 +25,47 @@ In a normal coding site, the problem is a panel and you are a panel — two peer
 framing is wrong here. So:
 
 - **One centred column.** No rails, no split panes, no dividers, nothing docked to an edge.
-- **The interviewer's turns are the transcript**, marked with `⏺`, scrolling upward as the session
-  goes on. You read them the way you read an agent's output: top-down, after the fact.
-- **Every turn carries a dim meta line underneath it** — elapsed time first, then what you typed in
-  that beat, formatted exactly like a token-usage readout. This is the spine of the design; §5 is the
-  whole spec.
-- **Your code is the composer**, a bordered prompt box pinned to the bottom of the column, where the
-  input box sits in a terminal agent.
-- **One status line under the composer** carries everything else: what you are doing right now, the
-  clock, session totals, impatience, key hints.
+- **`>` lines are theirs.** The problem, every heckle. The first one is pinned at the top, because it
+  is what you are still being asked.
+- **`⏺` blocks are yours.** Your turn in progress *is* the editor; closed turns collapse to the tool
+  call they amounted to — `Write(twoSum.js)` — plus what it cost.
+- **Every closed turn carries a dim meta line** — elapsed time first, then characters written and
+  deleted, formatted exactly like a token-usage readout. §5 is the whole spec.
+- **Their caret blinks before they speak** (§4.4), at the point in the log where the prompt will land.
+- **One footer** carries the rest: what you are doing, the session total, their patience, key hints.
 
 ```
-      ⏺ two sum. given an array of integers and a target, return
-        the indices of the two numbers that add to it. in any order.
-        ⎿  04:12 · ↑ 1.2k · ↓ 431 · ⧉ 2                     ← live, pinned
-      ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
-      ⏺ nested loop. bold choice for an array this size.
-        ⎿  01:38 · ↑ 214 · ↓ 12
-
-      ⏺ still with me? that cursor hasn't moved in a wh▍   ← revealing, §4.6
-
-      ✻ taking notes… (3)
-                                                            ← transcript scrolls
-   ╭──────────────────────────────────────────────────────╮
-   │ > function twoSum(nums, target) {                    │
-   │     const seen = new Map();                          │
-   │     for (let i = 0; i < nums.length; i++) {          │
-   │   }                                                  │
-   ╰──────────────────────────────────────────────────────╯
-     ✻ contemplating…   04:12   ↑1.2k ↓431 ⧉2   impatience 34% ▓▓▓░░░   ⏎ run   esc end
+   > two sum. given an array of integers and a target, return
+     the indices of the two numbers that add to it. in any order.
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+   ⏺ Write(twoSum.js)
+     ⎿  01:38 · ↑ 214 · ↓ 12
+   > nested loop. bold choice for an array this size.
+   ⏺ Write(twoSum.js)
+     ⎿  00:47 · ↑ 96 · ↓ 140
+     ⎿  Interrupted by user
+   > still with me? that cursor hasn't moved in a wh▍     ← revealing, §4.6
+     ⎿  staring at line 12 for 94 seconds                 ← their note
+   ⏺ (no output)
+     ⎿  03:55 · ↑ 0 · ↓ 0 · idle 47s
+   > ▍                                                    ← composing, §4.4
+                                                            ← log scrolls
+   ⏺ Write(twoSum.js)                                     ← your live turn
+     12  function twoSum(nums, target) {
+     13    const seen = new Map();
+     14    for (let i = 0; i < nums.length; i++) {
+     ⎿  00:12 · ↑ 84 · ↓ 3                                ← live, this turn
+   ✻ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ⏎ submit  ^d end  esc to interrupt
 ```
 
-Column is `max-width: 84ch`, centred, with the composer and status line pinned to the bottom of the
-viewport and the transcript scrolling behind them. The transcript's left text edge and the composer's
-left text edge sit on the same optical line — that single alignment is most of why the screen reads as
-one surface rather than three stacked widgets.
+Column is `max-width: 84ch`, centred. The live turn and the footer are pinned to the bottom of the
+viewport and the log scrolls behind them — a terminal keeps the output still being written at the
+bottom, and everything finished above it. Markers sit in a `1.25rem` left column so `>` and `⏺` line
+up all the way down; that single alignment is most of why the screen reads as one surface.
 
-**The transcript keeps its scrollback.** This reverses an earlier rule ("one utterance at a time, no
-history"). A meta line is a log stamp; it only means anything if the thing it stamps stays on screen.
-Earlier turns drop to `--color-faint` so the newest line is still unmistakably the live one.
+**The log keeps its scrollback.** A meta line is a stamp on a turn, and it only means anything if the
+turn it stamps stays on screen. Closed turns and answered prompts drop to `--color-faint` so their
+newest prompt is unmistakably the live one.
 
 ---
 
@@ -69,18 +76,19 @@ Call these out in review. Any one of them collapses the whole concept back into 
 | Do not | Instead |
 |---|---|
 | Split pane with a draggable divider | One column, no resize handles, nothing docked to an edge |
-| Bordered cards with rounded corners around every panel | Exactly **one** border in the app: the composer box. Everything else is separated by whitespace and contrast |
+| Bordered cards with rounded corners around every panel | **No borders anywhere.** Zones are separated by whitespace and contrast alone |
 | Green/yellow/red difficulty pills | Lowercase plain text: `easy`, `medium`, `hard`, in `--color-sub` |
 | Tabs: Description / Solutions / Submissions | There is one view. There are no tabs anywhere |
 | A console drawer that slides up from the bottom | There is no test output on screen at all. The interviewer tells you — §4.7 |
 | A pass count, a failure list, a green check anywhere in the session | The run result is a signal for the model, never a readout for the candidate |
-| Dense icon toolbars | Key hints in the status line — `⏎ run`, `esc end`. No filled buttons, no icons |
-| A big green "Accepted" banner | The interviewer says something begrudging. That is the reward |
-| Chat bubbles, avatars, speech tails, alternating alignment | Flush-left transcript lines with a `⏺` marker. Nobody's terminal has bubbles |
+| Dense icon toolbars | Key hints in the footer — `⏎ submit`, `^d end`. No filled buttons, no icons |
+| A big green "Accepted" banner | They say something begrudging in their next prompt. That is the reward |
+| Chat bubbles, avatars, speech tails, alternating alignment | Flush-left log lines under a `>` or `⏺` marker. Nobody's terminal has bubbles |
+| An input box around the editor | The editor is a `⏺` block, not a composer. A box makes you the user again and undoes the premise |
 | Emoji anywhere in the chrome | The glyph set in §4.1 and nothing else |
 
-The general rule: **if it looks like a tool, it is wrong. It should look like a session log of someone
-being judged.**
+The general rule: **if it looks like a tool, it is wrong. It should look like an agent session someone
+else is running, and you are the agent.**
 
 ---
 
@@ -96,14 +104,14 @@ Live in `web/src/index.css`.
 @theme {
   /* surfaces */
   --color-canvas:  #1c1b19;  /* page — warm near-black, terminal-dark */
-  --color-surface: #24231f;  /* composer fill, meter track mask */
+  --color-surface: #24231f;  /* meter track mask, scrollbars */
 
   /* text */
   --color-ink:     #e6e2d8;  /* live turn, code */
   --color-sub:     #8a857a;  /* meta lines, status line, notes */
   --color-faint:   #4b4841;  /* past turns, glyphs, the one border */
 
-  /* accent — caret, composer focus border, the ⏺ on the live turn */
+  /* accent — every caret, their newest `>`, your live `⏺` */
   --color-accent:  #d98b63;
 
   /* meter semantics: calm is good, hot is bad */
@@ -133,8 +141,9 @@ Type scale — small and tight. A terminal has essentially one size; the thing t
 | Status line | 13px, tabular numerals | 400 | `--color-sub` |
 | Notes | 12px / 1.6 | 400 | `--color-sub` |
 
-Lowercase everything, including the interviewer's own lines. `two sum`, `easy`, `run`, `end`,
-`idle 47s`. Never Title Case, never ALL CAPS. A terminal does not shout.
+Lowercase everything, including their prompts. `submit`, `end`, `idle 47s`. Never Title Case, never
+ALL CAPS. A terminal does not shout. The two exceptions are the log's own vocabulary, which is quoted
+from the reference and must stay recognisable: `Write(twoSum.js)` and `Interrupted by user`.
 
 ---
 
@@ -146,175 +155,191 @@ The whole vocabulary. Adding to this list is a design change, not an implementat
 
 | Glyph | Code point | Means |
 |---|---|---|
-| `⏺` | U+23FA | an interviewer turn begins |
-| `⎿` | U+23BF | the meta line, or a detail attached to the turn above |
-| `✻` | U+273B | the interviewer is thinking / taking notes |
-| `>` | U+003E | the composer prompt |
+| `>` | U+003E | **their** prompt |
+| `⏺` | U+23FA | **your** turn — the live one, or a closed one |
+| `⎿` | U+23BF | a receipt or an aside, attached to the block above |
+| `✻` | U+273B | the footer spinner: you, generating |
 | `↑` `↓` | U+2191 / U+2193 | characters written / deleted |
 | `⧉` | U+29C9 | a paste |
-| `▍` | U+258D | the interviewer is mid-sentence (§4.6) |
+| `▍` | U+258D | someone is mid-sentence (§4.4, §4.6) |
 
 All glyphs are `--color-faint` and `aria-hidden` — they are texture, never the only carrier of
-meaning (§10). Two exceptions, both `--color-accent`: the `⏺` on the newest turn, and the `▍` caret
-while it is still speaking. With the editor's caret and the composer's focus border, those are the
-only accented things on screen.
+meaning (§10). Three exceptions, all `--color-accent`: the `⏺` on your live turn, the `>` on their
+newest prompt, and every `▍` caret. With Monaco's own caret those are the only accented things on
+screen — which means the accent always marks *whoever is currently producing text*.
 
-### 4.2 Transcript
+### 4.2 The log
 
-Flush-left, `max-width: 84ch`, `1.25rem` between turns. A turn is the `⏺` marker, the line itself
-hanging-indented to clear the marker, then its meta line indented to match.
+Flush-left, `max-width: 84ch`, `1.25rem` between blocks. Every block is a marker in a `1.25rem` left
+column and its content hanging beside it, so `>` and `⏺` align all the way down.
 
-The **problem statement is the first turn and it is sticky** to the top of the scroll container, at
-`--color-ink` even after other turns have dimmed. It is the thing it asked you and it does not go
-away. A `┄` hairline in `--color-faint` sits under it so it reads as pinned rather than as the newest
-line.
+**Their standing prompt is pinned** to the top of the scroll container, at `--color-ink` even after
+everything else has dimmed. It is what you are still being asked and it does not go away. A `┄`
+hairline in `--color-faint` sits under it so it reads as pinned rather than as the newest line.
 
-Everything below it scrolls, auto-stuck to the bottom unless the candidate has scrolled up. Turns
-older than the newest are `--color-faint`. Nothing is ever removed — the log is the point — but cap
-the DOM at the last 50 turns; the report card owns the full history.
+Below it the log alternates, the way an agent transcript does:
 
-A muted `canned` marker (9px, `--color-faint`) sits at the right end of the meta line when the line
-came from the fallback rather than the model. Useful in dev, invisible enough for a demo.
+| Block | Renders as |
+|---|---|
+| their prompt | `>` + the line, typed out (§4.6), with their notes as `⎿` asides under it |
+| your closed turn | `⏺ Write(twoSum.js)` + the meta line, plus `⎿ Interrupted by user` when they cut in |
+| your closed turn, nothing typed | `⏺ (no output)` + the meta line carrying `idle 47s` |
 
-Nothing else is rendered in this column. In particular, no test verdict ever lands here — see §4.7.
+`(no output)` is not a joke at the candidate's expense — it is what the log genuinely has to say about
+a turn in which nothing was generated, and it is the sentence a model's transcript would carry. It
+lands harder than any insult the interviewer could write.
 
-### 4.3 Notes — the thinking block
+Everything scrolls, auto-stuck to the bottom unless the candidate has scrolled up. Blocks older than
+their newest prompt are `--color-faint`. Nothing is ever removed — the log is the point — but cap the
+DOM at the last 50 blocks; the report card owns the full history.
 
-The `private notes (do not read)` sidebar is gone; the joke moves into the terminal idiom, where it is
-better. At the foot of the log, under the newest turn, a `✻` line sits in `--color-sub`:
+A muted `canned` marker (9px, `--color-faint`) sits under a prompt that came from the fallback rather
+than the model. Useful in dev, invisible enough for a demo.
 
-```
-✻ taking notes… (3)
-```
+No test verdict ever lands here — see §4.7.
 
-Click it — or press `ctrl+o` — and it expands in place, each note on its own `⎿` line, 12px
-`--color-sub`, lowercase, no terminal punctuation. They should read like something scribbled, not
-composed:
+### 4.3 Your turn, live
 
-```
-✻ taking notes… (3)
-  ⎿  reached for a hashmap. some hope
-  ⎿  staring at line 12 for 94 seconds
-  ⎿  pasted 400 chars in one go
-```
+**Turns are the spine of the log, and `submit` is what closes one.** That single rule is what makes
+the swap real rather than cosmetic: you generate, you hand back, they respond, they prompt again —
+the interview loop and the agent loop are the same loop.
 
-Collapsed by default, and it stays collapsed — the candidate choosing to peek and finding out what it
-thinks of them is the beat. The count animates when it increments; the block never opens itself.
+A turn closes when:
 
-While something is in flight the same line reads `✻ running tests…`, using the shared `Spinner`
-(§4.1). Latency the user can see is latency the user forgives.
+| Event | Closes with |
+|---|---|
+| `⏎ submit` | a plain stamp — you handed it over |
+| their prompt, while you were typing | `⎿ Interrupted by user` |
+| their prompt, while you were idle | a stamp carrying `idle 47s` |
 
-It currently covers the local test run only. Showing it for a model call needs a signal the server
-does not send yet — the SSE channel carries the finished utterance, nothing before it. A
-`thinking`/`spoke` pair of events on the stream would be enough, and the component already takes the
-label as a prop.
+Every prompt closes a turn, because a user message ends an assistant's turn — but only the ones that
+land mid-keystroke are *interrupts*. You cannot interrupt someone who was not talking, and pretending
+otherwise would spend the best artifact in the app on nothing.
 
-### 4.4 Composer — the editor
+The turn in progress is the editor: Monaco, headed by `⏺ Write(twoSum.js)`, stamped underneath with a
+live meta line counting **this turn only**. It is pinned to the bottom of the viewport because that is
+where a terminal keeps the output still being written.
 
-Monaco, dressed as a terminal input box. Pinned to the bottom of the column, `min-height: 40vh`,
-growing to `60vh` as the code does.
-
-- **A 1px `--color-faint` border, `6px` radius** — the one border in the app (§2). On focus it goes
-  `--color-accent`. This is what makes the code read as *your prompt*, the thing the machine is
-  waiting on.
-- Fill is `--color-surface`, one step off the canvas. Monaco's background and gutter must match it
-  exactly so the editor reads as the box rather than as an embedded widget.
-- A `>` in `--color-faint` beside line 1, in the box's left padding. Beside, not instead of: swapping
-  it in for the line number would read better and cost the notes their "staring at line 12" joke.
+- **No border and no fill.** Monaco's background and gutter match `--color-canvas` exactly. A box
+  would make it an input again and hand the model role back to the interviewer.
 - Stripped: no minimap, no folding, no glyph margin, no overview ruler,
   `renderLineHighlight: 'none'`.
 - **Line numbers stay on**, in `--color-faint`. They are the one piece of IDE furniture that earns its
-  place: the notes refer to them ("staring at line 12"), and that joke needs the reader to be able to
-  look.
-- Caret is `--color-accent` and does not blink while typing.
+  place: their notes refer to them ("staring at line 12"), and that joke needs the reader to be able
+  to look.
+- Caret is `--color-accent` and does not blink while typing. Theirs blinks; yours does not.
+- `ctrl+enter` submits.
 
-### 4.5 Status line
+### 4.4 Their caret
 
-One line under the composer, 13px `--color-sub`, never wraps above `900px`, with the key hints
-right-aligned. It is the heaviest of the small type in the app on purpose: it is the only thing
-below the composer, and at 11px it read as a footer rather than as instrumentation.
+Before a prompt lands, a `>` and a blinking `▍` appear at the tail of the log — for `850ms`, at the
+exact point where the prompt will appear.
+
+The SSE channel delivers a finished utterance, so this delay is manufactured: the line is held back
+and the caret shown in its place. That is deliberate. Watching someone compose a message at you is
+worse than reading it, and it is the only moment in the session where you know something is coming
+and can do nothing about it. It is the same instinct as the "weaponized silence" note in CLAUDE.md,
+paid for in 850ms.
+
+Their caret blinks at `1.1s`, `steps(1, end)` — a hard terminal blink, not a fade. Yours never blinks.
+The asymmetry is the tell.
+
+### 4.5 The footer
+
+One line under your live turn, 13px `--color-sub`, wrapping only below `900px`, key hints
+right-aligned. It is the heaviest of the small type in the app on purpose: it is the last thing on
+screen, and at 11px it read as a footer rather than as instrumentation.
+
+It takes the shape a coding agent's footer takes — spinner, what is happening, and the cost so far in
+one parenthesis:
 
 ```
-✻ contemplating…   04:12   ↑1.2k ↓431 ⧉2   impatience 34% ▓▓▓░░░   ⏎ run   esc end
+✻ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ⏎ submit  ^d end  esc to interrupt
 ```
 
 | Segment | Content |
 |---|---|
-| activity | the cycling `✻` and one lowercase word for what *you* are doing, `…` after it |
-| clock | `mm:ss`, counting up, tabular |
-| totals | session totals — same glyphs as the meta lines, so the eye connects them |
-| impatience | §6 |
-| hints | `⏎ run`, `esc end`. Keys in `--color-faint`, words in `--color-sub` |
+| activity | the cycling `✻`, one lowercase word for what you are doing, then `(clock · totals)` |
+| impatience | §6 — **theirs**, and labelled as such |
+| hints | `⏎ submit`, `^d end`, and the tell |
 
-**The problem's title and difficulty are not here, and are nowhere.** The statement said what the
-problem is; repeating `two sum · easy` under the composer for the whole session is a label on a
-product, and it was the one dead pixel in the bar. What replaces it moves.
+**The problem's title and difficulty are not here, and are nowhere.** Their prompt said what the
+problem is; repeating `two sum · easy` for the whole session is a label on a product. What replaces
+it moves.
 
-**The activity word.** A cycling `✻` and one lowercase gerund for what the candidate is doing, `…`
-after it. It is the inversion in a single word: a coding agent's spinner narrates what *it* is doing
-while you wait, and this one narrates what *you* are doing, because in this room you are the one being
-waited on.
+**The activity word** narrates *you*, which after the swap is simply correct: the spinner in a
+terminal agent describes the thing generating output, and that is now the candidate.
 
 | State | Pool |
 |---|---|
 | typing | `writing`, `typing`, `scribbling`, `composing`, `hacking`, `cranking` |
 | idle | `thinking`, `contemplating`, `pondering`, `deliberating`, `ruminating`, `mulling` |
 | idle, impatience ≥ 60 | `stalling`, `hesitating`, `stewing`, `wavering`, `reconsidering` |
-| running | `running`, `checking`, `judging` |
+| submitting | `submitting`, `handing over`, `waiting` |
 
 It re-picks the instant the state changes and then every 3.5s while the state holds, never twice in a
 row on the same word. The second idle pool is the meter leaking into the language: past 60 it stops
-being generous about the pause, and it says so without the interviewer having to spend a turn on it.
+being generous about the pause, and it says so without them having to spend a prompt on it.
 
-Adding words is free and welcome; adding a *state* is not — each one needs a signal that is actually
+Adding words is free and welcome; adding a *state* is not — each one needs a signal actually
 distinguishable from the other three, or the word stops meaning anything.
 
 The clock is driven by a local 1s interval, **not** by telemetry: telemetry only flushes when there
 are events, so a server-derived clock stalls the moment you stop typing — exactly when the clock
-matters most.
+matters most. The parenthesised numbers are **session totals**; everything in the log is a per-turn
+delta of them.
 
-`⏎` is `ctrl+enter` in the editor (plain enter is a newline, obviously) and both hints are also real
-click targets, because a judge at a demo table will reach for the mouse.
+**`⏎ submit`**, not "run". Pressing it hands the turn back (§4.3); that it also runs the tests is an
+implementation detail the candidate never sees (§4.7). `ctrl+enter` in the editor, and a real click
+target too, because a judge at a demo table will reach for the mouse.
 
-**`esc` ends the session on the second press, not the first.** The hint flips to `esc again to end`
-in `--color-hot` for three seconds, then disarms. A candidate lives inside the editor and will hit
-Escape by reflex; one stray keystroke must not throw away an interview. It is also the idiom the
-reference uses for exactly this reason.
+**`^d` ends the session, on the second press.** The hint flips to `^d again to end` in `--color-hot`
+for three seconds, then disarms. `^c` would be the more idiomatic terminal exit, but it is copy, and a
+candidate copying a line must not end their interview. `^d` is EOF, which is the right verb anyway.
 
-Worked examples (`in [2,7,11,15], 9` / `out [0,1]`) are **not** here, and they are not under the
-problem statement either — they are not anywhere. See §4.7.
+**`esc to interrupt` is the tell, and it is not yours.** In a terminal that hint belongs to whoever is
+waiting on the model. Here that is the human on the other side, so the hint sits in `--color-faint`
+and does nothing when you press it — except flash `esc is theirs` for two seconds, which is the
+cheapest way to teach the premise. Do not wire esc to anything; the moment a candidate discovers the
+key does not belong to them is the moment the whole layout clicks.
 
-### 4.6 The interviewer types
+Worked examples (`in [2,7,11,15], 9` / `out [0,1]`) are **not** here, and they are not under their
+prompt either — they are not anywhere. See §4.7.
 
-**Every line the interviewer speaks is revealed a character at a time**, including the problem
-statement on arrival. Nothing it says ever appears all at once.
+### 4.6 They type
 
-This is not ornament. A line that pops into existence is a notification; a line that types is someone
-in the room composing a thought at you, and you sit there reading at their pace, unable to skip ahead.
-It also covers the model's latency with something that looks intentional.
+**Every prompt they send is revealed a character at a time**, including the first one. Nothing they
+say ever appears all at once.
+
+This is not ornament. A line that pops into existence is a notification; a line that types is a person
+composing a thought at you, and you read it at their pace, unable to skip ahead. It also covers the
+model's latency with something that looks intentional. Together with §4.4's caret, a heckle takes
+850ms of dread plus ~2.8s of delivery — call it four seconds where all you can do is watch someone
+type at you.
 
 - A `▍` block caret in `--color-accent` trails the text and disappears on the last character.
 - Long lines reveal **several characters per tick rather than typing slower** — the reveal is paced to
   finish in ~2.8s whether it is a three-sentence problem statement or a six-word insult. A statement
   that takes twelve seconds to deliver is not a joke, it is a loading screen.
-- **The meta line waits for the line to finish.** Under the pinned statement, so do the examples and
-  the clock. §8's 300ms delay applies from that point, not from arrival: the receipt lands after the
-  sentence, never during it.
-- The transcript keeps following the growing line, but only if the candidate was already at the
-  bottom. Scrolling up to re-read an earlier turn must not get yanked back.
-- Under `prefers-reduced-motion` every line is simply there, meta line and all.
+- **Their notes wait for the prompt to finish.** §8's 300ms delay applies from that point, not from
+  arrival: the aside lands after the sentence, never during it.
+- The log keeps following the growing line, but only if the candidate was already at the bottom.
+  Scrolling up to re-read must not get yanked back.
+- Under `prefers-reduced-motion` every line is simply there.
 
-Only turns that arrive while you are watching type. A turn that was already on screen re-renders
-whole — nothing re-types on a React re-render, which would be a nasty flicker every keystroke.
+Only prompts that arrive while you are watching type. One already on screen re-renders whole —
+nothing re-types on a React re-render, which would be a nasty flicker every keystroke.
+
+Your own turns do not type. You are typing them.
 
 ### 4.7 Test results are never shown
 
-The candidate presses `run`. They get a spinner, and then the interviewer says something. **They never
-see a pass count, a failure list, a green check or a red cross.**
+The candidate presses `submit`. Their turn closes, and some seconds later the human answers. **They
+never see a pass count, a failure list, a green check or a red cross.**
 
 Nor do they see **worked examples**. An `in [2,7,11,15], 9` / `out [0,1]` pair is a test case with
 better manners: it hands over a case the candidate can eyeball their way to, and it turns the opening
-turn into a spec sheet instead of a question someone just asked you. The statement carries the problem
+turn into a spec sheet instead of a question someone just asked you. Their prompt carries the problem
 in prose, the way it would be said out loud, and that is all.
 
 `Problem.examples` still ships in the session payload and nothing reads it now — the UI dropped it and
@@ -328,11 +353,11 @@ whether you passed by reading the interviewer's face is the entire product. The 
 on screen, the candidate reads the number, ignores the sentence, and you have built LeetCode with a
 mascot.
 
-What the candidate *does* get is the spinner while the run is in flight (`✻ running tests…`) and the
-`run` hint reading `running…`. That is feedback that the button worked, not a verdict.
+What the candidate *does* get is the footer word turning to `submitting…` and the hint reading
+`submitting…`. That is feedback that the button worked, not a verdict.
 
-This is also why the run affordance stays cheap to press: pressing it is asking the interviewer how
-you are doing, and being told in words.
+This is also why submitting stays cheap to press: it is asking how you are doing, and being answered
+in words.
 
 ---
 
@@ -341,7 +366,8 @@ you are doing, and being told in words.
 The centrepiece, and the thing most likely to get watered down by someone who reads it as decoration.
 It is the product's thesis in one row: **while you were quiet, it was counting.**
 
-Format, indented to align under the turn's first character:
+It hangs under a closed turn — under **your** output, which is what makes it a usage stamp rather
+than a timestamp. Indented to align with the block's first character:
 
 ```
 ⎿  04:12 · ↑ 412 · ↓ 180 · ⧉ 1 · idle 22s
@@ -349,42 +375,43 @@ Format, indented to align under the turn's first character:
 
 Rules:
 
-1. **Time first, always.** Elapsed session time at the moment that line was spoken — `mm:ss`, tabular.
-   It is the one segment that is never omitted, because "how long have I been at this" is the pressure
-   the whole product runs on.
+1. **Time first, always.** How long the turn took — `mm:ss`, tabular. It is the one segment never
+   omitted, because "how long have I been at this" is the pressure the whole product runs on.
 2. **`↑` written, `↓` deleted** — characters, not tokens, but formatted like a token readout:
    thousands as `1.2k`, one decimal, no unit word. The resemblance is the joke and it is also honest;
    these are the units that actually matter to a person typing.
 3. **`⧉` pastes**, count only.
-4. **`idle Ns`** appears only when the trigger that fired was an idle trigger. It is the receipt for
-   the line above it.
+4. **`idle Ns`** appears only when the prompt that closed the turn was an idle trigger. It is the
+   receipt for a turn in which you produced nothing.
 5. **Segments with a zero value are omitted** — except on an idle turn, where `↑ 0 · ↓ 0` is the point.
 6. Separator is ` · ` in `--color-faint`. Numbers are `--color-sub`, tabular, never bold.
 
-**The numbers are per-turn deltas — what you did since the previous turn — not running totals.** This
-is the direct analogue of a per-message token count: the line tells you what that beat cost you.
-Session totals live in the status line (§4.5), the way a context readout does. Getting this backwards
-makes every meta line a near-duplicate of the one above it and the row stops carrying information.
+**The numbers are per-turn deltas — what that turn cost — not running totals.** This is the direct
+analogue of a per-message token count. Session totals live in the footer (§4.5), the way a context
+readout does. Getting this backwards makes every meta line a near-duplicate of the one above it and
+the row stops carrying information.
 
-**One exception: the pinned problem statement's meta line is live.** It ticks every second and its
-counters are session totals, because that turn *is* the session. Every other meta line freezes the
-instant its turn is spoken and never changes again. That contrast — one clock running, all the others
-stopped — is what makes the transcript read as a log instead of a dashboard.
+**One exception: the live turn's meta line ticks.** Under the editor it counts the turn in progress,
+second by second, and freezes into the log the moment the turn closes. That contrast — one clock
+running, all the others stopped — is what makes the log read as a transcript instead of a dashboard.
 
-Sourcing: all four values already exist client-side in the telemetry being batched (`written`,
-`deleted`, `pastes`) and in the trigger digest the server attaches to an utterance. The client
-computes the delta at render time from counters it already holds; **do not add a round-trip for
-this.**
+Sourcing: all four values are accumulated client-side from the telemetry already being batched
+(`written`, `deleted`, `pastes`). **Do not add a round-trip for this.**
 
 ---
 
-## 6. Impatience meter
+## 6. Human impatience meter
 
 The one piece of colour semantics in the app, so it must be unambiguous: **green is calm, red is
-furious.** It lives inline in the status line now, not in a rail — `impatience 34%` followed by a
-short bar, because a terminal status line is exactly where a percentage-with-a-bar belongs.
+furious.** It lives inline in the footer, because a terminal status line is exactly where a
+percentage-with-a-bar belongs.
 
-- Label `impatience`, 11px `--color-sub`, then the number, then the bar. No `/100`.
+**The label says `human impatience`, and the word `human` is load-bearing.** Everything else in the
+footer is about you; an unlabelled meter in this layout reads as something about the model — its
+confidence, its budget — which is the opposite of what it is. It is the patience of the person waiting
+on your output, and it is the only thing on screen that belongs entirely to them.
+
+- Label `human impatience`, then the number, then the bar. No `/100`.
 - Bar is `96px` wide, `8px` tall, `border-radius: 9999px`, vertically centred on the text.
 - The **gradient lives on the track itself**, always at full width.
 - A `--color-surface` cover eats the unreached portion from the right.
@@ -395,10 +422,10 @@ keeps each position's colour fixed — at 20 you see green only, at 95 the bar h
 into red — and it needs no width measurement:
 
 ```tsx
-<div className="relative h-1.5 w-18 overflow-hidden rounded-full"
+<div className="relative h-2 w-24 overflow-hidden rounded-full"
      style={{ background: GRADIENT }}
      role="meter" aria-valuenow={clamped} aria-valuemin={0} aria-valuemax={100}
-     aria-label="interviewer impatience">
+     aria-label="human impatience">
   <div className="absolute inset-y-0 right-0 bg-surface transition-[width] duration-700 ease-out"
        style={{ width: `${100 - clamped}%` }} />
 </div>
@@ -421,20 +448,21 @@ progress bar jumping.
 The single most important interaction in the app, and it survives the restyle unchanged in spirit.
 
 **While typing** (any keystroke, until 1.5s of silence):
-- Past turns and the `✻` notes line → `opacity: 0.25`
-- The pinned problem statement and its live meta line → `opacity: 0.35`
-- Status line → `opacity: 0.25`, **except the activity word**, which never dims
-- The newest turn stays fully visible. The interviewer never dims. It is always watching.
+- Closed turns and answered prompts → `opacity: 0.25`
+- Their pinned prompt → `opacity: 0.35`
+- Footer → `opacity: 0.25`, **except the activity word**, which never dims
+- Their newest prompt stays fully visible. They never dim. They are always watching.
+- Your live turn never dims — you are looking at it.
 
 **After 1.5s of silence**: everything returns to full opacity over 400ms.
 
-The result: while you are in flow the screen is your composer and one line above it. The instant you
+The result: while you are in flow the screen is your own output and one line above it. The instant you
 hesitate, the log and the counters fade back in and you remember that all of it was being written
 down. That is the entire emotional design of the product in one transition.
 
-The activity word is exempt for the same reason the newest turn is: it is the interviewer's read on
-you, not instrumentation. Dimming it while typing would hide it in the one state it exists to
-report — you would see `thinking…` forever and never once see `writing…`.
+The activity word is exempt for the same reason their newest prompt is: it is the read on you, not
+instrumentation. Dimming it while typing would hide it in the one state it exists to report — you
+would see `thinking…` forever and never once see `writing…`.
 
 Implementation: a single `typing` boolean on the app root driving a class, debounced off the same
 telemetry events already captured in the editor. Do not wire this per-component. The same boolean
@@ -452,16 +480,17 @@ Sparse and slow. Nothing bounces, nothing slides in from off-screen.
 | Activity word (§4.5) | swap, no transition | re-picks every 3.5s |
 | `✻` spinner | glyph cycle `✻ ✳ ✢ ✳` | 600ms/frame |
 | Caret `▍` while revealing | none — solid, does not blink | — |
-| New turn | fade + 4px rise | 200ms |
-| Previous turn dimming to faint | colour | 400ms |
-| Meta line | fade, 300ms after its line finishes revealing | 200ms |
+| Their caret (§4.4) | hard blink, `steps(1, end)` | 1.1s loop |
+| Their caret, before a prompt | held before delivery | 850ms |
+| New prompt or closed turn | fade + 4px rise | 200ms |
+| Previous prompt dimming to faint | colour | 400ms |
+| Meta line, their notes | fade, 300ms after the line above finishes | 200ms |
 | Meter width | width | 700ms ease-out |
 | Impatience number pulse (≥85) | opacity | 1.6s loop |
 | Focus mode | opacity | 250ms out / 400ms in |
-| Notes expand | height + fade | 200ms |
 
-The meta line arriving a beat *after* its turn is deliberate: you read the sentence, then the receipt
-lands under it. Simultaneous, it is noise; delayed, it is a verdict.
+The receipt arriving a beat *after* the block it stamps is deliberate: you read the line, then the
+receipt lands under it. Simultaneous, it is noise; delayed, it is a verdict.
 
 All of it inside a `prefers-reduced-motion: reduce` guard that drops to instant state changes. The
 pulse, the spinner and the line reveal in particular must not run for people who have asked for
@@ -475,9 +504,9 @@ still rotates: it is information, not animation.
 The single column is most of the responsive work already done. Below `900px`:
 
 - Column goes to `100% - 2rem`. Nothing else changes structurally.
-- The status line wraps to two rows — problem and clock on the first, totals and impatience on the
-  second. The key hints drop; there is a touch keyboard in the way of both of them anyway.
-- Composer keeps `min-height: 40vh` and stops growing.
+- The footer wraps to two rows — activity and totals on the first, impatience on the second. The key
+  hints drop; there is a touch keyboard in the way of both of them anyway.
+- The live turn keeps its height and stops growing.
 
 Below `700px` this is a viewing experience, not a working one. Keep it legible; do not optimise it.
 
@@ -485,17 +514,18 @@ Below `700px` this is a viewing experience, not a working one. Keep it legible; 
 
 ## 10. Accessibility
 
-- All text meets 4.5:1 against `--color-canvas` **except** `--color-faint`, which carries past turns,
-  glyphs and the composer border. Past turns are still fully legible in the report card, and no glyph
-  carries meaning on its own.
+- All text meets 4.5:1 against `--color-canvas` **except** `--color-faint`, which carries closed
+  blocks and glyphs. Those are still fully legible in the report card, and no glyph carries meaning on
+  its own.
 - **Every glyph is `aria-hidden`** with an `sr-only` word beside it. `↑ 412` announces as
   "412 characters written", not "up arrow 412". This is the easiest thing here to get wrong.
 - The meta line is a `<dl>`-shaped structure semantically or, failing that, one `aria-label` on the
   whole row. Do not ship it as a bare string of glyphs and numbers.
 - The meter is `role="meter"` with `aria-valuenow/min/max` and a label. The colour is redundant with
   the number, so it is never the sole carrier of meaning.
-- New turns go in an `aria-live="polite"` region. Meta lines and notes do **not** — they would
+- New prompts go in an `aria-live="polite"` region. Meta lines and notes do **not** — they would
   interrupt constantly, and the joke is that they are peripheral.
+- Their caret is decorative: `aria-hidden`, with an `sr-only` "the interviewer is typing" beside it.
 - **A revealing line carries its full text in an `sr-only` span from the first frame**, and the
   animating copy is `aria-hidden`. Announcing a growing prefix sixty times a second would make the
   live region unusable. Nobody waits out a typing animation to hear the question.
@@ -510,43 +540,51 @@ Below `700px` this is a viewing experience, not a working one. Keep it legible; 
 
 Implemented. Recorded here so the intent survives the next refactor:
 
-| Component | Change |
+| Component | Role |
 |---|---|
-| `App.tsx` | One centred column, `max-width: 84ch`; transcript scrolls, composer + status line pinned. Drops the `[13.5rem, 1fr, 16.5rem]` grid. Still owns the `typing` flag and the local clock. |
-| `VoiceBand.tsx` | → `Transcript.tsx`. Keeps scrollback instead of swapping one utterance at a time; renders `⏺` turns and the sticky problem statement, each typing itself out. |
-| *new* `MetaLine.tsx` | §5. Per-turn deltas, frozen on mount; the live variant under the problem statement takes the session counters and a 1s tick. |
-| `NotesPanel.tsx` | → `NotesBlock.tsx`. Collapsed `✻ taking notes… (n)` at the foot of the transcript, not a rail. Doubles as the in-flight spinner. |
-| `LeftRail.tsx` | Removed. Clock, stats and impatience → `StatusLine.tsx`; problem meta → status line; examples → `⎿` lines under the problem statement; `run`/`end` → key hints. |
-| `ImpatienceMeter.tsx` | Same masking technique, resized to `72×6` for the status line; pulse moves from the bar to the number. |
-| *new* `StatusLine.tsx` | §4.5. Pinned under the composer, never wraps above `900px`. Takes `activity`, not the problem. |
-| *new* `hooks/useActivity.ts` | The word pools and the 3.5s rotation. Pools are data — edit them, do not add states casually. |
-| *new* `Spinner.tsx` | The cycling `✻`, shared by the status line and the notes block. Static under reduced motion. |
-| `EditorPane.tsx` | Gains the composer border, `--color-surface` fill and the `>` gutter mark; `ctrl+enter` runs. |
-| `index.css` | Token values from §3, focus-mode rules, reveal and pulse keyframes, reduced-motion guard, **thin/faint scrollbar styling** — the native scrollbar is bright and reads as exactly the bolted-on chrome §2 forbids. |
-| `hooks/useTypingFocus.ts` | Unchanged. The single `typing` boolean behind focus mode. |
-| *new* `lib/format.ts` | `clock()` and `compact()` — the `1.2k` rule lives in one place, since the meta lines and the status line must agree. |
-| *new* `TypedText.tsx` + `hooks/useTypewriter.ts` | §4.6. The hook owns the pacing and the reduced-motion escape; the component owns the caret and the `sr-only` full text. |
+| `App.tsx` | Owns the log, the turn boundaries, the prompt queue, the `typing` flag and the local clock. One centred column; log scrolls, live turn + footer pinned. |
+| `Transcript.tsx` | §4.2. Their pinned prompt, then alternating `>` prompts and `⏺` closed turns. Holds `Prompt`, `Turn`, `Block` and `Result` internally. |
+| *new* `LiveTurn.tsx` | §4.3. `⏺ Write(file)` + the editor + the ticking meta line. The only place the editor is mounted. |
+| *new* `TypingIndicator.tsx` | §4.4. Their `>` and a blinking `▍` at the tail of the log. |
+| `MetaLine.tsx` | §5. Per-turn deltas, frozen when the turn closes; the `live` variant counts the turn in progress. |
+| `StatusLine.tsx` | §4.5. `✻ word… (clock · totals)`, the meter, `⏎ submit`, `^d end`, and the `esc` tell. |
+| `ImpatienceMeter.tsx` | §6. Masked gradient, `96×8`, labelled `human impatience`; pulse on the number. |
+| `EditorPane.tsx` | Monaco with no border and no fill, background matched to `--color-canvas`. `ctrl+enter` submits. |
+| `TypedText.tsx` + `hooks/useTypewriter.ts` | §4.6. The hook owns pacing and the reduced-motion escape; the component owns the caret and the `sr-only` full text. |
+| `hooks/useActivity.ts` | The word pools and the 3.5s rotation. Pools are data — edit them, do not add states casually. |
+| `Spinner.tsx` | The cycling `✻`. Static under reduced motion. |
+| `hooks/useTypingFocus.ts` | The single `typing` boolean behind focus mode — and the same boolean decides whether a prompt counts as an interrupt. |
+| `lib/format.ts` | `clock()` and `compact()` — the `1.2k` rule lives in one place, since the meta lines and the footer must agree. |
+| `index.css` | Tokens from §3, focus-mode rules, reveal/blink/pulse keyframes, reduced-motion guard, **thin/faint scrollbar styling** — the native scrollbar is bright and reads as exactly the bolted-on chrome §2 forbids. |
 
-The counters behind §5 are accumulated **client-side** in `App`, not read from the server's metrics:
-telemetry flushes every 1.5s, and a status line that lags your typing by a second and a half looks
-broken. `useTelemetry`'s returned `metrics` is now unused by the UI for this reason — it is still the
-server's own view, and the report card should use that one.
+Removed by the swap: `VoiceBand.tsx`, `LeftRail.tsx`, `NotesPanel.tsx`, `NotesBlock.tsx`. Their notes
+live under their prompts now, and there is no rail and no voice band left to put anything in.
+
+**Turn bookkeeping lives in `App` and nowhere else.** `turnBase` holds the counters and clock reading
+at the moment the current turn opened; `closeTurn(interrupted, idleSeconds)` diffs against it, pushes
+the closed block, and re-bases. Both a submit and an arriving prompt go through that one function —
+if a third thing ever closes a turn, it goes through it too.
+
+**The prompt queue is keyed on the queue alone.** A second prompt arriving during the 850ms blink
+re-arms the timer for the one already waiting rather than cancelling it; guarding that effect on
+`composing` deadlocks it, which is a bug worth not writing twice.
+
+The counters behind §5 are accumulated **client-side**, not read from the server's metrics: telemetry
+flushes every 1.5s, and a footer that lags your typing by a second and a half looks broken.
+`useTelemetry`'s returned `metrics` is unused by the UI for this reason — it is still the server's own
+view, and the report card should use that one.
 
 `App` re-renders on every keystroke as a result, so `EditorPane` is wrapped in `memo`. If a future
 change gives it an unstable prop, that render cost comes back and Monaco is the thing that pays it.
 
-One thing from the old rail that must not get lost in the move: `run` has to stay reachable without
-scrolling. It is a key hint in a pinned status line now, so this is satisfied by construction — a
-`run` button that can scroll out of reach is a bug found mid-demo, which is exactly how it was found.
-
-The old rail's test readout has deliberately **not** kept a home. `lib/runTests.ts` still returns the
-full `LocalRunResult`; `App` forwards it to `/api/sessions/{id}/run` and drops it on the floor. If a
-future change needs the verdict on screen, that is a §4.7 decision, not a component decision.
+`lib/runTests.ts` still returns the full `LocalRunResult`; `App` forwards it to
+`/api/sessions/{id}/run` and drops it on the floor. If a future change needs the verdict on screen,
+that is a §4.7 decision, not a component decision.
 
 ---
 
 ## 12. The one-line test
 
-If a stranger glances at the screen for two seconds, they should think *"something is keeping a log of
-this person"* — not *"this is a coding website."* If a change makes the second reading more likely, it
-is the wrong change.
+If a stranger glances at the screen for two seconds, they should think *"an agent is working, and
+someone impatient is watching it"* — and only then realise the agent is a person. Not *"this is a
+coding website."* If a change makes the second reading more likely, it is the wrong change.

@@ -1,62 +1,77 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import type { NotePayload, Problem } from '../api/types'
 import { MetaLine, type TurnStamp } from './MetaLine'
-import { NotesBlock } from './NotesBlock'
 import { TypedText } from './TypedText'
+import { TypingIndicator } from './TypingIndicator'
 
-/** One line in the log: something the interviewer said, and its receipt. */
-export interface Entry {
+/** A prompt from the human on the other side. */
+export interface PromptEntry {
+  kind: 'prompt'
   id: string
   line: string
   canned: boolean
-  stamp: TurnStamp | null
+  /** What they jotted down while you worked. */
+  notes: string[]
 }
 
+/** One of your turns, closed by a submit or cut short by their prompt. */
+export interface TurnEntry {
+  kind: 'turn'
+  id: string
+  /** `twoSum.js` — the tool call your typing amounts to. */
+  file: string
+  stamp: TurnStamp
+  interrupted: boolean
+  /** Nothing was typed during it. */
+  empty: boolean
+}
+
+export type Entry = PromptEntry | TurnEntry
+
 interface Props {
-  problem: Problem
+  statement: string
   entries: Entry[]
-  /** The pinned statement's stamp: session totals, ticking (UI-DESIGN.md §5). */
-  liveStamp: TurnStamp
-  notes: NotePayload[]
-  busy: boolean
-  busyLabel?: string
+  /** Their caret, blinking before a prompt lands. */
+  incoming: boolean
   connected: boolean
 }
 
-/** A turn: the `⏺` marker, then the line and its meta line, hanging-indented. */
-function Turn({ accent, children }: { accent?: boolean; children: ReactNode }) {
+/** A block: a marker in the left column, content hanging-indented beside it. */
+function Block({ marker, tone, children }: { marker: string; tone: string; children: ReactNode }) {
   return (
     <div className="grid grid-cols-[1.25rem_1fr] gap-x-2">
-      <span aria-hidden className={accent ? 'text-accent' : 'text-faint'}>
-        ⏺
+      <span aria-hidden className={tone}>
+        {marker}
       </span>
       <div className="min-w-0">{children}</div>
     </div>
   )
 }
 
+/** A dim continuation line under a block, the way tool output hangs. */
+function Result({ tone = 'text-sub', children }: { tone?: string; children: ReactNode }) {
+  return (
+    <div className={`mt-1 flex items-baseline gap-2 text-xs ${tone}`}>
+      <span aria-hidden className="text-faint">
+        ⎿
+      </span>
+      <span className="min-w-0 break-words">{children}</span>
+    </div>
+  )
+}
+
 /**
- * One spoken turn. Types itself out if it arrived while mounted; renders whole
- * if it was already on screen. The meta line waits for the line to finish — the
- * receipt lands after the sentence, never during it.
+ * A prompt from the human. Types itself out if it arrived while mounted; their
+ * notes hang under it as asides, because that is where a real interviewer's
+ * scribbling belongs — in their message, not in a panel of their own.
  */
-function TurnEntry({
-  entry,
-  newest,
-  onTick,
-}: {
-  entry: Entry
-  newest: boolean
-  onTick: () => void
-}) {
-  /** Captured at mount: a turn only ever types on the way in. */
+function Prompt({ entry, newest, onTick }: { entry: PromptEntry; newest: boolean; onTick: () => void }) {
   const [animate] = useState(newest)
   const [done, setDone] = useState(!animate)
   const handleDone = useCallback(() => setDone(true), [])
 
   return (
     <div className={newest ? 'animate-turn-in' : 'dimmable'}>
-      <Turn accent={newest}>
+      <Block marker=">" tone={newest ? 'text-accent' : 'text-faint'}>
         <TypedText
           text={entry.line}
           animate={animate}
@@ -66,39 +81,51 @@ function TurnEntry({
             newest ? 'text-ink' : 'text-faint'
           }`}
         />
-        {done && entry.stamp && <MetaLine stamp={entry.stamp} canned={entry.canned} />}
-      </Turn>
+        {done &&
+          entry.notes.map((note, index) => (
+            <div key={index} className="animate-meta-in">
+              <Result tone="text-faint">
+                <span className="lowercase">{note}</span>
+              </Result>
+            </div>
+          ))}
+        {done && entry.canned && (
+          <span className="mt-1 block text-[9px] text-faint" title="fallback line, not the model">
+            canned
+          </span>
+        )}
+      </Block>
+    </div>
+  )
+}
+
+/** One of your closed turns, rendered as the tool call it amounts to. */
+function Turn({ entry }: { entry: TurnEntry }) {
+  return (
+    <div className="dimmable">
+      <Block marker="⏺" tone="text-faint">
+        <p className="text-[15px] leading-relaxed text-faint">
+          {entry.empty ? '(no output)' : `Write(${entry.file})`}
+        </p>
+        <MetaLine stamp={entry.stamp} />
+        {entry.interrupted && <Result tone="text-hot">Interrupted by user</Result>}
+      </Block>
     </div>
   )
 }
 
 /**
- * The interviewer's log (UI-DESIGN.md §4.2).
+ * The log (UI-DESIGN.md §4.2).
  *
- * <p>It keeps its scrollback, unlike the single fading utterance this replaced:
- * a meta line is a log stamp and only means anything if the thing it stamps
- * stays on screen. Past turns dim to `--color-faint` so the newest line is
- * still unmistakably the live one.
- *
- * <p>Test verdicts never appear here. The runner's result goes to the server as
- * a gauge of progress and the interviewer decides what, if anything, to say
- * about it — see UI-DESIGN.md §4.7.
+ * <p>Read it as a terminal agent's transcript with the roles swapped: `>` lines
+ * are the human prompting, `⏺` blocks are your output. Their standing prompt is
+ * pinned at the top; everything since scrolls under it.
  */
-export function Transcript({
-  problem,
-  entries,
-  liveStamp,
-  notes,
-  busy,
-  busyLabel,
-  connected,
-}: Props) {
+export function Transcript({ statement, entries, incoming, connected }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   /** Auto-scroll only while the candidate is already at the bottom. */
   const stuck = useRef(true)
-  const [statementDone, setStatementDone] = useState(false)
-  const handleStatementDone = useCallback(() => setStatementDone(true), [])
 
   const follow = useCallback((smooth = false) => {
     if (!stuck.current) return
@@ -107,7 +134,7 @@ export function Transcript({
 
   useEffect(() => {
     follow(true)
-  }, [entries.length, notes.length, busy, follow])
+  }, [entries.length, incoming, follow])
 
   const onScroll = () => {
     const element = scrollRef.current
@@ -115,24 +142,20 @@ export function Transcript({
     stuck.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48
   }
 
-  const lastTurnId = entries.length ? entries[entries.length - 1].id : null
+  const lastPromptId = [...entries].reverse().find((entry) => entry.kind === 'prompt')?.id
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-[84ch] px-6">
-        {/* The problem is the first turn and it does not go away. */}
+        {/* Their standing prompt. It is what you are still being asked. */}
         <div className="dimmable-soft sticky top-0 z-10 bg-canvas pt-8 pb-3 transition-opacity duration-300">
-          <Turn>
+          <Block marker=">" tone="text-faint">
             <TypedText
-              text={problem.statement}
+              text={statement}
               animate
-              onDone={handleStatementDone}
               className="text-[15px] leading-relaxed text-ink"
             />
-            {/* No worked examples here. An `in … out …` pair is a test case with
-                better manners — see UI-DESIGN.md §4.7. */}
-            {statementDone && <MetaLine stamp={liveStamp} live />}
-          </Turn>
+          </Block>
           <div
             aria-hidden
             className="mt-3 overflow-hidden text-xs whitespace-nowrap text-faint select-none"
@@ -141,21 +164,25 @@ export function Transcript({
           </div>
         </div>
 
-        <div className="space-y-5 pt-5 pb-6" aria-live="polite">
-          {entries.length === 0 && !busy && (
+        <div className="space-y-5 pt-5 pb-4" aria-live="polite">
+          {entries.length === 0 && !incoming && (
             <p className="text-xs text-faint">{connected ? 'they are watching' : 'connecting…'}</p>
           )}
 
-          {entries.map((entry) => (
-            <TurnEntry
-              key={entry.id}
-              entry={entry}
-              newest={entry.id === lastTurnId}
-              onTick={follow}
-            />
-          ))}
+          {entries.map((entry) =>
+            entry.kind === 'prompt' ? (
+              <Prompt
+                key={entry.id}
+                entry={entry}
+                newest={entry.id === lastPromptId}
+                onTick={follow}
+              />
+            ) : (
+              <Turn key={entry.id} entry={entry} />
+            ),
+          )}
 
-          <NotesBlock notes={notes} busy={busy} busyLabel={busyLabel} />
+          {incoming && <TypingIndicator />}
           <div ref={endRef} />
         </div>
       </div>

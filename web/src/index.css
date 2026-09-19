@@ -5,7 +5,7 @@
    the impatience meter owns. */
 @theme {
   --color-canvas: #1c1b19;
-  --color-surface: #24231f;
+  --color-surface: #24231f; /* meter track mask, scrollbars */
 
   --color-ink: #e6e2d8;
   --color-sub: #8a857a;
@@ -84,6 +84,19 @@ body {
   }
 }
 
+/* Their caret. Yours never blinks while typing; theirs always does — it is
+   the one thing on screen you cannot control. */
+@keyframes hc-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes hc-meter-pulse {
   0%,
   100% {
@@ -106,6 +119,10 @@ body {
    noise; delayed it is a verdict. `both` keeps it invisible until then. */
 .animate-meta-in {
   animation: hc-fade-in 200ms ease-out 300ms both;
+}
+
+.animate-blink {
+  animation: hc-blink 1.1s steps(1, end) infinite;
 }
 
 .animate-meter-pulse {

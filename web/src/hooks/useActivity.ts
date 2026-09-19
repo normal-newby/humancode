@@ -10,23 +10,23 @@ const WRITING = ['writing', 'typing', 'scribbling', 'composing', 'hacking', 'cra
 const IDLE = ['thinking', 'contemplating', 'pondering', 'deliberating', 'ruminating', 'mulling']
 /** Above the impatience threshold it stops being generous about the pause. */
 const IDLE_HOT = ['stalling', 'hesitating', 'stewing', 'wavering', 'reconsidering']
-const RUNNING = ['running', 'checking', 'judging']
+const SUBMITTING = ['submitting', 'handing over', 'waiting']
 
 const HOT_AT = 60
 
 /**
  * The word in the status line (UI-DESIGN.md §4.5).
  *
- * <p>The inversion, in one word: a coding agent's spinner narrates what *it* is
- * doing, and this one narrates what *you* are doing, because in this room you
- * are the one being waited on. It re-picks on every state change and then every
- * few seconds, so the bottom of the screen is never quite still.
+ * <p>It narrates you, because in this room you are the model: the human on the
+ * other side is the one waiting on output. It re-picks on every state change
+ * and then every few seconds, so the bottom of the screen is never quite
+ * still.
  */
 export function useActivity(activity: Activity, impatience: number): string {
   const hot = impatience >= HOT_AT
 
   const pool = useMemo(() => {
-    if (activity === 'running') return RUNNING
+    if (activity === 'running') return SUBMITTING
     if (activity === 'writing') return WRITING
     return hot ? IDLE_HOT : IDLE
   }, [activity, hot])

@@ -1,5 +1,5 @@
 import Editor, { type BeforeMount, type OnMount } from '@monaco-editor/react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef } from 'react'
 import type { TelemetryItem } from '../api/types'
 
 interface Props {
@@ -11,21 +11,20 @@ interface Props {
 }
 
 /**
- * Monaco, dressed as a terminal composer and wired for surveillance
- * (UI-DESIGN.md §4.4).
+ * Monaco, dressed as the block you are currently emitting, and wired for
+ * surveillance (UI-DESIGN.md §4.3).
  *
  * <p>Two signals matter. Content changes give inserted/deleted counts, which
  * feed the delete-ratio thrash detector. Paste events are captured separately
  * via `onDidPaste` — a large insert with no keystrokes behind it is a stronger
  * signal than any text classifier, and it is free.
  *
- * <p>The box border is the only border in the app: it is what makes the code
- * read as *your prompt*, the thing the machine is waiting on. Line numbers stay
- * on — the notes refer to them ("staring at line 12").
+ * <p>No border and no fill: it is output, not an input box, and it has to read
+ * as part of the page. Line numbers stay on — their notes refer to them
+ * ("staring at line 12").
  */
 function EditorPaneImpl({ language, initialCode, onTelemetry, onCodeChange, onRun }: Props) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
-  const [focused, setFocused] = useState(false)
   /** Kept in a ref so ctrl+enter never rebinds against a stale closure. */
   const runRef = useRef(onRun)
   useEffect(() => {
@@ -38,10 +37,10 @@ function EditorPaneImpl({ language, initialCode, onTelemetry, onCodeChange, onRu
       inherit: true,
       rules: [],
       colors: {
-        // Must match --color-surface exactly, or the editor reads as an
-        // embedded widget rather than as the composer box itself.
-        'editor.background': '#24231f',
-        'editorGutter.background': '#24231f',
+        // Must match --color-canvas exactly, or the turn reads as an embedded
+        // widget rather than as text on the page.
+        'editor.background': '#1c1b19',
+        'editorGutter.background': '#1c1b19',
         'editor.lineHighlightBackground': '#00000000',
         'editor.lineHighlightBorder': '#00000000',
         'editorLineNumber.foreground': '#4b4841',
@@ -88,69 +87,43 @@ function EditorPaneImpl({ language, initialCode, onTelemetry, onCodeChange, onRu
         })
       })
 
-      editor.onDidFocusEditorText(() => {
-        setFocused(true)
-        onTelemetry({ type: 'FOCUS', inserted: 0, deleted: 0 })
-      })
-      editor.onDidBlurEditorText(() => {
-        setFocused(false)
-        onTelemetry({ type: 'BLUR', inserted: 0, deleted: 0 })
-      })
+      editor.onDidFocusEditorText(() => onTelemetry({ type: 'FOCUS', inserted: 0, deleted: 0 }))
+      editor.onDidBlurEditorText(() => onTelemetry({ type: 'BLUR', inserted: 0, deleted: 0 }))
     },
     [onCodeChange, onTelemetry],
   )
 
   return (
-    <div className="mx-auto w-full max-w-[84ch] px-6">
-      <div
-        className={`relative h-[42vh] overflow-hidden rounded-md border bg-surface transition-colors duration-200 ${
-          focused ? 'border-accent' : 'border-faint'
-        }`}
-      >
-        {/* The prompt mark. Sits beside line 1 rather than replacing its
-            number, which the notes need to stay referable. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute top-2 left-2 z-10 text-sm leading-[1.7] text-faint select-none"
-        >
-          &gt;
-        </span>
-
-        {/* Padded clear of the `>` so the mark never sits on the gutter. */}
-        <div className="h-full pl-6">
-          <Editor
-            height="100%"
-            defaultLanguage={language}
-            defaultValue={initialCode}
-            beforeMount={handleBeforeMount}
-            onMount={handleMount}
-            theme="humancode"
-            options={{
-              fontSize: 14,
-              lineHeight: 1.7,
-              fontFamily: '"JetBrains Mono", "Roboto Mono", ui-monospace, monospace',
-              fontLigatures: false,
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              renderLineHighlight: 'none',
-              overviewRulerLanes: 0,
-              hideCursorInOverviewRuler: true,
-              overviewRulerBorder: false,
-              folding: false,
-              glyphMargin: false,
-              lineDecorationsWidth: 12,
-              lineNumbersMinChars: 3,
-              padding: { top: 8, bottom: 24 },
-              tabSize: 2,
-              automaticLayout: true,
-              cursorBlinking: 'smooth',
-              smoothScrolling: true,
-              scrollbar: { vertical: 'auto', horizontal: 'auto', useShadows: false },
-            }}
-          />
-        </div>
-      </div>
-    </div>
+    <Editor
+      height="100%"
+      defaultLanguage={language}
+      defaultValue={initialCode}
+      beforeMount={handleBeforeMount}
+      onMount={handleMount}
+      theme="humancode"
+      options={{
+        fontSize: 14,
+        lineHeight: 1.7,
+        fontFamily: '"JetBrains Mono", "Roboto Mono", ui-monospace, monospace',
+        fontLigatures: false,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        renderLineHighlight: 'none',
+        overviewRulerLanes: 0,
+        hideCursorInOverviewRuler: true,
+        overviewRulerBorder: false,
+        folding: false,
+        glyphMargin: false,
+        lineDecorationsWidth: 8,
+        lineNumbersMinChars: 3,
+        padding: { top: 4, bottom: 16 },
+        tabSize: 2,
+        automaticLayout: true,
+        cursorBlinking: 'smooth',
+        smoothScrolling: true,
+        scrollbar: { vertical: 'auto', horizontal: 'auto', useShadows: false },
+      }}
+    />
   )
 }
 
