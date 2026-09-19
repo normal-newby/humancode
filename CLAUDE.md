@@ -91,9 +91,10 @@ if it drags.
 ## 3. Stack
 
 **Before touching anything visual, read [UI-DESIGN.md](UI-DESIGN.md).** It is the binding spec for
-layout, palette, motion and the anti-LeetCode rules. The short version: Monkeytype-style restraint,
-the AI speaks from a band across the top, private notes on the right, instruments on the left, and no
-split panes or bordered cards anywhere.
+layout, palette, motion and the anti-LeetCode rules. The short version: a Claude Code-style terminal
+transcript — one centred column, the interviewer's turns marked `⏺` with a dim `⎿` meta line under
+each one carrying elapsed time and characters written/deleted, the editor as a pinned composer box,
+everything else in a single status line, and no rails, split panes or bordered cards anywhere.
 
 | Layer | Choice |
 |---|---|
@@ -340,6 +341,11 @@ Three things about this that are load-bearing:
 execute a test it was not given. Inputs and outputs are not the algorithm, and `Problem.forCandidate()`
 still strips the reference solution, complexity, rubric and follow-ups. Genuinely hidden tests would
 need a server-side runner.
+
+**The verdict is not.** The run result is POSTed to `/api/sessions/{id}/run` and dropped — the UI never
+renders a pass count, a failure or a green check. It exists to move the trigger engine and to give the
+interviewer something to be smug about; the candidate finds out how they did by being told. See
+UI-DESIGN.md §4.7 before adding any readout.
 
 ### Problem sources
 

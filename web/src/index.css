@@ -1,25 +1,26 @@
 @import "tailwindcss";
 
-/* Tokens — see UI-DESIGN.md §3. Warm-neutral dark base, one cool accent kept
-   deliberately clear of the red/green the impatience meter owns. */
+/* Tokens — see UI-DESIGN.md §3. Warm near-black the way a terminal on a dark
+   theme reads, with one warm accent kept deliberately clear of the red/green
+   the impatience meter owns. */
 @theme {
-  --color-canvas: #232427;
-  --color-surface: #2a2b2f;
+  --color-canvas: #1c1b19;
+  --color-surface: #24231f;
 
-  --color-ink: #d6d5cd;
-  --color-sub: #6b6d72;
-  --color-faint: #45474b;
+  --color-ink: #e6e2d8;
+  --color-sub: #8a857a;
+  --color-faint: #4b4841;
 
-  --color-accent: #8b9fff;
+  --color-accent: #d98b63;
 
-  --color-calm: #4ade80;
-  --color-warm: #fbbf24;
-  --color-hot: #f87171;
+  --color-calm: #6bbf7b;
+  --color-warm: #d8a13c;
+  --color-hot: #d96a5e;
 
   --font-mono: "JetBrains Mono", "Roboto Mono", ui-monospace, SFMono-Regular,
     Menlo, monospace;
 
-  --breakpoint-wide: 1100px;
+  --breakpoint-wide: 900px;
 }
 
 :root {
@@ -41,12 +42,11 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   Focus mode (UI-DESIGN.md §6).
+   Focus mode (UI-DESIGN.md §7).
 
-   One boolean on the app root, not per-component wiring. While typing, the
-   instruments and the standing question recede; the live utterance never does.
-   Opacity only — never display/visibility — so focus order and screen readers
-   are untouched.
+   One boolean on the app root, not per-component wiring. While typing, the log
+   and the counters recede; the newest turn never does. Opacity only — never
+   display/visibility — so focus order and screen readers are untouched.
    --------------------------------------------------------------------------- */
 .dimmable {
   opacity: 1;
@@ -62,18 +62,9 @@ body {
   opacity: 0.35;
 }
 
-/* --- motion ---------------------------------------------------------------- */
+/* --- motion (UI-DESIGN.md §8) ---------------------------------------------- */
 
-@keyframes hc-utterance-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes hc-note-in {
+@keyframes hc-rise-in {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -81,6 +72,15 @@ body {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes hc-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -94,12 +94,18 @@ body {
   }
 }
 
-.animate-utterance-in {
-  animation: hc-utterance-in 250ms ease-out;
+.animate-turn-in {
+  animation: hc-rise-in 200ms ease-out;
 }
 
 .animate-note-in {
-  animation: hc-note-in 200ms ease-out;
+  animation: hc-rise-in 200ms ease-out;
+}
+
+/* The receipt lands a beat after the sentence it stamps. Simultaneous it is
+   noise; delayed it is a verdict. `both` keeps it invisible until then. */
+.animate-meta-in {
+  animation: hc-fade-in 200ms ease-out 300ms both;
 }
 
 .animate-meter-pulse {
@@ -112,6 +118,7 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
 }
