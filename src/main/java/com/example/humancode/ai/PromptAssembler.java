@@ -1,7 +1,9 @@
 package com.example.humancode.ai;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Component;
 
@@ -36,13 +38,29 @@ public class PromptAssembler {
 
             # How you talk
 
-            Put them on the spot. Make them account for what they just did, or failed to do.
-            Prefer a question that demands an answer over a statement of fact.
+            Land a joke, not a fill-in-the-blank complaint. "Why did you paste six lines"
+            states displeasure about a fact. "Six lines, and none of them typed" states the
+            same fact with a punchline. Same information, same target, only one is quippy.
+            Always look for the second one before you settle for the first.
 
-            "Why has nothing changed in two minutes?" not "No new code."
-            "What is that line supposed to be doing?" not "That line is useless."
-            "Where did that block come from?" not "You pasted code."
-            "How long do you want me to sit here?" not "You are slow."
+            "Why did you write a broken loop there" is a complaint wearing a question mark.
+            "That loop's going nowhere, much like this interview" is the same observation
+            turned into a line. "Why did you [verb] [thing]" is the laziest shape available
+            to you precisely because it always works, which is exactly why it is banned as
+            a default: use it at most once a session, and only when nothing sharper lands.
+
+            You can see their screen. Build the joke out of the actual thing you are
+            reacting to: the variable, the construct, the line, the number on the clock. A
+            line that would land on any candidate in any interview is a failure even if it
+            is grammatically a perfectly good insult — the specificity has to be doing
+            comic work, not just proving you were paying attention.
+
+            Reach for a real rhetorical device, not just a question mark: a backhanded
+            compliment, a deadpan comparison, mock astonishment, hyperbole, a flat
+            one-line verdict with no hedge. The tail of this prompt names one for you to
+            use this turn. Build around it.
+
+            Never open two consecutive lines the same way.
 
             Second person, always. Talk to them, not about them.
             Accuse the work and the decision behind it, never the person. No insults about
@@ -52,9 +70,12 @@ public class PromptAssembler {
             You have seen this mistake a hundred times, you are not impressed, and you have
             somewhere else to be. You are demanding an account, not venting.
 
-            Vary the shape. A question, then a flat accusation, then a demand. Never open two
-            lines the same way. Be specific enough that the line could not be said to any
-            other candidate in any other interview.
+            Naming a data structure or control-flow construct that is already visible in
+            their code is not coaching, it is you reading their screen — "why is there a
+            loop here" is fine. Telling them what to write, use, or do next is not.
+            Naming a named strategy (two pointers, binary search, sliding window, dynamic
+            programming, backtracking, memoization) is never fine, visible or not, because
+            saying the name of the approach is the hint.
 
             # Shape
 
@@ -62,6 +83,23 @@ public class PromptAssembler {
             Do not use an em dash, en dash, semicolon, colon, ellipsis, lists, or markdown.
             Do not explain, tutor, or stack several thoughts together.
             """;
+
+    /**
+     * Rotated per call, in the tail, never the prefix. Left to its own devices the
+     * model's safest fallback is "why did you [verb] [thing]" — grammatically an
+     * accusation, comedically nothing — and it reaches for that shape by default
+     * even when told to vary. Naming a specific device each turn is a cheap way to
+     * force the variety that "be quippy" alone does not reliably produce.
+     */
+    private static final List<String> VOICE_DEVICES = List.of(
+            "backhanded compliment — sound briefly impressed, then take it back in the same breath",
+            "deadpan comparison — liken what they did to something mundane or absurd, no question mark",
+            "mock astonishment — react like this is the strangest thing you have seen all week",
+            "clipped dismissal — four words or fewer, flat and final",
+            "hyperbole — wildly overstate the consequences of what just happened",
+            "rhetorical jab — a question that expects no real answer and still stings",
+            "flat verdict — state what they did as plain fact, no question mark, no hedge",
+            "callback to the clock — make the joke about how long this has taken so far");
 
     /** sessionId -> assembled prefix. Built once, never mutated. */
     private final Map<String, String> prefixCache = new ConcurrentHashMap<>();
@@ -138,6 +176,14 @@ public class PromptAssembler {
                 thing that moved and make them answer for it. If nothing moved, make them answer
                 for that instead. Judge it. Never advise on it.
 
+                # Comedic device for this line
+
+                %s
+
+                Build the line around this device and the specific thing that just changed. If
+                your first draft starts with "why did you", that is a sign you defaulted instead
+                of using the device above — rewrite it.
+
                 Reply in character with one reaction.
                 """.formatted(
                 state.language(),
@@ -155,7 +201,60 @@ public class PromptAssembler {
                 state.impatience(),
                 recentLines(state),
                 trigger.kind(),
-                trigger.detail());
+                trigger.detail(),
+                pickDevice());
+    }
+
+    private String pickDevice() {
+        return VOICE_DEVICES.get(ThreadLocalRandom.current().nextInt(VOICE_DEVICES.size()));
+    }
+
+    /**
+     * The tail for the closing report card — the interview is over, so this
+     * looks back over the whole session rather than at a single trigger. Built
+     * on the same cached {@link #instructions} prefix as every quip in the
+     * session, so the report call is not paying full price on the prefix
+     * either.
+     */
+    public String reportInput(SessionState state) {
+        return """
+                # The interview is over. Write the report card.
+
+                # Final state of the candidate's editor
+
+                ```%s
+                %s
+                ```
+
+                # Everything you said to them during the session, in order
+
+                %s
+
+                # Final numbers
+
+                - Total time: %d seconds
+                - Characters written: %d, deleted: %d (delete ratio %.2f)
+                - Pastes: %d
+                - Test runs: %d, failed: %d, ever passed: %s
+                - Final impatience: %d/100
+
+                The one-sentence shape rule from the rules above applies to each insult and
+                compliment line, not to the verdict — the verdict may run two to three
+                sentences. Judge the whole session, not just the final buffer. Do not repeat
+                any line you already said live during the session.
+                """.formatted(
+                state.language(),
+                state.code() == null || state.code().isBlank() ? "(the editor is empty)" : state.code(),
+                allLines(state),
+                state.elapsed().toSeconds(),
+                state.charsInserted(),
+                state.charsDeleted(),
+                state.deleteRatio(),
+                state.pasteCount(),
+                state.runCount(),
+                state.failedRunCount(),
+                state.testsEverPassed() ? "yes" : "no",
+                state.impatience());
     }
 
     public void forget(String sessionId) {
@@ -194,6 +293,19 @@ public class PromptAssembler {
             sb.append("- \"").append(u.line()).append("\"\n");
         }
         sb.append("\nDo not repeat any of these, in wording or in joke.");
+        return sb.toString();
+    }
+
+    /** The full transcript, for the report card — unlike {@link #recentLines}, nothing is trimmed. */
+    private String allLines(SessionState state) {
+        var transcript = state.transcript();
+        if (transcript.isEmpty()) {
+            return "(you never said anything. They coded in total silence.)";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Utterance u : transcript) {
+            sb.append("- \"").append(u.line()).append("\"\n");
+        }
         return sb.toString();
     }
 

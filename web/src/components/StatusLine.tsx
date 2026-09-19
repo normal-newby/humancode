@@ -10,6 +10,8 @@ interface Props {
   /** Drives the word: typing, sitting there, or waiting on a submit. */
   activity: Activity
   running: boolean
+  /** Report card is being generated — `^d` was pressed and confirmed. */
+  finishing: boolean
   /** `^d` has been pressed once and is waiting for the confirming second. */
   armed: boolean
   /** They pressed `esc`. It is not their key to press. */
@@ -32,6 +34,7 @@ export function StatusLine({
   impatience,
   activity,
   running,
+  finishing,
   armed,
   escFlash,
   onSubmit,
@@ -77,12 +80,13 @@ export function StatusLine({
         <button
           type="button"
           onClick={onEnd}
-          className={`lowercase transition-colors hover:text-ink ${armed ? 'text-hot' : ''}`}
+          disabled={finishing}
+          className={`lowercase transition-colors hover:text-ink disabled:opacity-40 ${armed ? 'text-hot' : ''}`}
         >
           <span aria-hidden className="mr-1.5 text-faint">
             ^d
           </span>
-          {armed ? 'again to end' : 'end'}
+          {finishing ? 'grading…' : armed ? 'again to end' : 'end'}
         </button>
         {/* The tell. In a terminal this hint belongs to whoever is waiting on
             the model, and here that is not you. */}

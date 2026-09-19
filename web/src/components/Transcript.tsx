@@ -36,7 +36,7 @@ interface Props {
 }
 
 /** A block: a marker in the left column, content hanging-indented beside it. */
-function Block({ marker, tone, children }: { marker: string; tone: string; children: ReactNode }) {
+export function Block({ marker, tone, children }: { marker: string; tone: string; children: ReactNode }) {
   return (
     <div className="grid grid-cols-[1.25rem_1fr] gap-x-2">
       <span aria-hidden className={tone}>
@@ -48,7 +48,7 @@ function Block({ marker, tone, children }: { marker: string; tone: string; child
 }
 
 /** A dim continuation line under a block, the way tool output hangs. */
-function Result({ tone = 'text-sub', children }: { tone?: string; children: ReactNode }) {
+export function Result({ tone = 'text-sub', children }: { tone?: string; children: ReactNode }) {
   return (
     <div className={`mt-1 flex items-baseline gap-2 text-xs ${tone}`}>
       <span aria-hidden className="text-faint">

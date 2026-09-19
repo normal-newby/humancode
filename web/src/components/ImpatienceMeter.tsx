@@ -1,3 +1,5 @@
+import { InterviewerFace } from './InterviewerFace'
+
 const GRADIENT =
   'linear-gradient(90deg, var(--color-calm) 0%, var(--color-warm) 55%, var(--color-hot) 100%)'
 
@@ -20,6 +22,7 @@ export function ImpatienceMeter({ impatience }: { impatience: number }) {
 
   return (
     <span className="flex items-center gap-2">
+      <InterviewerFace impatience={clamped} />
       <span className="lowercase">human impatience</span>
       <span
         className={`tabular-nums ${furious ? 'animate-meter-pulse text-hot' : 'text-sub'}`}

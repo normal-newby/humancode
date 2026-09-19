@@ -234,6 +234,11 @@ public final class SessionState {
         return inserted == 0 ? 0 : (double) charsDeleted.get() / inserted;
     }
 
+    /** Whether at least one run during the session actually passed. */
+    public boolean testsEverPassed() {
+        return runCount.get() - failedRunCount.get() > 0;
+    }
+
     // --- transcript / notes -------------------------------------------------
 
     public void addUtterance(Utterance utterance) {

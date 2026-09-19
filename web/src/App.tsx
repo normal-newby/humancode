@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { finishSession, sendRunResult, startSession } from './api/client'
+import type { ReportCard, SessionResponse, TelemetryItem, Utterance } from './api/types'
 import type { Difficulty, SessionResponse, TelemetryItem, Utterance } from './api/types'
 import { DifficultyPicker } from './components/DifficultyPicker'
 import { LiveTurn } from './components/LiveTurn'
 import type { TurnStamp } from './components/MetaLine'
+import { ReportView } from './components/ReportView'
 import { StatusLine } from './components/StatusLine'
 import { Transcript, type Entry, type PromptEntry } from './components/Transcript'
 import { useSessionStream } from './hooks/useSessionStream'
@@ -47,6 +49,8 @@ export default function App() {
   const [escFlash, setEscFlash] = useState(false)
   /** Their choice, sent with the session. Medium is the honest default. */
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const [report, setReport] = useState<ReportCard | null>(null)
+  const [finishing, setFinishing] = useState(false)
 
   /** Utterances waiting behind their typing indicator. */
   const [queue, setQueue] = useState<Utterance[]>([])
@@ -124,6 +128,7 @@ export default function App() {
     try {
       const started = await startSession({ difficulty })
       setSession(started)
+      setReport(null)
       const now = Date.now()
       setStartedAt(now)
       startedAtRef.current = now
@@ -144,7 +149,7 @@ export default function App() {
     } finally {
       setStarting(false)
     }
-  }, [difficulty])
+  }, [])
 
   // Local clock: telemetry only flushes when there are events, so the server's
   // elapsed count stalls the moment you stop typing — which is exactly when the
@@ -289,9 +294,14 @@ export default function App() {
 
   const end = useCallback(async () => {
     if (!sessionId) return
+    setFinishing(true)
     try {
-      await finishSession(sessionId)
+      const result = await finishSession(sessionId)
+      setReport(result.report)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
+      setFinishing(false)
       setSession(null)
       setStartedAt(null)
       startedAtRef.current = null
@@ -345,6 +355,10 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handler)
   }, [sessionId])
 
+  if (report) {
+    return <ReportView report={report} onRestart={() => setReport(null)} />
+  }
+
   if (!session) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-canvas px-6">
@@ -360,7 +374,7 @@ export default function App() {
             type="button"
             onClick={begin}
             disabled={starting}
-            className="mt-8 block text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
+            className="mt-10 text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
           >
             {starting ? 'finding someone to judge you…' : 'begin'}
           </button>
@@ -406,6 +420,7 @@ export default function App() {
           impatience={stream.impatience}
           activity={running ? 'running' : typing ? 'writing' : 'idle'}
           running={running}
+          finishing={finishing}
           armed={armed}
           escFlash={escFlash}
           onSubmit={submit}
