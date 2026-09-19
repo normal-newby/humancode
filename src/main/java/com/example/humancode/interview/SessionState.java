@@ -29,6 +29,12 @@ public final class SessionState {
 
     private volatile Phase phase = Phase.INTRO;
     private volatile String code;
+    /**
+     * The buffer as it stood the last time the interviewer spoke. The prompt
+     * diffs this against {@link #code} so a reaction can be about what just
+     * changed rather than about the same shape of code as last time.
+     */
+    private volatile String previousCode;
     private volatile String language;
 
     private volatile Instant lastEventAt;
@@ -58,6 +64,7 @@ public final class SessionState {
         this.problem = problem;
         this.language = language;
         this.code = problem.starterCode();
+        this.previousCode = problem.starterCode();
         this.startedAt = Instant.now();
         this.lastEventAt = this.startedAt;
     }
@@ -96,6 +103,21 @@ public final class SessionState {
 
     public void code(String code) {
         this.code = code;
+    }
+
+    /** The buffer as of the interviewer's last line. Never null. */
+    public String previousCode() {
+        return previousCode;
+    }
+
+    /**
+     * Moves the diff baseline up to the current buffer. Called once the
+     * interviewer has actually spoken, so the next reaction sees only what
+     * happened after this line — never call it on a suppressed trigger, or the
+     * work done in between becomes invisible.
+     */
+    public void markCodeSpokenFor() {
+        this.previousCode = this.code;
     }
 
     public String language() {

@@ -15,6 +15,21 @@ class ReactionGuardTest {
     }
 
     @Test
+    void acceptsTheAccusatoryQuestionsTheVoiceIsBuiltOn() {
+        assertTrue(guard.isSafe(reaction("Why are you still not changing anything?")));
+        assertTrue(guard.isSafe(reaction("What the hell is that line doing in there?")));
+        assertTrue(guard.isSafe(reaction("Where did that block come from?")));
+    }
+
+    /** Seventeen words. The cap is fourteen, and it is still a cap. */
+    @Test
+    void stillRejectsAParagraph() {
+        assertFalse(guard.isSafe(reaction(
+                "Why are you still sitting there not writing anything at all right now"
+                        + " on this problem today?")));
+    }
+
+    @Test
     void rejectsSolutionSteps() {
         assertFalse(guard.isSafe(reaction("Sort by start, then scan to merge.")));
     }

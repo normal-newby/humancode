@@ -81,9 +81,9 @@ clicked. It is not harmless now: every `run` click is an uncooldowned call, so s
 button while debugging generates one call per press. If cost or rate limits bite, put a short floor
 (~4s) on `immediate` triggers in `InterviewDirector.fire()` rather than removing the immediacy.
 
-With `humancode.problems.source=generated` there is also **one blocking generation call per session**, in
-front of the user pressing *begin*. Expect a visible pause; pre-generating in the background is the fix
-if it drags.
+With `humancode.problems.source=generated` (the `prod` profile) there is **one generation call per
+session started**, but it no longer happens in front of the user: `ProblemPool` keeps a couple warm and
+replaces what is taken in the background. See §6.
 
 ---
 
@@ -169,6 +169,9 @@ Rules:
 - DTOs and value types are Java `record`s. Mutable entities use Lombok.
 - `SessionState` lives in memory (a `ConcurrentHashMap` keyed by session id) and is *snapshotted* to
   SQLite on phase transitions and at session end. Do not write to the DB on every keystroke.
+- It holds **two** copies of the editor: `code` (current, updated by every telemetry batch) and
+  `previousCode` (the buffer as of the interviewer's last line). The pair is what the prompt diffs —
+  see §5.
 
 ### Lombok conventions
 
@@ -290,7 +293,7 @@ would with an explicit API:
 
 ```
 [ stable prefix ] system prompt → problem statement → reference solution → rubric
-[ volatile tail ] current code snapshot → recent event digest → trigger that fired
+[ volatile tail ] current code snapshot → diff since the last line → event digest → trigger
 ```
 
 **Never** interpolate a timestamp, session id, or elapsed-time counter into the prefix — one moving byte
@@ -302,6 +305,46 @@ Verify it is working: the response usage reports cached prompt tokens
 something in your prefix is moving — find it before you tune anything else.
 
 Problems are resource files precisely so swapping one swaps a whole cache namespace cleanly.
+
+### The diff is what makes reactions specific
+
+The tail carries **both** buffers' worth of information: the current editor contents, and a line diff
+against `SessionState.previousCode` — the code as it stood the last time the interviewer actually
+spoke. `ai/CodeDiff.java` renders it as `-`/`+` lines with line numbers, capped at 40.
+
+Without it the model only ever sees a still frame, so it describes the same shape of code every time
+and the session flattens into three interchangeable remarks. With it, a line can be about the thing
+that just moved — the map that just got deleted, the loop that replaced it, the ten minutes in which
+nothing appeared at all — which is both more varied and more pointed, at no cost to the tone.
+
+Two rules to keep it honest:
+
+- **The baseline moves only when a line is actually spoken.** `InterviewDirector.fire()` calls
+  `state.markCodeSpokenFor()` after `interviewer.react`, and after the cooldown and SSE guards. Move
+  it earlier and a suppressed trigger silently eats the candidate's work; move it into the telemetry
+  path and the diff shrinks to a 1.5s sliver of typing that is never worth a sentence.
+- **It belongs in the tail, never the prefix.** It changes on every call by construction, so one byte
+  of it near the front would cost every cached read in the session.
+
+### Reasoning models will eat your output budget
+
+`gpt-5` and `gpt-5-mini` are reasoning models: `maxOutputTokens` covers the reasoning tokens *and* the
+visible answer. Set it too low and the call still returns 200, with `status=incomplete`,
+`incomplete_details.reason=max_output_tokens`, a reasoning item, and **no message**. The SDK's
+`response.output()` stream then yields nothing, which is indistinguishable from a model that declined
+to answer — so every line quietly comes back canned while the logs report success.
+
+That is exactly what a 160-token cap on the quip path did. The fix is both halves:
+
+```java
+.reasoning(Reasoning.builder().effort(ReasoningEffort.MINIMAL).build())
+.maxOutputTokens(400L)
+```
+
+A heckle is not a reasoning problem and the candidate is waiting, so minimal effort is right on its
+own merits — but keep the headroom too, because effort is a hint, not a guarantee. Both call sites log
+`status` and `incomplete` on an empty response now; if you see `incomplete=max_output_tokens`, raise
+the cap rather than hunting the prompt.
 
 ### Structured outputs
 
@@ -353,13 +396,70 @@ UI-DESIGN.md §4.7 before adding any readout.
 
 | Value | Behaviour |
 |---|---|
-| `bank` (default, **use in dev**) | `resources/problems/*.json`. Repeatable, and the expectations are machine-verified. |
-| `generated` (**prod**) | The model writes a fresh problem with runnable tests per session, via structured outputs (`GeneratedProblem`). Requires `OPENAI_API_KEY`. |
+| `generated` (**the default**) | The model writes a fresh problem with its own runnable tests per session, via structured outputs (`GeneratedProblem`). Requires `OPENAI_API_KEY`. |
+| `bank` (**the `dev` profile**) | `resources/problems/*.json`. Repeatable, machine-verified, free. `-Dspring-boot.run.profiles=dev`. |
+
+The default generates. That means a plain `./mvnw spring-boot:run` costs a model call per session
+started, which is deliberate — the product is the generated interview, and a default that quietly
+serves the same three problems is how you demo the wrong thing. Use the `dev` profile while working
+on anything else.
+
+`./mvnw test` runs the two `@SpringBootTest` classes under `@ActiveProfiles("dev")`, because a Spring
+context publishes `ApplicationReadyEvent` and would otherwise warm the pool — two model calls and a
+minute of latency on every build. Do not remove those annotations. Do not add a
+`src/test/resources/application.properties` either: it *replaces* the main one rather than merging,
+and the context then fails on a null `humancode.ai`.
+
+### Running in prod
+
+```
+./mvnw package
+OPENAI_API_KEY=sk-... java -jar target/humancode-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+```
+
+The `prod` profile adds what a served deployment wants on top of the defaults: a deeper pool, INFO
+logging, response compression, no error details on the wire. Generated problems are not part of that
+difference any more — they are the default everywhere except `dev` and the tests.
+
+**Generation takes 35-45 seconds**, so it cannot happen in front of the begin button. `ProblemPool`
+keeps `humancode.problems.pool-size` problems warm: the session takes one (measured: 250ms end to
+end) and a replacement is generated in the background. Three consequences worth knowing before a
+demo:
+
+- **The pool survives restarts.** It is written to `humancode.problems.cache-file`
+  (`./data/problem-pool.json`, gitignored) on every change and read back at startup — so only a
+  genuinely first run is cold. Without it, every restart began with a bank problem, which is exactly
+  what you hit while working on the app. Look for `Restored 2 problem(s)` rather than `Pool is empty`.
+- **A first run, or a deleted cache, is cold for a minute or so.** Sessions started in that window get
+  a bank problem and say so in the log (`Pool still filling; starting this session on bank problem`).
+  Wait for `Pool now holds N problem(s)` before starting one.
+- **A cold pool with a generation already running does not start a second one.** It waits 8s for the
+  in-flight one, then takes the bank. Two 40-second calls to serve one candidate is how a pool ends up
+  costing more than no pool.
+- **Steady-state cost is one generation per session started**, plus the warm-up. Nothing is generated
+  speculatively beyond the target, so an idle server is free.
+
+Two failure modes that cost a real session each before they were fixed, both worth remembering
+because neither looks like an error:
+
+- **The client-wide 30s timeout does not fail a slow call, it retries it.** A 40-second generation was
+  showing up as a 92-second one — three attempts, three times the tokens, one usable answer.
+  `humancode.problems.generation-timeout` (180s) is applied per request via `RequestOptions`.
+- **A truncated response is reported as a JSON parse error**, not as a truncation, with the partial
+  body pasted into the exception message. 8000 output tokens was not enough for a problem with eight
+  tests; it is 16000 now. If you see `Problem generation failed` with a JSON parse error, raise
+  `MAX_OUTPUT_TOKENS` before suspecting the prompt.
 
 `generated` falls back to the bank — loudly — when the key is missing or the model returns something
-malformed. `ProblemGenerator.convert` structurally validates first: entry point present, tests non-empty,
-reference solution and starter code both defining that function, every `argsJson`/`expectedJson` parsing
-as JSON. A subtly *wrong* test can still get through; that is the residual risk of generating problems.
+malformed. `ProblemGenerator.convert` structurally validates first: entry point is a real JS identifier,
+at least three tests with no duplicate `argsJson`, a statement, reference solution and starter code both
+defining the entry point, starter code shorter than the reference (a starter that *is* the answer passes
+every other check), and every `argsJson`/`expectedJson` parsing as JSON.
+
+A subtly *wrong* test can still get through, and that risk got sharper now that the UI never shows test
+results: a candidate with a correct answer is told they are wrong and has no way to see why. Verifying
+generated tests for real needs a server-side JS runtime, which is a project of its own — §6 says why we
+do not have one.
 
 Because a generated problem exists only for the life of its session, `SessionState` holds the whole
 `Problem`, not an id. There is nothing to look it up in.
@@ -383,7 +483,8 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 
 ## 8. Conventions
 
-- Run: `./mvnw spring-boot:run` (builds the UI too). Test: `./mvnw test`.
+- Run: `./mvnw spring-boot:run` (builds the UI too, bank problems). Prod: `--spring.profiles.active=prod`
+  (see §6). Test: `./mvnw test`.
   Backend-only loop: add `-Dskip.frontend=true`. Frontend hot reload: `npm run dev` in `web/`.
 - `OPENAI_API_KEY` via `.env` or the environment — see §5.2. Never commit a key, never put a literal
   one in `application.properties`.
@@ -394,9 +495,18 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 - Config under the `humancode.*` prefix, bound with `@ConfigurationProperties`.
 - Log every model call with its trigger reason, latency, and cache-hit counts. When the interviewer says
   something strange mid-demo you will want to know which trigger fired.
-- The interviewer's tone is smug, impatient, and funny. It is **never** genuinely cruel, and it never
-  comments on anything but the code and the clock. `PromptAssembler.RULES` carries this constraint
-  explicitly — it is the only place the voice is defined.
+- The interviewer's tone is **accusatory**: a senior engineer demanding an account, not a narrator.
+  It asks more than it states — "why are you still not changing anything?" rather than "no new code",
+  "what the hell is that line doing in there?" rather than "that line is useless". Second person,
+  always. Mild exasperation is in character (hell, damn, seriously); it accuses the work and the
+  decision behind it and **never** the person, never their intelligence, and never anything but the
+  code and the clock. `PromptAssembler.RULES` is the only place the voice is defined — with one
+  exception, `CannedLines`, which has to match it or the fallback reads as a second interviewer.
+- Two mechanical limits hold that voice up, and both bite silently. `ReactionGuard` caps a line at
+  **14 words** (raised from 12: a question carries more scaffolding than a statement), and it rejects
+  any line containing solution language — `loop`, `set`, `sort`, `stack` and friends. A rejected line
+  is not an error, it is a canned line, so a run of `canned` markers in the UI with no warning in the
+  log means the model is writing lines the guard will not pass.
 
 ---
 
@@ -404,10 +514,10 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 
 Recorded here so they get made deliberately rather than by accident:
 
-- **Model IDs are unverified guesses.** `humancode.ai.model=gpt-5` and `quip-model=gpt-5-mini` have
-  never been exercised against the real API. A wrong id 404s, gets caught, and **silently degrades to a
-  canned line** — so the app looks fine while saying nothing real. Grep the log for `Quip call failed`
-  or `Problem generation failed` the first time the key is in.
+- **Model IDs.** `humancode.ai.model=gpt-5` and `quip-model=gpt-5-mini` are accepted by the API — a
+  wrong id 404s, gets caught, and **silently degrades to a canned line**, so the app looks fine while
+  saying nothing real. Grep the log for `Quip call failed` or `Problem generation failed` the first
+  time the key is in, and for `No structured reaction` if the lines are canned without any error.
 - Whether `immediate` triggers need a short cooldown floor (see §2).
 - Language support at demo time — JS only, or JS + Python? (Pyodide adds ~10MB and a load delay.)
 - Whether passive mode needs server-side scheduling or a client timer is enough.

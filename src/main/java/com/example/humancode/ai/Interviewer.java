@@ -10,6 +10,8 @@ import com.example.humancode.interview.SessionState;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.telemetry.Trigger;
 import com.openai.client.OpenAIClient;
+import com.openai.models.Reasoning;
+import com.openai.models.ReasoningEffort;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.StructuredResponse;
 import com.openai.models.responses.StructuredResponseCreateParams;
@@ -28,6 +30,17 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Service
 public class Interviewer {
+
+    /**
+     * Headroom for the whole response, reasoning included.
+     *
+     * <p>This used to be 160, which a reasoning model spends entirely on
+     * thinking before it writes a single visible token. The call then returns
+     * {@code status=incomplete} with a reasoning item and no message, which
+     * looks exactly like a model that had nothing to say — every line in the
+     * session came back canned while the logs said the call had succeeded.
+     */
+    private static final long MAX_OUTPUT_TOKENS = 400L;
 
     private final OpenAiClientHolder clientHolder;
     private final PromptAssembler prompts;
@@ -49,7 +62,10 @@ public class Interviewer {
                     .model(props.ai().quipModel())
                     .instructions(prompts.instructions(state, problem))
                     .input(prompts.input(state, trigger))
-                    .maxOutputTokens(160L)
+                    // A heckle is not a reasoning problem, and the candidate is
+                    // waiting: minimal effort keeps the budget for the line.
+                    .reasoning(Reasoning.builder().effort(ReasoningEffort.MINIMAL).build())
+                    .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .text(Reaction.class)
                     .build();
 
@@ -64,7 +80,7 @@ public class Interviewer {
                     .findFirst();
 
             if (reaction.isEmpty()) {
-                log.warn("Model returned no structured reaction for trigger {}", trigger.kind());
+                warnEmpty(response, trigger);
                 return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
             }
 
@@ -81,6 +97,26 @@ public class Interviewer {
                     trigger.kind(), e.toString());
             return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
         }
+    }
+
+    /**
+     * A response with no message is almost always a truncation, so say which
+     * kind. The old one-line warning gave no way to tell "the model declined"
+     * from "the budget ran out", and the two need opposite fixes.
+     */
+    private void warnEmpty(StructuredResponse<Reaction> response, Trigger trigger) {
+        var raw = response.rawResponse();
+        String status = raw.status().map(Object::toString).orElse("unknown");
+        String reason = raw.incompleteDetails()
+                .flatMap(details -> details.reason())
+                .map(Object::toString)
+                .orElse("none");
+        long output = raw.usage().map(usage -> usage.outputTokens()).orElse(0L);
+
+        log.warn("No structured reaction for trigger {} (status={}, incomplete={}, output tokens={}/{})."
+                + " If incomplete=max_output_tokens, the model spent the budget on reasoning:"
+                + " raise MAX_OUTPUT_TOKENS or lower the reasoning effort.",
+                trigger.kind(), status, reason, output, MAX_OUTPUT_TOKENS);
     }
 
     /**

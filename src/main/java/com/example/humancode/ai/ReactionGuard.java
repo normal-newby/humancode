@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class ReactionGuard {
 
+    private static final int MAX_WORDS = 14;
+
     private static final List<Pattern> SOLUTION_LANGUAGE = List.of(
             Pattern.compile("(?i)\\b(sort|merge|scan|traverse|iterate|loop|hash ?map|stack|queue|"
                     + "set|two pointers|binary search|sliding window|dynamic programming|recursion|"
@@ -24,7 +26,11 @@ public class ReactionGuard {
             return false;
         }
         int words = line.trim().split("\\s+").length;
-        if (words < 3 || words > 12) {
+        // 14, not 12: an accusatory question carries more scaffolding than
+        // a flat statement, and "what the hell are you doing putting useless
+        // lines in the code" is exactly twelve words. A rejected line is a
+        // silent downgrade to a canned one, so leave the tone some room.
+        if (words < 3 || words > MAX_WORDS) {
             return false;
         }
         if (line.contains("—") || line.contains("–") || line.contains(";") || line.contains(":")

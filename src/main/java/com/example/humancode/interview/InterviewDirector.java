@@ -62,6 +62,12 @@ public class InterviewDirector {
         Interviewer.Result result = interviewer.react(state, sessions.problemFor(state), trigger);
         Reaction reaction = result.reaction();
 
+        // The line has been written against this buffer, so the next one should
+        // only see what happens after it. Deliberately after react() and after
+        // both guards above: a suppressed trigger costs no call and must not
+        // eat the diff either.
+        state.markCodeSpokenFor();
+
         int impatience = state.bumpImpatience(reaction.impatienceDelta());
 
         Utterance utterance = new Utterance(

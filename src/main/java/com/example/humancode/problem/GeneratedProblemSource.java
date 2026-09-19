@@ -12,9 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Production source: a fresh, model-written problem per session.
  *
- * <p>Falls back to the curated bank when generation is unavailable or the model
- * returns something unusable. An interview that cannot start is worse than a
- * familiar question, and the fallback is loud in the logs.
+ * <p>Problems come off {@link ProblemPool} so the call is not made in front of
+ * the candidate. Falls back to the curated bank when generation is unavailable
+ * or the model returns something unusable. An interview that cannot start is
+ * worse than a familiar question, and the fallback is loud in the logs.
  */
 @Component
 @ConditionalOnProperty(name = "humancode.problems.source", havingValue = "generated")
@@ -22,11 +23,14 @@ import lombok.extern.slf4j.Slf4j;
 public class GeneratedProblemSource implements ProblemSource {
 
     private final ProblemGenerator generator;
+    private final ProblemPool pool;
     private final ProblemBank bank;
     private final OpenAiClientHolder clientHolder;
 
-    public GeneratedProblemSource(ProblemGenerator generator, ProblemBank bank, OpenAiClientHolder clientHolder) {
+    public GeneratedProblemSource(ProblemGenerator generator, ProblemPool pool, ProblemBank bank,
+            OpenAiClientHolder clientHolder) {
         this.generator = generator;
+        this.pool = pool;
         this.bank = bank;
         this.clientHolder = clientHolder;
 
@@ -45,6 +49,24 @@ public class GeneratedProblemSource implements ProblemSource {
             return bank.require(id);
         }
 
+        // Three tiers, cheapest first: something already warm, then a blocking
+        // generation, then the bank. Only the first is fast enough to be
+        // invisible, which is the entire point of the pool.
+        Optional<Problem> warm = pool.take();
+        if (warm.isPresent()) {
+            return warm.get();
+        }
+
+        // A generation already running means a problem is coming for the next
+        // session, and starting a second one would cost another full call to
+        // make this candidate wait 90 seconds. The bank is instant and correct.
+        if (pool.busy()) {
+            Problem fallback = bank.random();
+            log.warn("Pool still filling; starting this session on bank problem '{}'", fallback.id());
+            return fallback;
+        }
+
+        log.info("Nothing warm and nothing in flight; generating one inline");
         Optional<Problem> generated = generator.generate();
         if (generated.isPresent()) {
             return generated.get();

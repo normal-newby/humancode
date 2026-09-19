@@ -1,17 +1,22 @@
 package com.example.humancode.problem;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Component;
 
 import com.example.humancode.config.HumancodeProperties;
 import com.example.humancode.config.OpenAiClientHolder;
 import com.openai.client.OpenAIClient;
+import com.openai.core.RequestOptions;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.StructuredResponse;
 import com.openai.models.responses.StructuredResponseCreateParams;
@@ -51,6 +56,23 @@ public class ProblemGenerator {
             "sliding window", "sorting and intervals", "binary search", "matrix traversal",
             "prefix sums", "greedy selection", "linked-list-style logic on arrays", "recursion");
 
+    /**
+     * Headroom for reasoning plus a whole problem as JSON.
+     *
+     * <p>8000 was not enough: a mid-sized problem with eight tests, a reference
+     * solution and a rubric ran out partway through a later field, and the SDK
+     * threw {@code OpenAIInvalidDataException} on the truncated JSON. That
+     * failure costs a full 90-second call and produces nothing, so buy the
+     * headroom — unused output tokens are not billed.
+     */
+    private static final long MAX_OUTPUT_TOKENS = 16_000L;
+
+    private static final Pattern JS_IDENTIFIER = Pattern.compile("[A-Za-z_$][A-Za-z0-9_$]*");
+    /** Two sessions in a row on "stacks" is not a random problem source. */
+    private static final int MIN_TESTS = 3;
+
+    private final AtomicReference<String> lastSeed = new AtomicReference<>();
+
     private final OpenAiClientHolder clientHolder;
     private final HumancodeProperties props;
     private final ObjectMapper mapper;
@@ -62,7 +84,7 @@ public class ProblemGenerator {
             return Optional.empty();
         }
 
-        String seed = SEEDS.get(ThreadLocalRandom.current().nextInt(SEEDS.size()));
+        String seed = nextSeed();
         String difficulty = ThreadLocalRandom.current().nextInt(3) == 0 ? "medium" : "easy";
 
         try {
@@ -71,12 +93,20 @@ public class ProblemGenerator {
                     .instructions(INSTRUCTIONS)
                     .input("Write a %s problem about %s. Avoid the most over-used textbook examples."
                             .formatted(difficulty, seed))
-                    .maxOutputTokens(8000L)
+                    .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .text(GeneratedProblem.class)
                     .build();
 
+            // Its own deadline, not the client-wide one. A problem takes the
+            // model a minute and a half to write; at the 30s default the SDK
+            // does not fail, it retries, so every problem is quietly paid for
+            // two or three times over.
+            RequestOptions options = RequestOptions.builder()
+                    .timeout(props.problems().generationTimeout())
+                    .build();
+
             long started = System.nanoTime();
-            StructuredResponse<GeneratedProblem> response = client.get().responses().create(params);
+            StructuredResponse<GeneratedProblem> response = client.get().responses().create(params, options);
             long millis = (System.nanoTime() - started) / 1_000_000;
 
             Optional<GeneratedProblem> generated = response.output().stream()
@@ -86,7 +116,14 @@ public class ProblemGenerator {
                     .findFirst();
 
             if (generated.isEmpty()) {
-                log.warn("Problem generation returned no structured output");
+                // Same trap as the quip path: a truncated reasoning response
+                // carries no message and looks identical to a refusal.
+                log.warn("Problem generation returned no structured output (status={}, incomplete={})",
+                        response.rawResponse().status().map(Object::toString).orElse("unknown"),
+                        response.rawResponse().incompleteDetails()
+                                .flatMap(details -> details.reason())
+                                .map(Object::toString)
+                                .orElse("none"));
                 return Optional.empty();
             }
 
@@ -96,9 +133,34 @@ public class ProblemGenerator {
             return Optional.of(problem);
 
         } catch (RuntimeException e) {
-            log.warn("Problem generation failed ({})", e.toString());
+            // The SDK reports a truncated response as a JSON parse failure and
+            // pastes the whole partial body into the message, which is both
+            // enormous and misleading. Name the likely cause and trim it.
+            String detail = e.toString();
+            if (detail.length() > 300) {
+                detail = detail.substring(0, 300) + "... [truncated]";
+            }
+            log.warn("Problem generation failed ({}). A JSON parse error here usually means the"
+                    + " response was cut off: check MAX_OUTPUT_TOKENS.", detail);
             return Optional.empty();
         }
+    }
+
+    /**
+     * A seed, never the one used last.
+     *
+     * <p>Uniform random over twelve seeds repeats itself roughly one session in
+     * twelve, and back-to-back duplicates are the only collision a candidate can
+     * actually notice.
+     */
+    private String nextSeed() {
+        String previous = lastSeed.get();
+        String seed;
+        do {
+            seed = SEEDS.get(ThreadLocalRandom.current().nextInt(SEEDS.size()));
+        } while (seed.equals(previous) && SEEDS.size() > 1);
+        lastSeed.set(seed);
+        return seed;
     }
 
     /**
@@ -107,11 +169,11 @@ public class ProblemGenerator {
      * candidate's face.
      */
     private Problem convert(GeneratedProblem g) {
-        if (g.entryPoint() == null || g.entryPoint().isBlank()) {
-            throw new IllegalStateException("generated problem has no entry point");
+        if (g.entryPoint() == null || !JS_IDENTIFIER.matcher(g.entryPoint()).matches()) {
+            throw new IllegalStateException("entry point is not a usable function name: " + g.entryPoint());
         }
-        if (g.tests() == null || g.tests().isEmpty()) {
-            throw new IllegalStateException("generated problem has no tests");
+        if (g.tests() == null || g.tests().size() < MIN_TESTS) {
+            throw new IllegalStateException("generated problem has fewer than " + MIN_TESTS + " tests");
         }
         if (g.referenceSolution() == null || !g.referenceSolution().contains(g.entryPoint())) {
             throw new IllegalStateException("reference solution does not define " + g.entryPoint());
@@ -119,19 +181,29 @@ public class ProblemGenerator {
         if (g.starterCode() == null || !g.starterCode().contains(g.entryPoint())) {
             throw new IllegalStateException("starter code does not declare " + g.entryPoint());
         }
+        // The worst possible generated problem is one whose starter code is the
+        // answer. It fails no structural check, and the candidate is handed a
+        // passing solution to stare at.
+        if (g.starterCode().length() >= g.referenceSolution().length()) {
+            throw new IllegalStateException("starter code is as long as the reference solution");
+        }
+        if (g.statement() == null || g.statement().isBlank()) {
+            throw new IllegalStateException("generated problem has no statement");
+        }
 
         List<TestCase> tests = new ArrayList<>(g.tests().size());
+        Set<String> seenArgs = new HashSet<>();
         for (GeneratedProblem.GeneratedTest test : g.tests()) {
             List<Object> args = mapper.readValue(test.argsJson(), new tools.jackson.core.type.TypeReference<>() {
             });
             Object expected = mapper.readValue(test.expectedJson(), Object.class);
+            // A duplicated case is a test the model thought it had written and
+            // did not: it inflates the count while covering nothing.
+            if (!seenArgs.add(test.argsJson())) {
+                throw new IllegalStateException("duplicate test case: " + test.argsJson());
+            }
             tests.add(new TestCase(args, expected));
         }
-
-        List<Problem.Example> examples = g.examples() == null ? List.of()
-                : g.examples().stream()
-                        .map(e -> new Problem.Example(e.input(), e.output(), e.explanation()))
-                        .toList();
 
         String id = "gen-" + UUID.randomUUID().toString().substring(0, 8);
         return new Problem(
@@ -140,7 +212,8 @@ public class ProblemGenerator {
                 g.difficulty() == null ? "easy" : g.difficulty().name().toLowerCase(Locale.ROOT),
                 g.tags() == null ? List.of() : g.tags(),
                 g.statement(),
-                examples,
+                // Generated problems carry no worked examples, by design.
+                List.of(),
                 g.starterCode(),
                 g.entryPoint(),
                 tests,

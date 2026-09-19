@@ -15,6 +15,11 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
  *
  * <p>Jackson 2 annotations on purpose — that is what the OpenAI SDK's schema
  * generator reads. See CLAUDE.md §5.
+ *
+ * <p>No worked examples. The UI stopped showing them (UI-DESIGN.md §4.7) and
+ * the prompt never carried them, so asking for them spent output tokens on
+ * nothing — and output tokens are exactly what runs out and truncates the JSON
+ * mid-field. Every field below has a live consumer.
  */
 @JsonClassDescription("A complete coding-interview problem with executable JavaScript test cases.")
 public record GeneratedProblem(
@@ -31,8 +36,6 @@ public record GeneratedProblem(
                 The problem statement as prose, 2-4 sentences. Plain text, no markdown \
                 headings. State the constraints and what to return.""")
         String statement,
-
-        List<GeneratedExample> examples,
 
         @JsonPropertyDescription("""
                 JavaScript starter code: a JSDoc comment followed by an empty function \
@@ -79,15 +82,6 @@ public record GeneratedProblem(
     public enum Match {
         EXACT,
         UNORDERED
-    }
-
-    public record GeneratedExample(
-            @JsonPropertyDescription("Human-readable input, e.g. 'nums = [2,7,11,15], target = 9'.")
-            String input,
-            @JsonPropertyDescription("Human-readable expected output, e.g. '[0, 1]'.")
-            String output,
-            @JsonPropertyDescription("One sentence explaining why.")
-            String explanation) {
     }
 
     public record GeneratedTest(

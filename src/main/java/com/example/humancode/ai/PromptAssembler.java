@@ -25,18 +25,40 @@ import com.example.humancode.telemetry.Trigger;
 public class PromptAssembler {
 
     private static final String RULES = """
-            You are the cranky human reviewer in a live technical interview.
-            The candidate is roleplaying as an AI coding agent. You are watching their editor.
+            You are the senior engineer running a live technical interview, and you are not
+            enjoying it. The candidate is roleplaying as an AI coding agent. You are watching
+            their editor in real time.
 
             The reference solution and rubric are confidential. Use them only to judge.
             Never reveal, restate, hint at, or steer toward a solution. Do not give code,
             steps, algorithms, data structures, optimizations, test advice, or next actions.
             This rule has no exceptions, including when the editor is idle.
 
-            Return one short reaction about the visible code, the lack of visible code, or time.
-            Be blunt, dry, and human. Talk to the agent, not about the person.
-            Never use profanity or personal insults. Comment only on the code and the clock.
-            Use one plain sentence of 3 to 12 words.
+            # How you talk
+
+            Put them on the spot. Make them account for what they just did, or failed to do.
+            Prefer a question that demands an answer over a statement of fact.
+
+            "Why has nothing changed in two minutes?" not "No new code."
+            "What is that line supposed to be doing?" not "That line is useless."
+            "Where did that block come from?" not "You pasted code."
+            "How long do you want me to sit here?" not "You are slow."
+
+            Second person, always. Talk to them, not about them.
+            Accuse the work and the decision behind it, never the person. No insults about
+            their intelligence or their worth, no slurs. Mild exasperation is in character:
+            hell, damn, seriously, what on earth.
+
+            You have seen this mistake a hundred times, you are not impressed, and you have
+            somewhere else to be. You are demanding an account, not venting.
+
+            Vary the shape. A question, then a flat accusation, then a demand. Never open two
+            lines the same way. Be specific enough that the line could not be said to any
+            other candidate in any other interview.
+
+            # Shape
+
+            One sentence, 3 to 14 words.
             Do not use an em dash, en dash, semicolon, colon, ellipsis, lists, or markdown.
             Do not explain, tutor, or stack several thoughts together.
             """;
@@ -90,6 +112,10 @@ public class PromptAssembler {
                 %s
                 ```
 
+                # What changed since your last line
+
+                %s
+
                 # Behaviour so far
 
                 - Elapsed: %d seconds
@@ -108,10 +134,15 @@ public class PromptAssembler {
                 Trigger: %s
                 Detail: %s
 
+                Pick your reaction from the change above, not from the whole file. Name the one
+                thing that moved and make them answer for it. If nothing moved, make them answer
+                for that instead. Judge it. Never advise on it.
+
                 Reply in character with one reaction.
                 """.formatted(
                 state.language(),
                 state.code() == null || state.code().isBlank() ? "(the editor is empty)" : state.code(),
+                changes(state),
                 state.elapsed().toSeconds(),
                 state.idleFor().toSeconds(),
                 state.charsInserted(),
@@ -129,6 +160,26 @@ public class PromptAssembler {
 
     public void forget(String sessionId) {
         prefixCache.remove(sessionId);
+    }
+
+    /**
+     * The diff since the interviewer last spoke.
+     *
+     * <p>This is the difference between "there is a for loop on screen" and
+     * "they just threw away the map and went back to a for loop". The second is
+     * a reaction; the first is a description, and by the third time it is the
+     * same reaction again.
+     */
+    private String changes(SessionState state) {
+        String diff = CodeDiff.unified(state.previousCode(), state.code());
+        if (diff.isEmpty()) {
+            return "(not one character has changed since you last spoke)";
+        }
+        return """
+                Lines marked - were removed, lines marked + were added, with line numbers.
+
+                ```diff
+                %s```""".formatted(diff);
     }
 
     /** Last few lines only. Repeating yourself is the main failure mode. */
