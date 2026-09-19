@@ -28,13 +28,13 @@ public class PromptAssembler {
 
     private static final String RULES = """
             You are the senior engineer running a live technical interview, and you are not
-            enjoying it. The candidate is roleplaying as an AI coding agent. You are watching
-            their editor in real time.
+            enjoying it. The candidate is roleplaying as an AI coding agent, building a small
+            app to spec. You are watching their editor in real time.
 
-            The reference solution and rubric are confidential. Use them only to judge.
+            The reference answer and rubric are confidential. Use them only to judge.
             Never reveal, restate, hint at, or steer toward a solution. Do not give code,
-            steps, algorithms, data structures, optimizations, test advice, or next actions.
-            This rule has no exceptions, including when the editor is idle.
+            markup, CSS values, implementation steps, or next actions. This rule has no
+            exceptions, including when the editor is idle.
 
             # How you talk
 
@@ -50,7 +50,7 @@ public class PromptAssembler {
             a default: use it at most once a session, and only when nothing sharper lands.
 
             You can see their screen. Build the joke out of the actual thing you are
-            reacting to: the variable, the construct, the line, the number on the clock. A
+            reacting to: the variable, the selector, the element, the number on the clock. A
             line that would land on any candidate in any interview is a failure even if it
             is grammatically a perfectly good insult — the specificity has to be doing
             comic work, not just proving you were paying attention.
@@ -70,12 +70,9 @@ public class PromptAssembler {
             You have seen this mistake a hundred times, you are not impressed, and you have
             somewhere else to be. You are demanding an account, not venting.
 
-            Naming a data structure or control-flow construct that is already visible in
-            their code is not coaching, it is you reading their screen — "why is there a
-            loop here" is fine. Telling them what to write, use, or do next is not.
-            Naming a named strategy (two pointers, binary search, sliding window, dynamic
-            programming, backtracking, memoization) is never fine, visible or not, because
-            saying the name of the approach is the hint.
+            Naming an element, class or file that is already visible in their code is not
+            coaching, it is you reading their screen — "why is that button still green" is
+            fine. Telling them what to write, use, or do next is not.
 
             # Shape
 
@@ -105,7 +102,7 @@ public class PromptAssembler {
     private final Map<String, String> prefixCache = new ConcurrentHashMap<>();
 
     /**
-     * The stable prefix: rules, problem, reference solution, rubric.
+     * The stable prefix: rules, problem, reference answer, rubric.
      * Byte-identical for every call within one session.
      */
     public String instructions(SessionState state, Problem problem) {
@@ -119,14 +116,9 @@ public class PromptAssembler {
 
                 %s
 
-                # Reference solution for your eyes only. Never show this.
+                # Reference answer for your eyes only. Never show this.
 
-                ```
                 %s
-                ```
-
-                Optimal complexity: %s
-
                 # What a good answer does
 
                 %s
@@ -136,8 +128,7 @@ public class PromptAssembler {
                 problem.difficulty(),
                 String.join(", ", problem.tags()),
                 problem.statement(),
-                problem.referenceSolution(),
-                problem.optimalComplexity(),
+                renderReferenceFiles(problem),
                 bullets(problem.rubric())));
     }
 
@@ -146,10 +137,7 @@ public class PromptAssembler {
         return """
                 # Current state of the candidate's editor
 
-                ```%s
                 %s
-                ```
-
                 # What changed since your last line
 
                 %s
@@ -160,7 +148,7 @@ public class PromptAssembler {
                 - Idle for: %d seconds
                 - Characters written: %d, deleted: %d (delete ratio %.2f)
                 - Pastes: %d (%d characters)
-                - Test runs: %d, failed: %d
+                - Times submitted: %d
                 - Current impatience: %d/100
 
                 # What you have already said
@@ -186,8 +174,7 @@ public class PromptAssembler {
 
                 Reply in character with one reaction.
                 """.formatted(
-                state.language(),
-                state.code() == null || state.code().isBlank() ? "(the editor is empty)" : state.code(),
+                renderCurrentFiles(state),
                 changes(state),
                 state.elapsed().toSeconds(),
                 state.idleFor().toSeconds(),
@@ -196,8 +183,7 @@ public class PromptAssembler {
                 state.deleteRatio(),
                 state.pasteCount(),
                 state.pastedChars(),
-                state.runCount(),
-                state.failedRunCount(),
+                state.submitCount(),
                 state.impatience(),
                 recentLines(state),
                 trigger.kind(),
@@ -222,10 +208,7 @@ public class PromptAssembler {
 
                 # Final state of the candidate's editor
 
-                ```%s
                 %s
-                ```
-
                 # Everything you said to them during the session, in order
 
                 %s
@@ -235,7 +218,7 @@ public class PromptAssembler {
                 - Total time: %d seconds
                 - Characters written: %d, deleted: %d (delete ratio %.2f)
                 - Pastes: %d
-                - Test runs: %d, failed: %d, ever passed: %s
+                - Times submitted: %d
                 - Final impatience: %d/100
 
                 The one-sentence shape rule from the rules above applies to each insult and
@@ -243,17 +226,14 @@ public class PromptAssembler {
                 sentences. Judge the whole session, not just the final buffer. Do not repeat
                 any line you already said live during the session.
                 """.formatted(
-                state.language(),
-                state.code() == null || state.code().isBlank() ? "(the editor is empty)" : state.code(),
+                renderCurrentFiles(state),
                 allLines(state),
                 state.elapsed().toSeconds(),
                 state.charsInserted(),
                 state.charsDeleted(),
                 state.deleteRatio(),
                 state.pasteCount(),
-                state.runCount(),
-                state.failedRunCount(),
-                state.testsEverPassed() ? "yes" : "no",
+                state.submitCount(),
                 state.impatience());
     }
 
@@ -261,21 +241,48 @@ public class PromptAssembler {
         prefixCache.remove(sessionId);
     }
 
+    /** Every file's reference content, fenced per its own language. */
+    private String renderReferenceFiles(Problem problem) {
+        StringBuilder sb = new StringBuilder();
+        for (Problem.ProblemFile file : problem.files()) {
+            sb.append("--- ").append(file.name()).append(" ---\n");
+            sb.append("```").append(file.language()).append('\n');
+            sb.append(file.referenceContent()).append('\n');
+            sb.append("```\n");
+        }
+        return sb.toString();
+    }
+
+    /** Every file's current content, fenced per its own language. */
+    private String renderCurrentFiles(SessionState state) {
+        StringBuilder sb = new StringBuilder();
+        for (Problem.ProblemFile file : state.problem().files()) {
+            String content = state.code(file.name());
+            sb.append("--- ").append(file.name()).append(" ---\n");
+            sb.append("```").append(file.language()).append('\n');
+            sb.append(content == null || content.isBlank() ? "(empty)" : content).append('\n');
+            sb.append("```\n");
+        }
+        return sb.toString();
+    }
+
     /**
-     * The diff since the interviewer last spoke.
+     * The diff since the interviewer last spoke, across every file.
      *
-     * <p>This is the difference between "there is a for loop on screen" and
-     * "they just threw away the map and went back to a for loop". The second is
-     * a reaction; the first is a description, and by the third time it is the
-     * same reaction again.
+     * <p>This is the difference between "there is a green button in the markup"
+     * and "they just swapped the button's class and the color changed with it".
+     * The second is a reaction; the first is a description, and by the third
+     * time it is the same reaction again.
      */
     private String changes(SessionState state) {
-        String diff = CodeDiff.unified(state.previousCode(), state.code());
+        List<String> fileOrder = state.problem().files().stream().map(Problem.ProblemFile::name).toList();
+        String diff = CodeDiff.unifiedAcrossFiles(fileOrder, state.previousCode(), state.code());
         if (diff.isEmpty()) {
             return "(not one character has changed since you last spoke)";
         }
         return """
-                Lines marked - were removed, lines marked + were added, with line numbers.
+                Lines marked - were removed, lines marked + were added, with line numbers,
+                grouped by file.
 
                 ```diff
                 %s```""".formatted(diff);

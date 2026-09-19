@@ -14,7 +14,8 @@ const FLUSH_INTERVAL_MS = 1500
  */
 export function useTelemetry(sessionId: string | null) {
   const buffer = useRef<TelemetryItem[]>([])
-  const latestCode = useRef<string>('')
+  /** Filename -> latest content. Every file rides along on every flush — see TelemetryBatch. */
+  const latestFiles = useRef<Record<string, string>>({})
   const inFlight = useRef(false)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
 
@@ -22,8 +23,8 @@ export function useTelemetry(sessionId: string | null) {
     buffer.current.push(item)
   }, [])
 
-  const setCode = useCallback((code: string) => {
-    latestCode.current = code
+  const setCode = useCallback((file: string, code: string) => {
+    latestFiles.current = { ...latestFiles.current, [file]: code }
   }, [])
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export function useTelemetry(sessionId: string | null) {
       try {
         const result = await sendTelemetry(sessionId, {
           events,
-          code: latestCode.current,
+          files: latestFiles.current,
         })
         setMetrics(result)
       } catch (error) {

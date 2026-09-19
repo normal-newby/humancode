@@ -1,0 +1,48 @@
+{
+  "id": "shopping-cart",
+  "title": "Shopping Cart",
+  "difficulty": "medium",
+  "tags": [
+    "dom",
+    "state",
+    "rendering"
+  ],
+  "statement": "Build a shopping cart. Each line has a minus and a plus button that change its quantity, and the running item count and subtotal below must always agree with what is on screen. Dropping a quantity to zero removes that line, and an empty cart says so instead of showing a total.",
+  "files": [
+    {
+      "name": "index.html",
+      "language": "html",
+      "starterContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>shopping cart</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>cart</h1>\n  <ul id=\"items\"></ul>\n  <div class=\"summary\">\n    <p>items: <span id=\"count\">0</span></p>\n    <p>subtotal: <span id=\"subtotal\">$0.00</span></p>\n  </div>\n  <p id=\"empty\" class=\"empty\">your cart is empty</p>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n",
+      "referenceContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>shopping cart</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>cart</h1>\n  <ul id=\"items\"></ul>\n  <div class=\"summary\">\n    <p>items: <span id=\"count\">0</span></p>\n    <p>subtotal: <span id=\"subtotal\">$0.00</span></p>\n  </div>\n  <p id=\"empty\" class=\"empty\">your cart is empty</p>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n"
+    },
+    {
+      "name": "styles.css",
+      "language": "css",
+      "starterContent": "body {\n  font-family: sans-serif;\n  max-width: 420px;\n  margin: 40px auto;\n}\n\nul {\n  list-style: none;\n  padding: 0;\n}\n\nli {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 8px 0;\n}\n\nli .name {\n  flex: 1;\n}\n\nbutton {\n  min-width: 28px;\n  cursor: pointer;\n}\n\n.summary {\n  border-top: 1px solid #ccc;\n  margin-top: 16px;\n  padding-top: 12px;\n}\n\n/* your code here: hide the empty-cart message unless the cart is actually\n   empty — the JS toggles an is-empty class on <body> */\n.empty {\n  color: #888;\n}\n",
+      "referenceContent": "body {\n  font-family: sans-serif;\n  max-width: 420px;\n  margin: 40px auto;\n}\n\nul {\n  list-style: none;\n  padding: 0;\n}\n\nli {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding: 8px 0;\n}\n\nli .name {\n  flex: 1;\n}\n\nbutton {\n  min-width: 28px;\n  cursor: pointer;\n}\n\n.summary {\n  border-top: 1px solid #ccc;\n  margin-top: 16px;\n  padding-top: 12px;\n}\n\n.empty {\n  color: #888;\n  display: none;\n}\n\nbody.is-empty .empty {\n  display: block;\n}\n\nbody.is-empty .summary {\n  display: none;\n}\n"
+    },
+    {
+      "name": "app.js",
+      "language": "javascript",
+      "starterContent": "const CATALOG = [\n  { id: 'mug', name: 'Enamel mug', price: 12.5 },\n  { id: 'socks', name: 'Wool socks', price: 18 },\n  { id: 'beans', name: 'Coffee beans', price: 9.75 },\n];\n\n// Quantity per item id. Zero means the line is gone from the cart.\nconst quantities = { mug: 1, socks: 2, beans: 0 };\n\nconst list = document.getElementById('items');\nconst countOut = document.getElementById('count');\nconst subtotalOut = document.getElementById('subtotal');\n\nfunction money(n) {\n  return `$${n.toFixed(2)}`;\n}\n\nfunction render() {\n  // your code here: draw one line per item still in the cart, each with a\n  // minus button, the quantity, a plus button, and the line total\n}\n\nfunction updateSummary() {\n  // your code here: total quantity into #count, total price into #subtotal,\n  // and toggle the is-empty class on <body>\n}\n\nrender();\nupdateSummary();\n",
+      "referenceContent": "const CATALOG = [\n  { id: 'mug', name: 'Enamel mug', price: 12.5 },\n  { id: 'socks', name: 'Wool socks', price: 18 },\n  { id: 'beans', name: 'Coffee beans', price: 9.75 },\n];\n\n// Quantity per item id. Zero means the line is gone from the cart.\nconst quantities = { mug: 1, socks: 2, beans: 0 };\n\nconst list = document.getElementById('items');\nconst countOut = document.getElementById('count');\nconst subtotalOut = document.getElementById('subtotal');\n\nfunction money(n) {\n  return `$${n.toFixed(2)}`;\n}\n\nfunction change(id, delta) {\n  quantities[id] = Math.max(0, (quantities[id] || 0) + delta);\n  render();\n  updateSummary();\n}\n\nfunction render() {\n  list.textContent = '';\n  for (const item of CATALOG) {\n    const quantity = quantities[item.id] || 0;\n    if (quantity === 0) continue;\n\n    const row = document.createElement('li');\n\n    const name = document.createElement('span');\n    name.className = 'name';\n    name.textContent = item.name;\n\n    const minus = document.createElement('button');\n    minus.textContent = '-';\n    minus.addEventListener('click', () => change(item.id, -1));\n\n    const amount = document.createElement('span');\n    amount.textContent = String(quantity);\n\n    const plus = document.createElement('button');\n    plus.textContent = '+';\n    plus.addEventListener('click', () => change(item.id, 1));\n\n    const lineTotal = document.createElement('span');\n    lineTotal.textContent = money(item.price * quantity);\n\n    row.append(name, minus, amount, plus, lineTotal);\n    list.append(row);\n  }\n}\n\nfunction updateSummary() {\n  let count = 0;\n  let subtotal = 0;\n  for (const item of CATALOG) {\n    const quantity = quantities[item.id] || 0;\n    count += quantity;\n    subtotal += quantity * item.price;\n  }\n  countOut.textContent = String(count);\n  subtotalOut.textContent = money(subtotal);\n  document.body.classList.toggle('is-empty', count === 0);\n}\n\nrender();\nupdateSummary();\n"
+    }
+  ],
+  "rubric": [
+    "The summary is derived from the quantity state on every change, not incremented separately — the two can never drift apart.",
+    "A quantity reaching zero removes the line from the list rather than showing a zero row.",
+    "An empty cart shows the empty message and hides the summary.",
+    "Rows are rebuilt from state rather than patched in place by index, so handlers cannot end up on the wrong item.",
+    "Money is formatted to two decimal places rather than shown as a raw float."
+  ],
+  "curveballs": [
+    "Actually, add a clear-cart button that empties the whole thing in one click.",
+    "Cap each line at a quantity of five and grey out the plus button there.",
+    "Show the most expensive line in bold."
+  ],
+  "similarProblems": [
+    "Seat Picker",
+    "Playlist Builder",
+    "Expense Splitter"
+  ]
+}

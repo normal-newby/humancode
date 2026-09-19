@@ -2,7 +2,9 @@ package com.example.humancode.web;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,8 +30,8 @@ import jakarta.validation.Valid;
  * Ingest for editor telemetry.
  *
  * <p>Hot path: keep it dumb and fast. It updates in-memory state, appends to the
- * replay log, and evaluates only the event-driven triggers (paste, test run).
- * Timer-driven triggers are the director's job.
+ * replay log, and evaluates only the event-driven triggers (paste, meaningful
+ * edit). Timer-driven triggers are the director's job.
  */
 @RequiredArgsConstructor
 @RestController
@@ -51,7 +53,15 @@ public class TelemetryController {
         long pastedThisBatch = 0;
         long insertedThisBatch = 0;
         long deletedThisBatch = 0;
-        String previousCode = state.code();
+
+        // Snapshot each touched file's previous content before this batch
+        // overwrites it, so completed-line detection can diff per file.
+        Map<String, String> previousFiles = new HashMap<>();
+        if (batch.files() != null) {
+            for (String file : batch.files().keySet()) {
+                previousFiles.put(file, state.code(file));
+            }
+        }
 
         for (Dtos.TelemetryItem item : batch.events()) {
             switch (item.type()) {
@@ -60,7 +70,11 @@ public class TelemetryController {
                     state.recordPaste(item.inserted());
                     pastedThisBatch += item.inserted();
                 }
-                case FOCUS, BLUR, RUN -> state.touch();
+                case FOCUS, BLUR -> state.touch();
+                case SUBMIT -> {
+                    // Never sent as a batched item — SUBMIT is only ever
+                    // constructed server-side in submit() below.
+                }
             }
             if (item.type() == EventType.EDIT) {
                 insertedThisBatch += item.inserted();
@@ -69,8 +83,8 @@ public class TelemetryController {
             toPersist.add(new TelemetryEvent(id, item.type(), now, item.inserted(), item.deleted(), item.detail()));
         }
 
-        if (batch.code() != null) {
-            state.code(batch.code());
+        if (batch.files() != null) {
+            batch.files().forEach(state::code);
         }
         events.saveAll(toPersist);
 
@@ -80,7 +94,7 @@ public class TelemetryController {
             final long pasted = pastedThisBatch;
             triggers.onPaste(state, pasted).ifPresent(trigger -> director.fire(state, trigger));
         } else {
-            int completedLines = completedLines(previousCode, batch.code());
+            int completedLines = completedLinesAcrossFiles(previousFiles, batch.files());
             triggers.onMeaningfulEdit(state, insertedThisBatch, deletedThisBatch, completedLines)
                     .ifPresent(trigger -> director.fire(state, trigger));
         }
@@ -88,14 +102,19 @@ public class TelemetryController {
         return metrics(state);
     }
 
-    @PostMapping("/run")
-    public Dtos.MetricsResponse run(@PathVariable String id, @Valid @RequestBody Dtos.RunResultRequest request) {
+    /**
+     * The candidate handed the turn back. There is no local verdict to report —
+     * the interviewer judges the current diff against the rubric, same as every
+     * other reaction (CLAUDE.md §6).
+     */
+    @PostMapping("/submit")
+    public Dtos.MetricsResponse submit(@PathVariable String id) {
         SessionState state = sessions.require(id);
-        state.recordRun(request.passed());
-        events.save(new TelemetryEvent(id, EventType.RUN, Instant.now(), 0, 0, request.summary()));
+        state.recordSubmit();
+        events.save(new TelemetryEvent(id, EventType.SUBMIT, Instant.now(), 0, 0,
+                "Submission " + state.submitCount()));
 
-        triggers.onRun(state, request.passed(), request.summary())
-                .ifPresent(trigger -> director.fire(state, trigger));
+        triggers.onSubmit(state).ifPresent(trigger -> director.fire(state, trigger));
 
         return metrics(state);
     }
@@ -108,9 +127,19 @@ public class TelemetryController {
                 state.charsDeleted(),
                 state.deleteRatio(),
                 state.pasteCount(),
-                state.runCount(),
-                state.failedRunCount(),
+                state.submitCount(),
                 state.impatience());
+    }
+
+    private int completedLinesAcrossFiles(Map<String, String> previousFiles, Map<String, String> currentFiles) {
+        if (currentFiles == null) {
+            return 0;
+        }
+        int total = 0;
+        for (Map.Entry<String, String> entry : currentFiles.entrySet()) {
+            total += completedLines(previousFiles.get(entry.getKey()), entry.getValue());
+        }
+        return total;
     }
 
     private int completedLines(String previousCode, String currentCode) {

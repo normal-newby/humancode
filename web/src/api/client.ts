@@ -1,7 +1,6 @@
 import type {
   Difficulty,
   Metrics,
-  RunResult,
   SessionResponse,
   TelemetryBatch,
 } from './types'
@@ -52,11 +51,13 @@ export function sendTelemetry(sessionId: string, batch: TelemetryBatch): Promise
   })
 }
 
-export function sendRunResult(sessionId: string, result: RunResult): Promise<Metrics> {
-  return request<Metrics>(`/sessions/${sessionId}/run`, {
-    method: 'POST',
-    body: JSON.stringify(result),
-  })
+/**
+ * Hands the turn back. There is nothing to run locally anymore (CLAUDE.md §6)
+ * — the interviewer judges the current diff against the rubric, the same way
+ * every other reaction works.
+ */
+export function submitTurn(sessionId: string): Promise<Metrics> {
+  return request<Metrics>(`/sessions/${sessionId}/submit`, { method: 'POST' })
 }
 
 export function finishSession(sessionId: string): Promise<SessionResponse> {

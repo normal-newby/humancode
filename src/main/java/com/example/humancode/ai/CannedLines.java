@@ -59,14 +59,10 @@ final class CannedLines {
                     "This is less coding, more demolition.",
                     "Rewrite number four, and counting.",
                     "You are deleting a novel at this point.")),
-            Map.entry(Trigger.Kind.TESTS_FAILED, List.of(
-                    "Red, bold color choice.",
-                    "That is not the green we agreed on.",
-                    "The tests are not impressed either.")),
-            Map.entry(Trigger.Kind.TESTS_PASSED, List.of(
-                    "Green, after all that drama.",
-                    "It works, try to act surprised.",
-                    "Passing tests, modest applause.")),
+            Map.entry(Trigger.Kind.SUBMITTED, List.of(
+                    "And that is what you are handing me.",
+                    "Submitted, bold statement of confidence.",
+                    "We will see if that holds up.")),
             Map.entry(Trigger.Kind.SLOW_PROGRESS, List.of(
                     "Five minutes for this, quite the investment.",
                     "The clock is winning right now.",
@@ -106,8 +102,10 @@ final class CannedLines {
             case SUBSTANTIAL_EDIT -> "Added a substantial chunk of code.";
             case HEAVY_DELETE -> "Deleted a large block of code.";
             case MASS_DELETION -> "Rewriting rather than progressing.";
-            case TESTS_FAILED -> "Tests failing.";
-            case TESTS_PASSED -> "Tests green.";
+            case SUBMITTED -> "Submitted for judgment.";
+            // Unreachable in practice — Interviewer.react() short-circuits CURVEBALL
+            // before CannedLines is ever consulted, since it never calls the model.
+            case CURVEBALL -> "Sprung a curveball.";
             case SLOW_PROGRESS -> "Little progress for the time spent.";
         };
     }

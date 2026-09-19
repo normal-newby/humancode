@@ -52,6 +52,10 @@ public class Interviewer {
      * of a network blip is a broken demo, so failures fall back to canned lines.
      */
     public Result react(SessionState state, Problem problem, Trigger trigger) {
+        if (trigger.kind() == Trigger.Kind.CURVEBALL) {
+            return curveball(trigger);
+        }
+
         Optional<OpenAIClient> client = clientHolder.client();
         if (client.isEmpty()) {
             return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
@@ -97,6 +101,19 @@ public class Interviewer {
                     trigger.kind(), e.toString());
             return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
         }
+    }
+
+    /**
+     * Curveballs are pre-authored, problem-author content — the same trust level
+     * as the opening problem statement, which is also delivered verbatim rather
+     * than paraphrased by a model call. Delivering it costs nothing: no client
+     * needed, no guard needed, no fallback needed, consistent with CLAUDE.md §2 —
+     * the model decides <em>what</em> is said only when it actually has to.
+     */
+    private Result curveball(Trigger trigger) {
+        Reaction reaction = new Reaction(trigger.detail(), Reaction.Mood.AMUSED,
+                trigger.urgency(), "Sprung a curveball.");
+        return new Result(reaction, false);
     }
 
     /**

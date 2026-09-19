@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -47,9 +48,8 @@ class DifficultyTest {
     }
 
     private Problem problem(String difficulty) {
-        return new Problem("p", "P", difficulty, java.util.List.of(), "statement", java.util.List.of(),
-                "function p() {}", "p", java.util.List.of(new TestCase(java.util.List.of(), 1)),
-                "exact", "function p() { return 1; }", "O(1)", java.util.List.of(),
-                java.util.List.of(), java.util.List.of());
+        return new Problem("p", "P", difficulty, List.of(), "statement",
+                List.of(new Problem.ProblemFile("app.js", "javascript", "// your code here", "const x = 1;")),
+                List.of("does the thing"), List.of("make it yellow"), List.of("Another App"));
     }
 }

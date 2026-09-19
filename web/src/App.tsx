@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { finishSession, sendRunResult, startSession } from './api/client'
+import { finishSession, startSession, submitTurn } from './api/client'
 import type {
   Difficulty,
+  ProblemFile,
   ReportCard,
   SessionResponse,
   TelemetryItem,
@@ -16,7 +17,12 @@ import { Transcript, type Entry, type PromptEntry } from './components/Transcrip
 import { useSessionStream } from './hooks/useSessionStream'
 import { useTelemetry } from './hooks/useTelemetry'
 import { useTypingFocus } from './hooks/useTypingFocus'
-import { runTests, type LocalRunResult } from './lib/runTests'
+
+/** Beyond this, the closed-turn label collapses to a count rather than naming every file. */
+const MAX_NAMED_FILES_IN_LABEL = 2
+
+/** Stable reference so `files` does not look like a new value on every render before a session exists. */
+const NO_FILES: ProblemFile[] = []
 
 /** Triggers whose closed turn should carry the `idle Ns` receipt. */
 const IDLE_TRIGGERS = new Set(['IDLE', 'NO_START', 'SLOW_PROGRESS'])
@@ -79,8 +85,8 @@ export default function App() {
   const seenNotesRef = useRef(0)
   /** Monotonic, so two turns closing in the same second cannot collide. */
   const turnSeqRef = useRef(0)
-  /** Current editor contents, for the test runner. */
-  const codeRef = useRef('')
+  /** Files touched (EDIT or PASTE) since the current turn opened. */
+  const touchedFilesRef = useRef<Set<string>>(new Set())
   const startedAtRef = useRef<number | null>(null)
 
   const sessionId = session?.sessionId ?? null
@@ -93,12 +99,11 @@ export default function App() {
     typingRef.current = typing
   }, [typing])
 
-  const file = session ? `${session.problem.entryPoint}.js` : 'solution.js'
+  const files = session?.problem.files ?? NO_FILES
 
   const handleCodeChange = useCallback(
-    (code: string) => {
-      codeRef.current = code
-      setCode(code)
+    (file: string, code: string) => {
+      setCode(file, code)
     },
     [setCode],
   )
@@ -109,6 +114,7 @@ export default function App() {
       if (item.type === 'EDIT' || item.type === 'PASTE') {
         mark()
         lastActivityRef.current = Date.now()
+        touchedFilesRef.current.add(item.file)
 
         // A paste also arrives as an EDIT, so only count the pastes here.
         const next: Counters =
@@ -126,6 +132,19 @@ export default function App() {
     },
     [mark, record],
   )
+
+  /** One file names itself; a few name themselves; more collapses to a count. */
+  const turnFileLabel = useCallback(() => {
+    const touched = [...touchedFilesRef.current]
+    touchedFilesRef.current = new Set()
+    if (touched.length === 0) {
+      return files[0]?.name ?? ''
+    }
+    if (touched.length <= MAX_NAMED_FILES_IN_LABEL) {
+      return touched.join(', ')
+    }
+    return `${touched.length} files`
+  }, [files])
 
   const begin = useCallback(async () => {
     setStarting(true)
@@ -149,6 +168,7 @@ export default function App() {
       seenRef.current = new Set()
       seenNotesRef.current = 0
       turnSeqRef.current = 0
+      touchedFilesRef.current = new Set()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -184,6 +204,11 @@ export default function App() {
       const written = current.written - base.written
       const deleted = current.deleted - base.deleted
       const pastes = current.pastes - base.pastes
+      // Read (and drain) the touched-file set out here, never inside the
+      // updater below: React calls an updater during render, twice under
+      // StrictMode, so the second call would find the set already emptied and
+      // label every turn with the first file in the problem.
+      const file = turnFileLabel()
 
       setEntries((previous) =>
         [
@@ -209,7 +234,7 @@ export default function App() {
       turnBaseRef.current = next
       setTurnBase(next)
     },
-    [file],
+    [turnFileLabel],
   )
 
   /** Queue new utterances; they land after their caret has blinked at you. */
@@ -270,32 +295,23 @@ export default function App() {
     })
   }, [stream.notes])
 
-  /** Hand the turn back: close it, then let them judge what you handed over. */
+  /**
+   * Hand the turn back: close it, then let them judge what you handed over.
+   * There is nothing to run locally anymore (CLAUDE.md §6) — the interviewer
+   * judges the current diff against the rubric, same as every other reaction.
+   */
   const submit = useCallback(async () => {
-    if (!sessionId || !session || running) return
+    if (!sessionId || running) return
     setRunning(true)
     closeTurn(false, null)
     try {
-      // Executed in a throwaway Web Worker, with a hard timeout — see
-      // lib/runTests.ts. The verdict below is the real one.
-      const result: LocalRunResult = await runTests(session.problem, codeRef.current)
-
-      // The verdict is never shown. It goes to the server as a gauge of
-      // progress and the interviewer decides what to do with it — a pass/fail
-      // count on screen is the scoreboard this product is built to avoid.
-      await sendRunResult(sessionId, {
-        passed: result.passed,
-        passedCount: result.passedCount,
-        failedCount: result.failedCount,
-        firstFailure: result.firstFailure,
-        durationMs: result.durationMs,
-      })
+      await submitTurn(sessionId)
     } catch (e) {
       console.warn('[humancode] submit failed', e)
     } finally {
       setRunning(false)
     }
-  }, [closeTurn, running, session, sessionId])
+  }, [closeTurn, running, sessionId])
 
   const end = useCallback(async () => {
     if (!sessionId) return
@@ -410,9 +426,7 @@ export default function App() {
 
       <div className="shrink-0">
         <LiveTurn
-          file={file}
-          language={session.language}
-          initialCode={session.problem.starterCode}
+          files={files}
           stamp={liveStamp}
           onTelemetry={handleTelemetry}
           onCodeChange={handleCodeChange}

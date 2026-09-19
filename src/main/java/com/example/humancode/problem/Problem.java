@@ -3,11 +3,16 @@ package com.example.humancode.problem;
 import java.util.List;
 
 /**
- * A single interview question, from the curated bank or generated at runtime.
+ * A single interview task, from the curated bank or generated at runtime — a
+ * small app to build, not a pure function to complete. {@code files} is the
+ * candidate's editor: however many files the task actually needs (an HTML/CSS/JS
+ * scaffold for something visual, a single file for something simpler), decided
+ * once when the problem is authored or generated, not recomputed mid-session.
  *
- * <p>{@code referenceSolution}, {@code rubric} and {@code followUps} are for the
- * interviewer's eyes only — they go into the cached prompt prefix and are
- * stripped before the problem reaches the browser. See {@link #forCandidate()}.
+ * <p>{@code rubric}, {@code curveballs} and {@code similarProblems}, and every
+ * file's {@code referenceContent}, are for the interviewer's eyes only — they go
+ * into the cached prompt prefix and are stripped before the problem reaches the
+ * browser. See {@link #forCandidate()}.
  */
 public record Problem(
         String id,
@@ -15,38 +20,47 @@ public record Problem(
         String difficulty,
         List<String> tags,
         String statement,
-        List<Example> examples,
-        String starterCode,
-        /** Function the test runner calls, e.g. {@code twoSum}. */
-        String entryPoint,
-        List<TestCase> tests,
-        /** {@code exact} (default) or {@code unordered} for order-insensitive results. */
-        String match,
-        String referenceSolution,
-        String optimalComplexity,
+        List<ProblemFile> files,
         List<String> rubric,
-        List<String> followUps,
+        /** Mid-task scope-change requests the interviewer springs on the candidate — see TriggerEngine. */
+        List<String> curveballs,
         List<String> similarProblems) {
 
-    public record Example(String input, String output, String explanation) {
+    /**
+     * One file in the candidate's editor.
+     *
+     * @param language        a Monaco language id, e.g. {@code html}, {@code css}, {@code javascript}
+     * @param starterContent  what the candidate sees when the session starts
+     * @param referenceContent a correct, idiomatic answer — interviewer's eyes only
+     */
+    public record ProblemFile(String name, String language, String starterContent, String referenceContent) {
+        public ProblemFile forCandidate() {
+            return new ProblemFile(name, language, starterContent, null);
+        }
     }
 
     public Problem {
-        if (match == null || match.isBlank()) {
-            match = "exact";
+        if (files == null) {
+            files = List.of();
         }
-        if (tests == null) {
-            tests = List.of();
+        if (rubric == null) {
+            rubric = List.of();
+        }
+        if (curveballs == null) {
+            curveballs = List.of();
+        }
+        if (similarProblems == null) {
+            similarProblems = List.of();
         }
     }
 
     /**
-     * The subset the candidate is allowed to see. Tests and entry point are
-     * included because the browser runs them; see {@link TestCase}.
+     * The subset the candidate is allowed to see: every file, minus each one's
+     * reference answer, and none of the interviewer's judging material.
      */
     public Problem forCandidate() {
-        return new Problem(id, title, difficulty, tags, statement, examples, starterCode,
-                entryPoint, tests, match,
-                null, null, List.of(), List.of(), List.of());
+        return new Problem(id, title, difficulty, tags, statement,
+                files.stream().map(ProblemFile::forCandidate).toList(),
+                List.of(), List.of(), List.of());
     }
 }

@@ -1,6 +1,7 @@
 package com.example.humancode.web;
 
 import java.util.List;
+import java.util.Map;
 
 import com.example.humancode.interview.Utterance;
 import com.example.humancode.problem.Problem;
@@ -40,35 +41,28 @@ public final class Dtos {
     /**
      * One batch of editor telemetry. The client buffers for ~1.5s and sends
      * these in bulk — never one request per keystroke.
+     *
+     * <p>{@code files} carries every file's full content, keyed by filename, not
+     * just whichever one was actively being edited. If a batch only carried the
+     * active file, editing file A then switching to file B inside the same
+     * flush window would leave the server's copy of A silently stale — the
+     * interviewer would judge against outdated content while the character
+     * counts said something had changed. These are small scaffold files, so
+     * sending the full map every non-empty flush is cheap and removes that bug
+     * class entirely.
      */
     public record TelemetryBatch(
             @NotNull List<TelemetryItem> events,
-            /** Full editor contents at the end of the batch. */
-            String code) {
+            Map<String, String> files) {
     }
 
     public record TelemetryItem(
             @NotNull EventType type,
             @PositiveOrZero long inserted,
             @PositiveOrZero long deleted,
+            /** Which file the edit happened in — replay-log detail, not state. */
+            String file,
             String detail) {
-    }
-
-    public record RunResultRequest(
-            boolean passed,
-            @PositiveOrZero int passedCount,
-            @PositiveOrZero int failedCount,
-            String firstFailure,
-            @PositiveOrZero long durationMs) {
-
-        public String summary() {
-            if (passed) {
-                return "%d/%d assertions passed.".formatted(passedCount, passedCount + failedCount);
-            }
-            return "%d passed, %d failed. First failure: %s"
-                    .formatted(passedCount, failedCount,
-                            firstFailure == null ? "(not reported)" : firstFailure);
-        }
     }
 
     public record MetricsResponse(
@@ -78,8 +72,7 @@ public final class Dtos {
             long charsDeleted,
             double deleteRatio,
             int pasteCount,
-            int runCount,
-            int failedRunCount,
+            int submitCount,
             int impatience) {
     }
 }

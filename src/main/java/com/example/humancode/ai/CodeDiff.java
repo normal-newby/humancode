@@ -2,6 +2,7 @@ package com.example.humancode.ai;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A line-level diff of the candidate's editor, for the prompt.
@@ -77,6 +78,24 @@ public final class CodeDiff {
         }
         if (changed > MAX_OUTPUT_LINES) {
             sb.append("... and ").append(changed - MAX_OUTPUT_LINES).append(" more changed lines\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * The multi-file form: one {@link #unified} block per file that actually
+     * changed, headed by its filename, in {@code fileOrder}. Files with no
+     * change are skipped entirely — a diff with a header and nothing under it
+     * is noise, and by the third one the model stops reading them.
+     */
+    public static String unifiedAcrossFiles(List<String> fileOrder, Map<String, String> before,
+            Map<String, String> after) {
+        StringBuilder sb = new StringBuilder();
+        for (String file : fileOrder) {
+            String diff = unified(before.getOrDefault(file, ""), after.getOrDefault(file, ""));
+            if (!diff.isEmpty()) {
+                sb.append("--- ").append(file).append(" ---\n").append(diff);
+            }
         }
         return sb.toString();
     }

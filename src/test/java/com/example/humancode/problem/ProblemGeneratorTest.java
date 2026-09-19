@@ -12,125 +12,101 @@ import org.junit.jupiter.api.Test;
 
 import com.example.humancode.config.HumancodeProperties;
 import com.example.humancode.config.OpenAiClientHolder;
-import com.example.humancode.problem.GeneratedProblem.GeneratedTest;
-
-import tools.jackson.databind.ObjectMapper;
+import com.example.humancode.problem.GeneratedProblem.GeneratedFile;
 
 /**
  * Validation of what the model sends back.
  *
  * <p>Every rejection here costs a 40-90 second call and produces nothing, so a
  * check that is too strict is not "safe" — it is an outage that looks like a
- * quiet retry. One of these was exactly that; see {@link #starterMayBeLongerThanTheAnswer}.
+ * quiet retry. One of these was exactly that; see {@link #aFileThatNeedsNoWorkIsFine}.
  */
 class ProblemGeneratorTest {
 
-    private final ObjectMapper mapper = new ObjectMapper();
     private final ProblemGenerator generator = new ProblemGenerator(
             new OpenAiClientHolder(null),
             new HumancodeProperties(
                     new HumancodeProperties.Ai("", "gpt-5", "gpt-5-mini", Duration.ofSeconds(30)),
                     new HumancodeProperties.Interview(
-                            Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500)),
-                    new HumancodeProperties.Problems("generated", 1, Duration.ofSeconds(180), "")),
-            mapper);
+                            Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500),
+                            Duration.ofSeconds(90), 40),
+                    new HumancodeProperties.Problems("generated", 1, Duration.ofSeconds(180), "")));
 
     @Test
-    @DisplayName("a JSDoc starter longer than a terse solution is still a valid problem")
-    void starterMayBeLongerThanTheAnswer() {
-        // The original check compared lengths, and rejected this: an easy
-        // problem's starter carries a comment block while its answer is one
-        // line. Every easy generation failed, silently, and cost a full call.
-        String starter = """
-                /**
-                 * @param {number[]} nums
-                 * @return {number}
-                 */
-                function total(nums) {
-                  // your code here
-                }
-                """;
-        String solution = "function total(nums) { return nums.reduce((a, b) => a + b, 0); }";
-        assertTrue(starter.length() > solution.length(), "the fixture must reproduce the shape");
+    @DisplayName("a complete file alongside one with a real gap is a valid problem")
+    void aFileThatNeedsNoWorkIsFine() {
+        // The instructions explicitly allow a finished HTML shell, so the gap
+        // check has to be "any file has work", not "every file has work". The
+        // strict version rejects almost every generation, silently, at full
+        // price — the same trap the old length-comparison check fell into.
+        GeneratedProblem g = generated(
+                file("index.html", "html", "<button id=\"go\">go</button>", "<button id=\"go\">go</button>"),
+                file("app.js", "javascript", "// your code here", "document.getElementById('go');"));
 
-        Problem problem = generator.convert(generated(starter, solution), Difficulty.EASY);
+        Problem problem = generator.convert(g, Difficulty.EASY);
 
+        assertEquals(2, problem.files().size());
         assertEquals("easy", problem.difficulty());
-        assertEquals("total", problem.entryPoint());
     }
 
     @Test
-    @DisplayName("a starter that already returns something is the answer, and is rejected")
-    void rejectsAStarterThatIsTheAnswer() {
-        String starter = """
-                /**
-                 * @param {number[]} nums
-                 * @return {number}
-                 */
-                function total(nums) {
-                  return nums.reduce((a, b) => a + b, 0);
-                }
-                """;
+    @DisplayName("a problem whose every file is already its own answer is rejected")
+    void rejectsAProblemWithNothingToDo() {
+        GeneratedProblem g = generated(
+                file("index.html", "html", "<p>done</p>", "<p>done</p>"),
+                file("app.js", "javascript", "const done = true;", "const done = true;"));
 
         IllegalStateException e = assertThrows(IllegalStateException.class,
-                () -> generator.convert(generated(starter, starter), Difficulty.EASY));
-        assertTrue(e.getMessage().contains("return"), e.getMessage());
+                () -> generator.convert(g, Difficulty.EASY));
+        assertTrue(e.getMessage().contains("gap"), e.getMessage());
     }
 
     @Test
     @DisplayName("the requested difficulty wins over the label the model chose")
     void requestedDifficultyWins() {
-        GeneratedProblem g = generated("function total(nums) {\n  // your code here\n}",
-                "function total(nums) { return 1; }");
-
         // The fixture says EASY; the candidate asked for HARD.
-        assertEquals("hard", generator.convert(g, Difficulty.HARD).difficulty());
+        assertEquals("hard", generator.convert(generated(), Difficulty.HARD).difficulty());
     }
 
     @Test
-    @DisplayName("a duplicated test case is a test the model did not write")
-    void rejectsDuplicateTests() {
-        GeneratedProblem g = new GeneratedProblem(
-                "Total", GeneratedProblem.Difficulty.EASY, List.of("array"), "Add them up.",
-                "function total(nums) {\n  // your code here\n}", "total",
-                List.of(new GeneratedTest("[[1,2]]", "3"),
-                        new GeneratedTest("[[1,2]]", "3"),
-                        new GeneratedTest("[[]]", "0")),
-                GeneratedProblem.Match.EXACT, "function total(nums) { return 1; }", "O(n)",
-                List.of("adds"), List.of("what if empty"), List.of("sum"));
+    @DisplayName("a problem with no files is rejected rather than served as an empty editor")
+    void rejectsAProblemWithNoFiles() {
+        GeneratedProblem g = new GeneratedProblem("Todo", GeneratedProblem.Difficulty.EASY,
+                List.of("dom"), "Build a todo list.", List.of(),
+                List.of("adds items", "removes items", "shows a count"),
+                List.of("make the button yellow"), List.of("Notes App"));
 
         assertThrows(IllegalStateException.class, () -> generator.convert(g, Difficulty.EASY));
     }
 
     @Test
-    @DisplayName("two tests is not enough to tell a right answer from a lucky one")
-    void rejectsTooFewTests() {
-        GeneratedProblem g = new GeneratedProblem(
-                "Total", GeneratedProblem.Difficulty.EASY, List.of("array"), "Add them up.",
-                "function total(nums) {\n  // your code here\n}", "total",
-                List.of(new GeneratedTest("[[1,2]]", "3"), new GeneratedTest("[[]]", "0")),
-                GeneratedProblem.Match.EXACT, "function total(nums) { return 1; }", "O(n)",
-                List.of("adds"), List.of("what if empty"), List.of("sum"));
+    @DisplayName("a problem with no curveball is rejected — the mechanism has nothing to spring")
+    void rejectsAProblemWithNoCurveballs() {
+        GeneratedProblem g = new GeneratedProblem("Todo", GeneratedProblem.Difficulty.EASY,
+                List.of("dom"), "Build a todo list.",
+                List.of(file("app.js", "javascript", "// your code here", "const x = 1;")),
+                List.of("adds items", "removes items", "shows a count"),
+                List.of(), List.of("Notes App"));
 
         assertThrows(IllegalStateException.class, () -> generator.convert(g, Difficulty.EASY));
     }
 
-    private GeneratedProblem generated(String starter, String solution) {
+    private static GeneratedFile file(String name, String language, String starter, String reference) {
+        return new GeneratedFile(name, language, starter, reference);
+    }
+
+    private GeneratedProblem generated(GeneratedFile... files) {
+        List<GeneratedFile> list = files.length == 0
+                ? List.of(file("app.js", "javascript", "// your code here", "const x = 1;"))
+                : List.of(files);
         return new GeneratedProblem(
-                "Total",
+                "Todo",
                 GeneratedProblem.Difficulty.EASY,
-                List.of("array"),
-                "Add up the numbers.",
-                starter,
-                "total",
-                List.of(new GeneratedTest("[[1,2,3]]", "6"),
-                        new GeneratedTest("[[]]", "0"),
-                        new GeneratedTest("[[-1,1]]", "0")),
-                GeneratedProblem.Match.EXACT,
-                solution,
-                "O(n) time",
-                List.of("one pass"),
-                List.of("what if it overflows"),
-                List.of("running sum"));
+                List.of("dom"),
+                "Build a todo list.",
+                list,
+                List.of("adds items", "removes items", "shows a count"),
+                List.of("Actually, make the button yellow."),
+                List.of("Notes App"));
     }
 }

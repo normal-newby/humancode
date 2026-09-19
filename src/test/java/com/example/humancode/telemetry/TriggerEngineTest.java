@@ -15,7 +15,6 @@ import com.example.humancode.config.HumancodeProperties;
 import com.example.humancode.interview.Phase;
 import com.example.humancode.interview.SessionState;
 import com.example.humancode.problem.Problem;
-import com.example.humancode.problem.TestCase;
 
 /**
  * The trigger engine is the thing standing between the candidate's keyboard and
@@ -26,16 +25,19 @@ class TriggerEngineTest {
     private static final HumancodeProperties PROPS = new HumancodeProperties(
             new HumancodeProperties.Ai("", "gpt-5", "gpt-5-mini", Duration.ofSeconds(30)),
             new HumancodeProperties.Interview(
-                    Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500)),
+                    Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500),
+                    Duration.ofSeconds(90), 40),
             new HumancodeProperties.Problems("bank", 0, Duration.ofSeconds(180), ""));
 
     private final TriggerEngine engine = new TriggerEngine(PROPS);
 
     private static final Problem PROBLEM = new Problem(
-            "two-sum", "Two Sum", "easy", List.of("array"), "Find two indices.", List.of(),
-            "function twoSum(nums, target) {}", "twoSum",
-            List.of(new TestCase(List.of(List.of(2, 7), 9), List.of(0, 1))), "unordered",
-            "function twoSum() {}", "O(n)", List.of(), List.of(), List.of());
+            "todo-list", "Todo List", "easy", List.of("dom"), "Build a small todo list.",
+            List.of(new Problem.ProblemFile(
+                    "app.js", "javascript", "// your code here", "function addTodo() {}")),
+            List.of("Adding an item appends it to the list"),
+            List.of("Actually, make the button yellow instead of green."),
+            List.of("Notes App"));
 
     private SessionState session() {
         return new SessionState("s1", PROBLEM, "javascript");
@@ -126,15 +128,36 @@ class TriggerEngineTest {
     }
 
     @Test
-    @DisplayName("passing tests push impatience down and respect the shared cooldown")
-    void passingTestsCalmsTheInterviewer() {
+    @DisplayName("submitting fires a trigger and bumps the submit count")
+    void submittingFires() {
         SessionState state = session();
-        state.recordRun(true);
+        state.recordSubmit();
 
-        Trigger trigger = engine.onRun(state, true, "3/3 assertions passed.").orElseThrow();
-        assertEquals(Trigger.Kind.TESTS_PASSED, trigger.kind());
-        assertTrue(trigger.urgency() < 0, "a green run should lower the meter");
-        assertTrue(trigger.cooldown(), "rapid test runs should not create rapid model calls");
+        Trigger trigger = engine.onSubmit(state).orElseThrow();
+        assertEquals(Trigger.Kind.SUBMITTED, trigger.kind());
+        assertTrue(trigger.cooldown(), "rapid submits should not create rapid model calls");
+        assertEquals(1, state.submitCount());
+    }
+
+    @Test
+    @DisplayName("a curveball never fires before its delay or minimum characters are met")
+    void curveballWaitsForDelayAndProgress() {
+        SessionState state = session();
+        state.recordEdit(200, 0);
+        // Elapsed time is effectively zero in a unit test, well under the 90s delay.
+        assertTrue(engine.evaluate(state).isEmpty());
+    }
+
+    @Test
+    @DisplayName("a problem with no curveballs never fires one")
+    void noCurveballsMeansNoCurveballTrigger() {
+        Problem noCurveballs = new Problem(
+                "x", "X", "easy", List.of(), "Build something.",
+                List.of(new Problem.ProblemFile("app.js", "javascript", "", "")),
+                List.of("Does something"), List.of(), List.of());
+        SessionState state = new SessionState("s2", noCurveballs, "javascript");
+        state.recordEdit(200, 0);
+        assertTrue(engine.evaluate(state).isEmpty());
     }
 
     @Test

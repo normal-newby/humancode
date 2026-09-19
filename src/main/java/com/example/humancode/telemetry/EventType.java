@@ -3,7 +3,7 @@ package com.example.humancode.telemetry;
 public enum EventType {
     EDIT,
     PASTE,
-    RUN,
+    SUBMIT,
     FOCUS,
     BLUR
 }

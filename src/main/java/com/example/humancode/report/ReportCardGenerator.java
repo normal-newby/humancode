@@ -122,9 +122,7 @@ public class ReportCardGenerator {
                 state.charsInserted(),
                 state.charsDeleted(),
                 state.pasteCount(),
-                state.runCount(),
-                state.failedRunCount(),
-                state.impatience(),
-                state.testsEverPassed());
+                state.submitCount(),
+                state.impatience());
     }
 }

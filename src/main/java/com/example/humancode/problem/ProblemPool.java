@@ -226,13 +226,27 @@ public class ProblemPool {
         try {
             List<Problem> cached = mapper.readValue(Files.readString(cacheFile), new TypeReference<>() {
             });
+            int skipped = 0;
             for (Problem problem : cached) {
+                // A cache written against an older Problem shape deserializes
+                // without throwing — the fields that no longer exist are simply
+                // dropped and the ones that did not exist then come back empty.
+                // Left unchecked that hands a candidate a session with no files
+                // in it, which looks like a UI bug rather than a stale cache.
+                if (problem.files().isEmpty()) {
+                    skipped++;
+                    continue;
+                }
                 // Bucketed by what the problem says it is. A cache written
                 // before difficulties existed, or under a different target,
                 // lands where it belongs and the top-up sorts out the rest.
                 Difficulty.parse(problem.difficulty())
                         .filter(level -> warm.get(level).size() < target)
                         .ifPresent(level -> warm.get(level).offer(problem));
+            }
+            if (skipped > 0) {
+                log.warn("Discarded {} cached problem(s) with no files — the cache predates the"
+                        + " current problem shape; they will be regenerated", skipped);
             }
         } catch (IOException | RuntimeException e) {
             // A cache written by older code, or a half-written file. Not worth

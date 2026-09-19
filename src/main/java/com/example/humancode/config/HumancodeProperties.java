@@ -61,6 +61,18 @@ public record HumancodeProperties(Ai ai, Interview interview, Problems problems)
             Duration idleThreshold,
             /** Hard floor between two interviewer utterances. Protects the joke. */
             Duration quipCooldown,
-            Duration telemetryBatchWindow) {
+            Duration telemetryBatchWindow,
+            /**
+             * How far into a session the curveball may first fire. Gives the
+             * candidate room to actually get somewhere before the scope changes
+             * on them — a curveball at second five is not a curveball, it is
+             * just a second problem statement.
+             */
+            @DefaultValue("90s") Duration curveballDelay,
+            /**
+             * Minimum characters written before the curveball may fire, on top
+             * of the delay — an empty or barely-touched editor is not "mid-task".
+             */
+            @DefaultValue("40") int curveballMinChars) {
     }
 }

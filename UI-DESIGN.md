@@ -216,9 +216,10 @@ Every prompt closes a turn, because a user message ends an assistant's turn — 
 land mid-keystroke are *interrupts*. You cannot interrupt someone who was not talking, and pretending
 otherwise would spend the best artifact in the app on nothing.
 
-The turn in progress is the editor: Monaco, headed by `⏺ Write(twoSum.js)`, stamped underneath with a
+The turn in progress is the editor: Monaco, headed by `⏺ Write(app.js)`, stamped underneath with a
 live meta line counting **this turn only**. It is pinned to the bottom of the viewport because that is
-where a terminal keeps the output still being written.
+where a terminal keeps the output still being written. A problem with more than one file gets a file
+navigator between the header and the editor — see §4.3a.
 
 - **No border and no fill.** Monaco's background and gutter match `--color-canvas` exactly. A box
   would make it an input again and hand the model role back to the interviewer.
@@ -229,6 +230,39 @@ where a terminal keeps the output still being written.
   to look.
 - Caret is `--color-accent` and does not blink while typing. Theirs blinks; yours does not.
 - `ctrl+enter` submits.
+
+### 4.3a The file navigator
+
+Problems are however many files they need — an HTML/CSS/JS scaffold for something visual, one file
+for something simpler — decided once when the problem was authored or generated, never mid-session.
+When there is more than one, a row of filenames sits between the `Write(...)` header and the editor:
+
+```
+⏺ Write(app.js)
+  index.html   styles.css   app.js
+     12  function addTodo() {
+     13    const input = document.getElementById('new-todo');
+  ⎿  00:12 · ↑ 84 · ↓ 3
+```
+
+This is a narrower case than the tabs §2 forbids — that rule is about *content* tabs (Description /
+Solutions / Submissions), a different view of the same problem. A file navigator switches which file
+of your own output is on screen, which is closer to the `Write(...)` header itself than to a tab bar.
+Still, it stays inside the vocabulary §2 sets rather than importing IDE furniture wholesale:
+
+- **No borders, no pills, no icons.** Plain lowercase filenames, separated by whitespace — texture,
+  not chrome.
+- The active file is `--color-accent`, the same way the live `⏺` and their newest `>` are — accent
+  always marks whoever is currently producing output, and here that is whichever file you are looking
+  at. Inactive filenames are `--color-faint`, `--color-sub` on hover.
+- Switching files is a view change, not a new turn. It does not touch the meta line, the turn
+  boundary, or the diff baseline — only what you type does that.
+- A single-file problem shows no navigator at all. It would be one inert, always-accent label doing
+  no work.
+
+The closed turn's `Write(...)` label reflects what was actually touched that turn, not what was
+merely viewed: one file names itself, a few name themselves, more than a couple collapses to a count
+(`Write(3 files)`) rather than crowding the log with a file listing.
 
 ### 4.4 Their caret
 
@@ -342,15 +376,16 @@ better manners: it hands over a case the candidate can eyeball their way to, and
 turn into a spec sheet instead of a question someone just asked you. Their prompt carries the problem
 in prose, the way it would be said out loud, and that is all.
 
-`Problem.examples` still ships in the session payload and nothing reads it now — the UI dropped it and
-`PromptAssembler`'s prefix never carried it (it sends the statement, reference solution, complexity
-and rubric). Either feed it to the model or strip it from `forCandidate()`; leaving it in the payload,
-unused, is how it ends up back on the page.
+`Problem` never carried worked examples at all once the schema moved to files instead of a single
+function with test cases (CLAUDE.md §6) — there is no `examples` field left to accidentally leak.
+The lesson stands as the reason not to add one back: an example is a spec sheet, and the whole point
+is that their prompt is a sentence, not a sheet.
 
-The result goes to the server as a gauge of progress — it is what `TESTS_PASSED` / `TESTS_FAILED`
-fire on, and what the interviewer reasons about — and that is the only place it exists. Finding out
-whether you passed by reading the interviewer's face is the entire product. The moment a `4/6` appears
-on screen, the candidate reads the number, ignores the sentence, and you have built LeetCode with a
+There is no automated result to send anywhere now either — verification is the interviewer reading
+the diff against the rubric (CLAUDE.md §6), the same judgment call it always made, just without a
+pass/fail signal feeding it first. `SUBMITTED` is what the interviewer reasons from. Finding out how
+you did by reading the interviewer's face is the entire product. The moment a `4/6` appears on
+screen, the candidate reads the number, ignores the sentence, and you have built LeetCode with a
 mascot.
 
 What the candidate *does* get is the footer word turning to `submitting…` and the hint reading
@@ -582,7 +617,7 @@ Implemented. Recorded here so the intent survives the next refactor:
 | `StatusLine.tsx` | §4.5. `✻ word… (clock · totals)`, the meter, `⏎ submit`, `^d end`, and the `esc` tell. |
 | `DifficultyPicker.tsx` | §4.8. Three lowercase words on the start screen, radios under the hood. The only difficulty word in the app. |
 | `ImpatienceMeter.tsx` | §6. Masked gradient, `96×8`, labelled `human impatience`; pulse on the number. |
-| `EditorPane.tsx` | Monaco with no border and no fill, background matched to `--color-canvas`. `ctrl+enter` submits. |
+| `EditorPane.tsx` | Monaco with no border and no fill, background matched to `--color-canvas`. `ctrl+enter` submits. One model per file (§4.3a), swapped via `setModel`; owns the file navigator row itself. |
 | `TypedText.tsx` + `hooks/useTypewriter.ts` | §4.6. The hook owns pacing and the reduced-motion escape; the component owns the caret and the `sr-only` full text. |
 | `hooks/useActivity.ts` | The word pools and the 3.5s rotation. Pools are data — edit them, do not add states casually. |
 | `Spinner.tsx` | The cycling `✻`. Static under reduced motion. |
@@ -610,9 +645,10 @@ view, and the report card should use that one.
 `App` re-renders on every keystroke as a result, so `EditorPane` is wrapped in `memo`. If a future
 change gives it an unstable prop, that render cost comes back and Monaco is the thing that pays it.
 
-`lib/runTests.ts` still returns the full `LocalRunResult`; `App` forwards it to
-`/api/sessions/{id}/run` and drops it on the floor. If a future change needs the verdict on screen,
-that is a §4.7 decision, not a component decision.
+There is no local runner and nothing to drop on the floor anymore — `submit` POSTs to
+`/api/sessions/{id}/submit` with no body, and the interviewer's judgment never reaches the client at
+all (CLAUDE.md §6). If a future change needs a verdict on screen, that is a §4.7 decision, not a
+component decision — and it would mean putting one back, not surfacing one that already exists.
 
 ---
 

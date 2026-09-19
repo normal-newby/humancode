@@ -29,13 +29,10 @@ export function ReportView({ report, onRestart }: Props) {
     idleSeconds: null,
   }
 
-  const runLine = [
-    `${stats.runCount} run${stats.runCount === 1 ? '' : 's'}`,
-    stats.failedRunCount > 0 ? `${stats.failedRunCount} failed` : null,
+  const submitLine = [
+    `${stats.submitCount} submission${stats.submitCount === 1 ? '' : 's'}`,
     `impatience ended at ${stats.finalImpatience} percent`,
-  ]
-    .filter(Boolean)
-    .join(', ')
+  ].join(', ')
 
   return (
     <main className="flex min-h-screen justify-center bg-canvas px-6 py-16">
@@ -60,7 +57,7 @@ export function ReportView({ report, onRestart }: Props) {
               ))}
 
               <MetaLine stamp={stamp} live />
-              <Result>{runLine}</Result>
+              <Result>{submitLine}</Result>
               {report.similarProblems.length > 0 && (
                 <Result>similar problems: {report.similarProblems.join(', ')}</Result>
               )}

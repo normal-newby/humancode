@@ -1,0 +1,40 @@
+{
+  "id": "todo-list",
+  "title": "Todo List",
+  "difficulty": "easy",
+  "tags": ["dom", "state", "forms"],
+  "statement": "Build a small todo list. Typing into the input and pressing add should append a new item to the list below. Clicking an item should mark it done, and each item needs its own delete control.",
+  "files": [
+    {
+      "name": "index.html",
+      "language": "html",
+      "starterContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>todo</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>todo</h1>\n  <div class=\"input-row\">\n    <input id=\"todo-input\" type=\"text\" placeholder=\"what needs doing?\" />\n    <button id=\"add-btn\" class=\"add-btn\">add</button>\n  </div>\n  <ul id=\"todo-list\"></ul>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n",
+      "referenceContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>todo</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>todo</h1>\n  <div class=\"input-row\">\n    <input id=\"todo-input\" type=\"text\" placeholder=\"what needs doing?\" />\n    <button id=\"add-btn\" class=\"add-btn\">add</button>\n  </div>\n  <ul id=\"todo-list\"></ul>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n"
+    },
+    {
+      "name": "styles.css",
+      "language": "css",
+      "starterContent": "body {\n  font-family: sans-serif;\n  max-width: 420px;\n  margin: 40px auto;\n}\n\n.input-row {\n  display: flex;\n  gap: 8px;\n}\n\n.add-btn {\n  background: green;\n  color: white;\n  border: none;\n  padding: 8px 14px;\n  cursor: pointer;\n}\n\n#todo-list {\n  list-style: none;\n  padding: 0;\n}\n\n/* your code here: style a completed item and its delete control */\n",
+      "referenceContent": "body {\n  font-family: sans-serif;\n  max-width: 420px;\n  margin: 40px auto;\n}\n\n.input-row {\n  display: flex;\n  gap: 8px;\n}\n\n.add-btn {\n  background: green;\n  color: white;\n  border: none;\n  padding: 8px 14px;\n  cursor: pointer;\n}\n\n#todo-list {\n  list-style: none;\n  padding: 0;\n}\n\n.todo-item {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  padding: 6px 0;\n}\n\n.todo-item.done .todo-text {\n  text-decoration: line-through;\n  color: #888;\n}\n\n.delete-btn {\n  background: none;\n  border: none;\n  cursor: pointer;\n  color: #b00;\n}\n"
+    },
+    {
+      "name": "app.js",
+      "language": "javascript",
+      "starterContent": "const input = document.getElementById('todo-input');\nconst addBtn = document.getElementById('add-btn');\nconst list = document.getElementById('todo-list');\n\naddBtn.addEventListener('click', () => {\n  // your code here\n});\n",
+      "referenceContent": "const input = document.getElementById('todo-input');\nconst addBtn = document.getElementById('add-btn');\nconst list = document.getElementById('todo-list');\n\nfunction addTodo(text) {\n  const li = document.createElement('li');\n  li.className = 'todo-item';\n\n  const span = document.createElement('span');\n  span.className = 'todo-text';\n  span.textContent = text;\n  span.addEventListener('click', () => li.classList.toggle('done'));\n\n  const del = document.createElement('button');\n  del.className = 'delete-btn';\n  del.textContent = 'x';\n  del.addEventListener('click', () => li.remove());\n\n  li.append(span, del);\n  list.appendChild(li);\n}\n\naddBtn.addEventListener('click', () => {\n  const text = input.value.trim();\n  if (!text) return;\n  addTodo(text);\n  input.value = '';\n});\n"
+    }
+  ],
+  "rubric": [
+    "Adding an item appends it to the visible list without a page reload.",
+    "The input clears after adding an item.",
+    "Clicking an item visibly marks it done, e.g. with a strikethrough.",
+    "Each item has its own working delete control that removes only that item.",
+    "Pressing add with an empty input does not add a blank item."
+  ],
+  "curveballs": [
+    "Actually, make the add button yellow instead of green.",
+    "Now show a count of how many items are left undone.",
+    "Move the delete control to the left side of each item instead of the right."
+  ],
+  "similarProblems": ["Notes App", "Shopping List", "Pomodoro Timer"]
+}

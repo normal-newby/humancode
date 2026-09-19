@@ -1,0 +1,48 @@
+{
+  "id": "permissions-tree",
+  "title": "Permissions Tree",
+  "difficulty": "hard",
+  "tags": [
+    "dom",
+    "state",
+    "recursion"
+  ],
+  "statement": "Build a nested permissions picker. Ticking a folder grants everything under it and unticking it takes it all away, while a folder with only some of its children granted has to show as partially selected rather than on or off. The line underneath lists exactly what is granted right now, and the tree nests as deep as the data does.",
+  "files": [
+    {
+      "name": "index.html",
+      "language": "html",
+      "starterContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>permissions tree</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>permissions</h1>\n  <div id=\"tree\"></div>\n  <p class=\"selection\">granted: <span id=\"granted\">none</span></p>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n",
+      "referenceContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>permissions tree</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>permissions</h1>\n  <div id=\"tree\"></div>\n  <p class=\"selection\">granted: <span id=\"granted\">none</span></p>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n"
+    },
+    {
+      "name": "styles.css",
+      "language": "css",
+      "starterContent": "body {\n  font-family: sans-serif;\n  max-width: 480px;\n  margin: 40px auto;\n}\n\nul {\n  list-style: none;\n  padding-left: 20px;\n}\n\n#tree > ul {\n  padding-left: 0;\n}\n\nli {\n  padding: 3px 0;\n}\n\nlabel {\n  cursor: pointer;\n}\n\n.selection {\n  border-top: 1px solid #ccc;\n  margin-top: 16px;\n  padding-top: 12px;\n}\n\n/* your code here: a partially-checked folder must look different from both a\n   checked and an unchecked one — style the indeterminate state */\n",
+      "referenceContent": "body {\n  font-family: sans-serif;\n  max-width: 480px;\n  margin: 40px auto;\n}\n\nul {\n  list-style: none;\n  padding-left: 20px;\n}\n\n#tree > ul {\n  padding-left: 0;\n}\n\nli {\n  padding: 3px 0;\n}\n\nlabel {\n  cursor: pointer;\n}\n\n.selection {\n  border-top: 1px solid #ccc;\n  margin-top: 16px;\n  padding-top: 12px;\n}\n\ninput:indeterminate + span {\n  font-style: italic;\n  color: #7a5c00;\n}\n\ninput:checked + span {\n  font-weight: 600;\n}\n"
+    },
+    {
+      "name": "app.js",
+      "language": "javascript",
+      "starterContent": "const TREE = {\n  id: 'all',\n  label: 'All permissions',\n  children: [\n    {\n      id: 'repo',\n      label: 'Repository',\n      children: [\n        { id: 'repo:read', label: 'Read code' },\n        { id: 'repo:write', label: 'Push code' },\n        { id: 'repo:admin', label: 'Change settings' },\n      ],\n    },\n    {\n      id: 'issues',\n      label: 'Issues',\n      children: [\n        { id: 'issues:read', label: 'View issues' },\n        { id: 'issues:write', label: 'Comment and close' },\n      ],\n    },\n    { id: 'billing', label: 'Billing' },\n  ],\n};\n\nconst container = document.getElementById('tree');\nconst grantedOut = document.getElementById('granted');\n\n/** Ids of the leaves that are currently granted. The only state there is. */\nconst granted = new Set(['repo:read']);\n\nfunction isLeaf(node) {\n  return !node.children || node.children.length === 0;\n}\n\nfunction leavesOf(node) {\n  // your code here: every leaf id at or under this node\n}\n\nfunction render() {\n  // your code here: build the nested <ul>, one checkbox per node, and set\n  // each folder's checked / indeterminate state from its leaves\n}\n\nfunction toggle(node, checked) {\n  // your code here: a folder's box applies to everything under it\n}\n\nfunction updateSummary() {\n  // your code here: list the granted leaf labels, or 'none'\n}\n\nrender();\nupdateSummary();\n",
+      "referenceContent": "const TREE = {\n  id: 'all',\n  label: 'All permissions',\n  children: [\n    {\n      id: 'repo',\n      label: 'Repository',\n      children: [\n        { id: 'repo:read', label: 'Read code' },\n        { id: 'repo:write', label: 'Push code' },\n        { id: 'repo:admin', label: 'Change settings' },\n      ],\n    },\n    {\n      id: 'issues',\n      label: 'Issues',\n      children: [\n        { id: 'issues:read', label: 'View issues' },\n        { id: 'issues:write', label: 'Comment and close' },\n      ],\n    },\n    { id: 'billing', label: 'Billing' },\n  ],\n};\n\nconst container = document.getElementById('tree');\nconst grantedOut = document.getElementById('granted');\n\n/** Ids of the leaves that are currently granted. The only state there is. */\nconst granted = new Set(['repo:read']);\n\nfunction isLeaf(node) {\n  return !node.children || node.children.length === 0;\n}\n\nfunction leavesOf(node) {\n  if (isLeaf(node)) return [node];\n  return node.children.flatMap(leavesOf);\n}\n\nfunction stateOf(node) {\n  const leaves = leavesOf(node);\n  const on = leaves.filter((leaf) => granted.has(leaf.id)).length;\n  if (on === 0) return 'off';\n  if (on === leaves.length) return 'on';\n  return 'partial';\n}\n\nfunction toggle(node, checked) {\n  for (const leaf of leavesOf(node)) {\n    if (checked) granted.add(leaf.id);\n    else granted.delete(leaf.id);\n  }\n  render();\n  updateSummary();\n}\n\nfunction nodeElement(node) {\n  const li = document.createElement('li');\n  const label = document.createElement('label');\n  const box = document.createElement('input');\n  box.type = 'checkbox';\n\n  const state = stateOf(node);\n  box.checked = state === 'on';\n  box.indeterminate = state === 'partial';\n  box.addEventListener('change', () => toggle(node, box.checked));\n\n  const text = document.createElement('span');\n  text.textContent = node.label;\n\n  label.append(box, text);\n  li.append(label);\n\n  if (!isLeaf(node)) {\n    const list = document.createElement('ul');\n    for (const child of node.children) {\n      list.append(nodeElement(child));\n    }\n    li.append(list);\n  }\n  return li;\n}\n\nfunction render() {\n  container.textContent = '';\n  const root = document.createElement('ul');\n  root.append(nodeElement(TREE));\n  container.append(root);\n}\n\nfunction updateSummary() {\n  const names = leavesOf(TREE)\n    .filter((leaf) => granted.has(leaf.id))\n    .map((leaf) => leaf.label);\n  grantedOut.textContent = names.length ? names.join(', ') : 'none';\n}\n\nrender();\nupdateSummary();\n"
+    }
+  ],
+  "rubric": [
+    "State is held for the leaves only; a folder's checked and indeterminate state is derived from what is under it, never stored alongside it.",
+    "The tree is built recursively from the data, so a deeper node needs no new code.",
+    "Ticking a folder grants every leaf beneath it, including through an intermediate folder.",
+    "A folder with some but not all of its leaves granted renders as indeterminate, and the CSS makes that visibly different from both other states.",
+    "The summary line is recomputed from the same state the tree is drawn from, so the two cannot disagree."
+  ],
+  "curveballs": [
+    "Actually, make the summary show a count per top-level group instead of the full list.",
+    "Add a collapse arrow so a folder can be folded away without losing its state.",
+    "Grey out the billing permission entirely and make it ungrantable."
+  ],
+  "similarProblems": [
+    "File Tree Browser",
+    "Nested Comment Threads",
+    "Org Chart Selector"
+  ]
+}

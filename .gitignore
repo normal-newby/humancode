@@ -38,3 +38,6 @@ web/node_modules/
 web/dist/
 .env
 .env.local
+
+# macOS finder droppings, from whichever machine committed one
+.DS_Store

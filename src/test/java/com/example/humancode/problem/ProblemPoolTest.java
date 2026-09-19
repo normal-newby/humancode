@@ -45,12 +45,12 @@ class ProblemPoolTest {
         assertEquals(1, back.size());
         Problem restored = back.getFirst();
         assertEquals(original.id(), restored.id());
-        assertEquals(original.entryPoint(), restored.entryPoint());
-        assertEquals(original.tests().size(), restored.tests().size());
+        assertEquals(original.files().size(), restored.files().size());
         // The confidential half has to survive too: it is what the interviewer
         // judges against, and a pooled problem is used exactly like a fresh one.
-        assertEquals(original.referenceSolution(), restored.referenceSolution());
-        assertEquals(original.tests().getFirst().expected(), restored.tests().getFirst().expected());
+        assertEquals(original.files().getFirst().referenceContent(), restored.files().getFirst().referenceContent());
+        assertEquals(original.rubric(), restored.rubric());
+        assertEquals(original.curveballs(), restored.curveballs());
     }
 
     @Test
@@ -126,31 +126,31 @@ class ProblemPoolTest {
         HumancodeProperties props = new HumancodeProperties(
                 new HumancodeProperties.Ai("", "gpt-5", "gpt-5-mini", Duration.ofSeconds(30)),
                 new HumancodeProperties.Interview(
-                        Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500)),
+                        Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500),
+                        Duration.ofSeconds(90), 40),
                 new HumancodeProperties.Problems("generated", size, Duration.ofSeconds(180),
                         cache.toString()));
 
         // Keyless: generate() returns empty without touching the network.
-        ProblemGenerator generator = new ProblemGenerator(new OpenAiClientHolder(null), props, mapper);
+        ProblemGenerator generator = new ProblemGenerator(new OpenAiClientHolder(null), props);
         return new ProblemPool(generator, mapper, props);
     }
 
     private Problem problem() {
         return new Problem(
                 "gen-cached",
-                "Count Close Pairs",
+                "Character Counter",
+                // Medium on purpose: three tests here turn on the pool refusing
+                // to serve one level's problem for another's request.
                 "medium",
-                List.of("array", "two-pointers"),
-                "Count index pairs within K.",
-                List.of(),
-                "function countClosePairs(nums, k) {}",
-                "countClosePairs",
-                List.of(new TestCase(List.of(List.of(1, 3, 6, 10), 3), 2)),
-                "exact",
-                "function countClosePairs(nums, k) { return 2; }",
-                "O(n log n)",
-                List.of("sorts first"),
-                List.of("what if the array is already sorted?"),
-                List.of("two sum"));
+                List.of("dom", "forms"),
+                "Show a live character count under a textarea.",
+                List.of(new Problem.ProblemFile(
+                        "index.html", "html",
+                        "<textarea id=\"box\"></textarea><span id=\"count\"></span>",
+                        "<textarea id=\"box\"></textarea><span id=\"count\">0</span>")),
+                List.of("Updates the count as you type"),
+                List.of("Actually, warn in red past 200 characters."),
+                List.of("todo list"));
     }
 }
