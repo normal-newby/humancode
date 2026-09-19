@@ -14,16 +14,23 @@ interface Props {
 /**
  * The report card (CLAUDE.md: "verdict, insults, begrudging compliments,
  * similar problems"). It stays inside the log's own grammar rather than
- * becoming a results page — the verdict is one more `▌` line from the
- * interviewer, typed out the same way every prompt is, with the rest hanging
- * under it as `└` asides. No pass/fail banner, no score, no colour-coded
- * verdict — see UI-DESIGN.md §4.7 on why a verdict is read, not displayed.
+ * becoming a results page — the verdict is one more `▌` line from the human,
+ * typed out the same way every prompt is, with the rest hanging under it as `└`
+ * asides. No pass/fail banner, no score, no colour-coded verdict — see
+ * UI-DESIGN.md §4.7 on why a verdict is read, not displayed.
  *
  * <p>Two blocks, in the order codex prints them: the run's own summary first —
  * what the process did, in numbers, the way a CLI signs off with its token
  * usage — and then the human's answer to it. Keeping the numbers out of the
  * verdict block is what stops them reading as a score: they belong to the
  * session, not to the judgment, and the judgment is words.
+ *
+ * <p>That ordering does more work now than it used to. The verdict is no longer
+ * a summary of the session, it is the human opening the app you handed them and
+ * saying what they think of it — flat and unmoved when it works, annoyed and
+ * possessive when it does not. So the process signing off first is the beat
+ * before they look, and nothing here should be tempted into rendering the
+ * outcome that decided the tone. The server never sends it.
  */
 export function ReportView({ report, onRestart }: Props) {
   const [verdictDone, setVerdictDone] = useState(false)

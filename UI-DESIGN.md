@@ -487,6 +487,24 @@ What the candidate *does* get is the footer word turning to `submitting…` and 
 This is also why submitting stays cheap to press: it is asking how you are doing, and being answered
 in words.
 
+**The closing verdict is the same rule at full volume.** It is not a summary of the session read back
+to you — it is the human opening the app you handed over. Two registers, and which one you get *is*
+the result:
+
+- It works → they are unmoved. `Hmm. Not bad.` No thanks, no enthusiasm, and short. The flatness is
+  the compliment, and a candidate who wanted a score has to settle for a shrug.
+- It does not → it is suddenly *their* app and they are annoyed about it. `What is this? My app does
+  not work.` First person about the app, second person at you.
+
+That is a verdict delivered, not displayed. The model decides which register applies via an `outcome`
+field on its structured reply, and **that field never leaves the server** — put `WORKS` on screen and
+you have rebuilt the green check this section exists to forbid.
+
+The one thing that *does* carry the judgment onto the screen is the impatience number, which rises
+when they open something broken. That is not §4.7 leaking: the meter moved on every reaction all
+session, and a high final number reads as "you took forever" as readily as "it is broken". A number
+that is ambiguous about *why* is not a verdict.
+
 ---
 
 ### 4.8 What they ask you for, before it starts

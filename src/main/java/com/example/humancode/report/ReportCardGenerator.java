@@ -45,17 +45,40 @@ public class ReportCardGenerator {
      */
     private static final long MAX_OUTPUT_TOKENS = 1_600L;
 
+    /**
+     * The closing bump is clamped to the range the schema asks for rather than
+     * trusted. {@code bumpImpatience} already clamps the meter to 0-100, so a
+     * runaway value cannot break it, but it could still pin the meter at either
+     * end off one number and make every ending look the same.
+     */
+    private static final int MIN_CLOSING_DELTA = -10;
+    private static final int MAX_CLOSING_DELTA = 30;
+
     private final OpenAiClientHolder clientHolder;
     private final PromptAssembler prompts;
     private final HumancodeProperties props;
     private final ReportCardGuard guard;
 
+    /**
+     * The closing reaction still moves the meter. Taking delivery of an app that
+     * does not work costs the human their patience, so the number they have been
+     * watching all session is where that lands, and it lands before
+     * {@link #stats} reads it or the report would show the pre-verdict figure.
+     *
+     * <p>This is not UI-DESIGN.md §4.7 leaking. §4.7 forbids a <em>verdict</em>
+     * on screen, a pass count or a failure list. Impatience is not one: it moved
+     * on every reaction all session, and a high final number reads as "you took
+     * forever" as readily as "it is broken". {@code outcome} itself, the field
+     * that really is a verdict, never leaves this class.
+     */
     public ReportCard generate(SessionState state, Problem problem) {
         Optional<OpenAIClient> client = clientHolder.client();
         GeneratedReport content = client.isPresent() ? callModel(client.get(), state, problem) : null;
 
         boolean canned = content == null;
         GeneratedReport safe = canned ? CannedReportCard.forSession(state, problem) : content;
+
+        state.bumpImpatience(Math.clamp(safe.impatienceDelta(), MIN_CLOSING_DELTA, MAX_CLOSING_DELTA));
 
         return new ReportCard(
                 safe.verdict(),
@@ -106,7 +129,11 @@ public class ReportCardGenerator {
                 return null;
             }
 
-            log.info("Generated report card for session {} in {}ms", state.sessionId(), millis);
+            // The outcome is the one thing that explains a surprising ending and the
+            // one thing the candidate never sees, so the log is the only place it
+            // is readable at all.
+            log.info("Generated report card for session {} in {}ms (outcome={}, impatienceDelta={})",
+                    state.sessionId(), millis, report.get().outcome(), report.get().impatienceDelta());
             return report.get();
 
         } catch (RuntimeException e) {

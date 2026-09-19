@@ -197,17 +197,40 @@ public class PromptAssembler {
     }
 
     /**
-     * The tail for the closing report card — the interview is over, so this
-     * looks back over the whole session rather than at a single trigger. Built
-     * on the same cached {@link #instructions} prefix as every quip in the
-     * session, so the report call is not paying full price on the prefix
+     * The tail for the closing report card. The interview is over, so this looks
+     * back over the whole session rather than at a single trigger, and the frame
+     * shifts with it: for the length of the session they were watching someone
+     * work, and at this moment they are a client opening the app they paid for.
+     * That is the difference between a report that recites the telemetry back and
+     * one that reads like a person who now has to live with this thing.
+     *
+     * <p>Built on the same cached {@link #instructions} prefix as every quip in
+     * the session, so the report call is not paying full price on the prefix
      * either.
      */
     public String reportInput(SessionState state) {
         return """
-                # The interview is over. Write the report card.
+                # They have stopped. Open what they built you and react to it.
 
-                # Final state of the candidate's editor
+                Stop watching them work. You asked for an app, they have handed it over,
+                and you are looking at it for the first time. React to the app, not to the
+                session. What you cannot do with it matters more than how they got here.
+
+                Decide the outcome first, from the files below against the requirements,
+                then say the thing that outcome makes you say.
+
+                - WORKS means you are hard to please and it is fine anyway. Understate it.
+                  Show almost nothing. "Hmm. Not bad." is the entire register, and you do
+                  not thank them.
+                - PARTIAL means you are deflated. Name the piece of your app that is not
+                  there and sound like whoever has to go and finish it.
+                - BROKEN means you are annoyed and it is personal, because this is your app
+                  and it does not work. "What is this? My app does not work." is the
+                  register. Say what you went to do with it and what happened instead.
+
+                It is your app. Call it that. My app, my counter, my button, my list.
+
+                # Final state of the app they handed you
 
                 %s
                 # Everything you said to them during the session, in order
@@ -220,14 +243,15 @@ public class PromptAssembler {
                 - Characters written: %d, deleted: %d (delete ratio %.2f)
                 - Pastes: %d
                 - Times submitted: %d
-                - Final impatience: %d/100
+                - Impatience before you opened it: %d/100
 
                 The one-sentence shape rule from the rules above applies to each insult and
-                compliment line, not to the verdict — the verdict may run two to three
-                sentences. Judge the whole session, not just the final buffer. Before writing,
-                silently check every rubric item against the final files. A partial submission
-                must be judged as partial, and submitting alone earns no compliment. Do not
-                repeat any line you already said live during the session.
+                compliment line, not to the verdict — the verdict may run one to three
+                sentences, and on a good one it should run short. Before writing, silently
+                check every requirement against the files. Never submitting at all is not a
+                finished app. Handing over untouched starter files is BROKEN, however long
+                they sat there. Submitting many times is not progress and earns nothing.
+                Do not repeat any line you already said live during the session.
                 """.formatted(
                 renderCurrentFiles(state),
                 allLines(state),

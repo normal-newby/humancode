@@ -8,21 +8,37 @@ import com.example.humancode.ai.SolutionLanguage;
 
 /**
  * Same spirit as {@link com.example.humancode.ai.ReactionGuard}, sized for the
- * report card: the verdict is allowed two to three sentences where a live
+ * report card: the verdict is allowed up to three sentences where a live
  * reaction gets exactly one, and there are several lines to check instead of
  * one.
+ *
+ * <p>It deliberately does not police the verdict's <em>tone</em> against
+ * {@link GeneratedReport#outcome()}. A mechanical check for "does this sound
+ * annoyed enough" would reject far more good lines than bad ones, and the cost
+ * of a rejection here is the canned report, not a retry.
  */
 @Component
 public class ReportCardGuard {
 
     private static final int MAX_LINE_WORDS = 12;
-    private static final int MIN_VERDICT_WORDS = 8;
+    /**
+     * Two, not eight. The whole point of the closing reaction is that a good one
+     * is curt — "Hmm. Not bad." is three words and is exactly what WORKS is
+     * supposed to sound like. A floor of eight rejected it, and a rejected
+     * report is not an error, it is the canned one (CLAUDE.md §8), so the tone
+     * would have quietly failed shut with nothing in the log but a `canned`
+     * marker on screen.
+     */
+    private static final int MIN_VERDICT_WORDS = 2;
     private static final int MAX_VERDICT_WORDS = 60;
+    /** Short sentences are the register, so three of them fit inside the cap. */
+    private static final int MAX_VERDICT_SENTENCES = 3;
     private static final int MAX_INSULTS = 4;
     private static final int MAX_COMPLIMENTS = 2;
 
     public boolean isSafe(GeneratedReport report) {
         return report != null
+                && report.outcome() != null
                 && safeVerdict(report.verdict())
                 && safeLines(report.insults(), 1, MAX_INSULTS)
                 && safeLines(report.compliments(), 0, MAX_COMPLIMENTS);
@@ -37,7 +53,7 @@ public class ReportCardGuard {
             return false;
         }
         int sentences = sentenceEndings(verdict);
-        if (sentences < 1 || sentences > 3) {
+        if (sentences < 1 || sentences > MAX_VERDICT_SENTENCES) {
             return false;
         }
         return !forbiddenPunctuation(verdict) && !SolutionLanguage.mentioned(verdict);

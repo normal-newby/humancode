@@ -16,6 +16,12 @@ import com.example.humancode.problem.Problem;
  * <p>There is no executable pass/fail signal (CLAUDE.md §6), but the fallback
  * can still distinguish untouched starter files and unfinished scaffold gaps.
  * A model outage must not turn a visibly partial submission into empty praise.
+ *
+ * <p>What it deliberately cannot do is award {@code WORKS}. Every branch here
+ * is reasoning from file contents and counters, which is enough to prove an app
+ * is <em>not</em> finished and never enough to prove one is. So the best canned
+ * outcome is a flat {@code PARTIAL} that says so, and the understated "Hmm."
+ * the real path gives a working app is not something this path gets to fake.
  */
 final class CannedReportCard {
 
@@ -30,43 +36,51 @@ final class CannedReportCard {
 
         if (state.submitCount() == 0) {
             return new GeneratedReport(
-                    "You never submitted the work. The unfinished scaffolding stayed exactly where it was.",
+                    GeneratedReport.Outcome.BROKEN,
+                    "What is this? You never handed anything over, so I have no app to open.",
                     List.of(
                             "Not one submission the entire session.",
                             "%d %s stayed untouched.".formatted(assessment.untouchedFiles(),
                                     assessment.untouchedFiles() == 1 ? "file" : "files"),
                             "%d marked gaps still remained.".formatted(assessment.remainingGaps())),
-                    List.of());
+                    List.of(),
+                    28);
         }
 
         if (assessment.remainingGaps() > 0) {
             return new GeneratedReport(
-                    "You left %d of %d marked gaps open. Calling that finished took nerve."
+                    GeneratedReport.Outcome.BROKEN,
+                    "My app does not work. %d of %d marked gaps are still sitting open in it."
                             .formatted(assessment.remainingGaps(), assessment.totalGaps()),
                     List.of(
-                            "The unfinished scaffolding was still visible.",
+                            "Your unfinished scaffolding is in my app.",
                             "%d of %d files changed at all.".formatted(assessment.changedFiles(),
                                     assessment.totalFiles()),
                             "You submitted it %d times anyway.".formatted(state.submitCount())),
-                    List.of());
+                    List.of(),
+                    24);
         }
 
         if (assessment.untouchedFiles() > 0) {
             return new GeneratedReport(
-                    "You changed %d of %d files and submitted the rest as starter code. Ambitious."
-                            .formatted(assessment.changedFiles(), assessment.totalFiles()),
+                    GeneratedReport.Outcome.PARTIAL,
+                    "So %d of %d files are exactly what I gave you. I get to finish my own app."
+                            .formatted(assessment.untouchedFiles(), assessment.totalFiles()),
                     List.of(
-                            "%d files stayed exactly as given.".formatted(assessment.untouchedFiles()),
-                            "The brief had %d requirements.".formatted(problem.rubric().size()),
+                            "%d files came back exactly as given.".formatted(assessment.untouchedFiles()),
+                            "I asked for %d things.".formatted(problem.rubric().size()),
                             "You handed it over %d times.".formatted(state.submitCount())),
-                    List.of());
+                    List.of(),
+                    12);
         }
 
         return new GeneratedReport(
-                "Every starter file changed. Whether it actually works remains unproven.",
+                GeneratedReport.Outcome.PARTIAL,
+                "Hmm. Every file has something of yours in it now. Whether my app works remains unproven.",
                 List.of("You submitted it %d times.".formatted(state.submitCount()),
-                        "The implementation still needs a real review."),
-                List.of());
+                        "I still have to review all of this."),
+                List.of(),
+                4);
     }
 
     private static Assessment assess(SessionState state, Problem problem) {

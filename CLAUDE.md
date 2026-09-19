@@ -317,6 +317,26 @@ output** so the client receives `{ line, mood, impatienceDelta }` instead of pro
 Not streamed yet: every call in the app today, including the report card, is non-streaming;
 token-by-token streaming onto the session's SSE channel is still open (§9).
 
+The report card's closing line is written as a **client opening the app**, not an interviewer
+recapping a session, and `GeneratedReport.outcome` (`WORKS` / `PARTIAL` / `BROKEN`) picks the register
+— flat and unimpressed, or annoyed about *their* broken app (UI-DESIGN.md §4.7). Three things about it
+bite if you forget them:
+
+- **`outcome` is declared first in the record on purpose.** Structured output is generated in
+  component order, so the model commits to a judgment before it writes the sentence. Put `verdict`
+  first and it picks a tone, then back-fills an outcome to match.
+- **`outcome` never reaches the client.** It is the pass/fail signal §4.7 forbids on screen. It is
+  logged, and that is the only place it is readable. `ReportCard` must not grow a field for it.
+- **A good verdict is three words, so the guard had to let three words through.**
+  `ReportCardGuard.MIN_VERDICT_WORDS` was 8, which rejected `Hmm. Not bad.` — and a rejected report is
+  not an error, it is the canned one, so the whole register would have failed shut with nothing in the
+  log but a `canned` marker on screen. It is 2 now. `ReportCardGuardTest` pins both registers.
+
+`impatienceDelta` on the same reply is applied to `SessionState` **before** the report's stats are
+read, so the number the candidate is left looking at includes what taking delivery cost. It is
+clamped to -10..30 in `ReportCardGenerator` rather than trusted: `bumpImpatience` already clamps the
+meter to 0-100, but one runaway value could still pin it and make every ending look identical.
+
 Curveballs are neither of these. They cost no model call at all — see §2.
 
 ### Prompt caching
