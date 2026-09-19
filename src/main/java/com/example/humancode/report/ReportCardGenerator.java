@@ -43,7 +43,7 @@ public class ReportCardGenerator {
      * reaction line, and this is a reasoning model — see the quip path's own
      * scars (CLAUDE.md §5) for what happens when the cap is too tight.
      */
-    private static final long MAX_OUTPUT_TOKENS = 1000L;
+    private static final long MAX_OUTPUT_TOKENS = 1_600L;
 
     private final OpenAiClientHolder clientHolder;
     private final PromptAssembler prompts;
@@ -55,7 +55,7 @@ public class ReportCardGenerator {
         GeneratedReport content = client.isPresent() ? callModel(client.get(), state, problem) : null;
 
         boolean canned = content == null;
-        GeneratedReport safe = canned ? CannedReportCard.forSession(state) : content;
+        GeneratedReport safe = canned ? CannedReportCard.forSession(state, problem) : content;
 
         return new ReportCard(
                 safe.verdict(),
