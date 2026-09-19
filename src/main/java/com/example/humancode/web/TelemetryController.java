@@ -49,6 +49,9 @@ public class TelemetryController {
 
         List<TelemetryEvent> toPersist = new ArrayList<>(batch.events().size());
         long pastedThisBatch = 0;
+        long insertedThisBatch = 0;
+        long deletedThisBatch = 0;
+        String previousCode = state.code();
 
         for (Dtos.TelemetryItem item : batch.events()) {
             switch (item.type()) {
@@ -58,6 +61,10 @@ public class TelemetryController {
                     pastedThisBatch += item.inserted();
                 }
                 case FOCUS, BLUR, RUN -> state.touch();
+            }
+            if (item.type() == EventType.EDIT) {
+                insertedThisBatch += item.inserted();
+                deletedThisBatch += item.deleted();
             }
             toPersist.add(new TelemetryEvent(id, item.type(), now, item.inserted(), item.deleted(), item.detail()));
         }
@@ -72,6 +79,10 @@ public class TelemetryController {
         if (pastedThisBatch > 0) {
             final long pasted = pastedThisBatch;
             triggers.onPaste(state, pasted).ifPresent(trigger -> director.fire(state, trigger));
+        } else {
+            int completedLines = completedLines(previousCode, batch.code());
+            triggers.onMeaningfulEdit(state, insertedThisBatch, deletedThisBatch, completedLines)
+                    .ifPresent(trigger -> director.fire(state, trigger));
         }
 
         return metrics(state);
@@ -100,5 +111,16 @@ public class TelemetryController {
                 state.runCount(),
                 state.failedRunCount(),
                 state.impatience());
+    }
+
+    private int completedLines(String previousCode, String currentCode) {
+        if (previousCode == null || currentCode == null) {
+            return 0;
+        }
+        return Math.toIntExact(Math.max(0, newlineCount(currentCode) - newlineCount(previousCode)));
+    }
+
+    private long newlineCount(String code) {
+        return code.chars().filter(character -> character == '\n').count();
     }
 }

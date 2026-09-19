@@ -25,6 +25,9 @@ public class TriggerEngine {
 
     /** A paste this big with no typing behind it is worth commenting on. */
     private static final int PASTE_BURST_CHARS = 120;
+    private static final int FIRST_IMPLEMENTATION_CHARS = 12;
+    private static final int SUBSTANTIAL_EDIT_CHARS = 160;
+    private static final int HEAVY_DELETE_CHARS = 80;
     private static final double THRASH_RATIO = 1.5;
     private static final long THRASH_MIN_CHARS = 200;
 
@@ -99,13 +102,55 @@ public class TriggerEngine {
                 25));
     }
 
+    /**
+     * React to completed pieces of work rather than individual keystrokes.
+     * Telemetry arrives in 1.5-second batches, and {@link Trigger#of} applies
+     * the shared cooldown before a model call is made. That keeps this lively
+     * without turning a fast typist into an API bill.
+     */
+    public Optional<Trigger> onMeaningfulEdit(SessionState state, long inserted, long deleted,
+            int completedLines) {
+        if (state.phase() != Phase.CODING) {
+            return Optional.empty();
+        }
+
+        if (deleted >= HEAVY_DELETE_CHARS && deleted > inserted * 2L) {
+            return Optional.of(Trigger.of(Trigger.Kind.HEAVY_DELETE,
+                    "Candidate just deleted %d characters while adding only %d."
+                            .formatted(deleted, inserted),
+                    16));
+        }
+
+        if (state.charsInserted() >= FIRST_IMPLEMENTATION_CHARS && state.fireOnce("first-implementation")) {
+            return Optional.of(Trigger.immediate(Trigger.Kind.FIRST_IMPLEMENTATION,
+                    "Candidate has started their implementation (%d characters written so far)."
+                            .formatted(state.charsInserted()),
+                    0));
+        }
+
+        if (completedLines > 0) {
+            return Optional.of(Trigger.of(Trigger.Kind.LINE_COMPLETED,
+                    "Candidate completed %d line%s of code."
+                            .formatted(completedLines, completedLines == 1 ? "" : "s"),
+                    0));
+        }
+
+        if (inserted >= SUBSTANTIAL_EDIT_CHARS) {
+            return Optional.of(Trigger.of(Trigger.Kind.SUBSTANTIAL_EDIT,
+                    "Candidate added %d characters in one editor batch.".formatted(inserted),
+                    4));
+        }
+
+        return Optional.empty();
+    }
+
     public Optional<Trigger> onRun(SessionState state, boolean passed, String summary) {
         if (passed) {
-            return Optional.of(Trigger.immediate(Trigger.Kind.TESTS_PASSED,
+            return Optional.of(Trigger.of(Trigger.Kind.TESTS_PASSED,
                     "All tests passed on run %d. %s".formatted(state.runCount(), summary),
                     -20));
         }
-        return Optional.of(Trigger.immediate(Trigger.Kind.TESTS_FAILED,
+        return Optional.of(Trigger.of(Trigger.Kind.TESTS_FAILED,
                 "Run %d failed. %s".formatted(state.runCount(), summary),
                 10));
     }

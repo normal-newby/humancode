@@ -16,35 +16,49 @@ import com.example.humancode.telemetry.Trigger;
  */
 final class CannedLines {
 
-    private static final Map<Trigger.Kind, List<String>> LINES = Map.of(
-            Trigger.Kind.NO_START, List.of(
+    private static final Map<Trigger.Kind, List<String>> LINES = Map.ofEntries(
+            Map.entry(Trigger.Kind.NO_START, List.of(
                     "The problem's been up for a while. The editor is still empty. Just noting that.",
                     "Take your time. I've only got the rest of the afternoon.",
-                    "Blank file. Bold opening move."),
-            Trigger.Kind.IDLE, List.of(
+                    "Blank file. Bold opening move.")),
+            Map.entry(Trigger.Kind.IDLE, List.of(
                     "Still with me?",
                     "That cursor hasn't moved in a while. Thinking, or stuck?",
                     "I can hear the clock from here.",
-                    "Silence is a strategy, I suppose."),
-            Trigger.Kind.PASTE_BURST, List.of(
+                    "Silence is a strategy, I suppose.")),
+            Map.entry(Trigger.Kind.PASTE_BURST, List.of(
                     "That appeared very quickly for something you typed.",
                     "Interesting. You paste faster than you type.",
-                    "I saw that."),
-            Trigger.Kind.MASS_DELETION, List.of(
+                    "I saw that.")),
+            Map.entry(Trigger.Kind.FIRST_IMPLEMENTATION, List.of(
+                    "An implementation. At last.",
+                    "Actual code. We have movement.",
+                    "A plan has entered the editor. Promising.")),
+            Map.entry(Trigger.Kind.LINE_COMPLETED, List.of(
+                    "A complete thought. Keep going.",
+                    "One line at a time. Revolutionary.",
+                    "That line has opinions. I respect that.")),
+            Map.entry(Trigger.Kind.SUBSTANTIAL_EDIT, List.of(
+                    "That was a meaningful chunk of code.",
+                    "Momentum. Let's see whether it survives the tests.")),
+            Map.entry(Trigger.Kind.HEAVY_DELETE, List.of(
+                    "That was a lot of code to throw away at once.",
+                    "Large deletion. New plan, or less plan?")),
+            Map.entry(Trigger.Kind.MASS_DELETION, List.of(
                     "Third rewrite. Is the plan coming together or going away?",
                     "You've deleted more than you've written. Bold.",
-                    "Ctrl+A is not an algorithm."),
-            Trigger.Kind.TESTS_FAILED, List.of(
+                    "Ctrl+A is not an algorithm.")),
+            Map.entry(Trigger.Kind.TESTS_FAILED, List.of(
                     "Red. Again.",
                     "Not quite. Read the failing case out loud, it usually helps.",
-                    "The tests disagree with you."),
-            Trigger.Kind.TESTS_PASSED, List.of(
+                    "The tests disagree with you.")),
+            Map.entry(Trigger.Kind.TESTS_PASSED, List.of(
                     "Green. I'll allow it.",
                     "It passes. Now tell me the complexity.",
-                    "Fine. That works. Don't look so pleased."),
-            Trigger.Kind.SLOW_PROGRESS, List.of(
+                    "Fine. That works. Don't look so pleased.")),
+            Map.entry(Trigger.Kind.SLOW_PROGRESS, List.of(
                     "Five minutes, and not much on the board.",
-                    "We're a third of the way through the time and a tenth of the way through the problem."));
+                    "We're a third of the way through the time and a tenth of the way through the problem.")));
 
     private CannedLines() {
     }
@@ -70,6 +84,10 @@ final class CannedLines {
             case NO_START -> "Has not started. Staring.";
             case IDLE -> "Idle again.";
             case PASTE_BURST -> "Pasted a large block. Noted.";
+            case FIRST_IMPLEMENTATION -> "Started an implementation.";
+            case LINE_COMPLETED -> "Completed another line of code.";
+            case SUBSTANTIAL_EDIT -> "Added a substantial chunk of code.";
+            case HEAVY_DELETE -> "Deleted a large block of code.";
             case MASS_DELETION -> "Rewriting rather than progressing.";
             case TESTS_FAILED -> "Tests failing.";
             case TESTS_PASSED -> "Tests green.";

@@ -19,6 +19,14 @@ public record Trigger(Kind kind, String detail, int urgency, boolean cooldown) {
         IDLE,
         /** A large insert with no preceding keystrokes. */
         PASTE_BURST,
+        /** The candidate has started writing a real implementation. */
+        FIRST_IMPLEMENTATION,
+        /** One or more lines were completed in the editor. */
+        LINE_COMPLETED,
+        /** A batch contains a substantial amount of new code. */
+        SUBSTANTIAL_EDIT,
+        /** A single edit batch threw away a meaningful amount of code. */
+        HEAVY_DELETE,
         /** Deleting far more than they are writing — thrashing. */
         MASS_DELETION,
         /** Tests were run and failed. */

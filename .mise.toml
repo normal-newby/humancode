@@ -1,0 +1,5 @@
+[tools]
+# Keep local Vite builds on the same Node release Maven installs in target/.
+# Node 26 crashes while loading Vite's native Rolldown binding on this host.
+node = "24.12.0"
+java = "temurin-25.0.4+7.0.LTS"

@@ -26,7 +26,7 @@ class TriggerEngineTest {
     private static final HumancodeProperties PROPS = new HumancodeProperties(
             new HumancodeProperties.Ai("", "gpt-5", "gpt-5-mini", Duration.ofSeconds(30)),
             new HumancodeProperties.Interview(
-                    Duration.ofSeconds(20), Duration.ofSeconds(15), Duration.ofMillis(1500), "senior-engineer"));
+                    Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500), "senior-engineer"));
 
     private final TriggerEngine engine = new TriggerEngine(PROPS);
 
@@ -53,6 +53,42 @@ class TriggerEngineTest {
         SessionState state = session();
         state.recordEdit(50, 2);
         assertTrue(engine.evaluate(state).isEmpty());
+    }
+
+    @Test
+    @DisplayName("the first meaningful edit gets one immediate acknowledgement")
+    void firstImplementationFiresOnce() {
+        SessionState state = session();
+        state.recordEdit(20, 0);
+
+        Trigger first = engine.onMeaningfulEdit(state, 20, 0, 0).orElseThrow();
+        assertEquals(Trigger.Kind.FIRST_IMPLEMENTATION, first.kind());
+        assertFalse(first.cooldown(), "the first implementation should feel immediate");
+
+        assertTrue(engine.onMeaningfulEdit(state, 20, 0, 0).isEmpty(),
+                "the first-edit acknowledgement must not repeat");
+    }
+
+    @Test
+    @DisplayName("completed lines create a cooldown-governed reaction opportunity")
+    void completedLineFiresWithCooldown() {
+        SessionState state = session();
+        state.recordEdit(4, 0);
+
+        Trigger trigger = engine.onMeaningfulEdit(state, 4, 0, 1).orElseThrow();
+        assertEquals(Trigger.Kind.LINE_COMPLETED, trigger.kind());
+        assertTrue(trigger.cooldown());
+    }
+
+    @Test
+    @DisplayName("a large deletion is noticed without waiting for the heartbeat")
+    void heavyDeleteFires() {
+        SessionState state = session();
+        state.recordEdit(0, 100);
+
+        Trigger trigger = engine.onMeaningfulEdit(state, 0, 100, 0).orElseThrow();
+        assertEquals(Trigger.Kind.HEAVY_DELETE, trigger.kind());
+        assertTrue(trigger.cooldown());
     }
 
     @Test
@@ -89,7 +125,7 @@ class TriggerEngineTest {
     }
 
     @Test
-    @DisplayName("passing tests pushes impatience down, not up")
+    @DisplayName("passing tests push impatience down and respect the shared cooldown")
     void passingTestsCalmsTheInterviewer() {
         SessionState state = session();
         state.recordRun(true);
@@ -97,6 +133,7 @@ class TriggerEngineTest {
         Trigger trigger = engine.onRun(state, true, "3/3 assertions passed.").orElseThrow();
         assertEquals(Trigger.Kind.TESTS_PASSED, trigger.kind());
         assertTrue(trigger.urgency() < 0, "a green run should lower the meter");
+        assertTrue(trigger.cooldown(), "rapid test runs should not create rapid model calls");
     }
 
     @Test
