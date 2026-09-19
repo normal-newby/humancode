@@ -69,6 +69,11 @@ If you find yourself calling the API on every edit, stop and fix the trigger eng
 
 ## 3. Stack
 
+**Before touching anything visual, read [UI-DESIGN.md](UI-DESIGN.md).** It is the binding spec for
+layout, palette, motion and the anti-LeetCode rules. The short version: Monkeytype-style restraint,
+the AI speaks from a band across the top, private notes on the right, instruments on the left, and no
+split panes or bordered cards anywhere.
+
 | Layer | Choice |
 |---|---|
 | Backend | Spring Boot 4.1.1, Java 25, Maven (`./mvnw`) |
@@ -165,6 +170,21 @@ com.openai.models.chat.completions.ChatCompletionCreateParams
 ```
 
 Build one `OpenAIClient` as a singleton `@Bean`. It is thread-safe; do not construct one per request.
+It is wrapped in `OpenAiClientHolder` so the app starts cleanly with no key set — see §5.1.
+
+### Two Jacksons are on the classpath. This will bite you.
+
+Spring Boot 4 ships **Jackson 3** (`tools.jackson.databind`). The OpenAI SDK pulls in **Jackson 2**
+(`com.fasterxml.jackson`) for its own schema generation. Both coexist fine, but:
+
+- **Injecting an `ObjectMapper`?** Import `tools.jackson.databind.ObjectMapper`. Only the Jackson 3
+  mapper exists as a bean; asking for the Jackson 2 one fails context startup with a confusing
+  "No qualifying bean of type ObjectMapper".
+- **Annotating a structured-output record?** Use the Jackson 2 annotations
+  (`com.fasterxml.jackson.annotation.*`) — those are what the SDK's schema generator reads. See
+  `Reaction`.
+- Jackson 3 throws **unchecked** exceptions, so `catch (IOException)` around a `readValue` no longer
+  compiles. Catch `RuntimeException`.
 
 **Prefer the Responses API** (`client.responses()`) over Chat Completions for new code — it is OpenAI's
 current surface and handles reasoning models and structured output more cleanly.
@@ -172,6 +192,16 @@ current surface and handles reasoning models and structured output more cleanly.
 Model IDs are **configuration, not constants** — `humancode.ai.model` and `humancode.ai.quip-model`.
 The defaults are starting guesses; verify them against what the credits actually cover before the first
 run and change them in `application.properties`, never in code.
+
+### 5.1 Running without a key
+
+`OpenAiClientHolder` holds a possibly-absent client. With no `OPENAI_API_KEY`, `Interviewer` falls back
+to `CannedLines` and logs a warning at startup — triggers still fire, the meter still moves, SSE still
+streams, the UI still works. Every utterance carries a `canned` flag so the UI can mark it.
+
+This is not only for the missing-key case: a model call that times out mid-session falls back the same
+way. **An interview that goes silent because of a network blip is a broken demo.** Keep that property
+when you extend the AI layer — `Interviewer.react` must never throw and never return empty.
 
 ### Two call paths
 
@@ -220,14 +250,49 @@ Editing tone should never require a recompile.
 
 ## 6. Running user code
 
-**Run it in the browser, not on the server.** JavaScript/TypeScript in a sandboxed Web Worker with a
-timeout; Python via Pyodide. The test harness runs client-side and POSTs
-`{passed, failed, errors, durationMs}` back as a telemetry event.
+**In the browser, not on the server.** `web/src/workers/testRunner.ts` evaluates the candidate's code in
+a throwaway Web Worker and runs it against the problem's test cases; `web/src/lib/runTests.ts` owns the
+worker lifecycle and POSTs the verdict to `/api/sessions/{id}/run`.
 
-Rationale: zero sandbox infrastructure, zero RCE surface, zero cold-start latency, and it works on a laptop
-behind conference wifi. A server-side runner (Docker, Judge0, Piston) is a real project on its own and buys
-nothing the demo needs. If someone insists on server-side execution, that is a scoped conversation, not a
-drive-by change.
+Rationale: zero sandbox infrastructure, zero RCE surface, zero cold-start latency, and it works behind
+conference wifi. A server-side runner (Docker, Judge0, Piston) is a project on its own and buys nothing
+the demo needs.
+
+Three things about this that are load-bearing:
+
+- **The timeout lives on the main thread, not in the worker.** A worker cannot interrupt its own
+  `while (true)`, so `runTests` sets a 3s timer and calls `worker.terminate()`. An infinite loop is a
+  *likely* outcome in a timed interview, not an edge case — verified: the page stays fully responsive.
+- **Args are `structuredClone`d per case**, so a candidate who mutates the input cannot corrupt the
+  next test.
+- **`match: "unordered"`** exists for problems like Two Sum where "return the indices in any order"
+  means `[1,0]` is as correct as `[0,1]`. Default is `exact`.
+
+**Test cases are visible to the candidate**, unavoidably — the worker runs in their browser and cannot
+execute a test it was not given. Inputs and outputs are not the algorithm, and `Problem.forCandidate()`
+still strips the reference solution, complexity, rubric and follow-ups. Genuinely hidden tests would
+need a server-side runner.
+
+### Problem sources
+
+`humancode.problems.source` selects a `ProblemSource`:
+
+| Value | Behaviour |
+|---|---|
+| `bank` (default, **use in dev**) | `resources/problems/*.json`. Repeatable, and the expectations are machine-verified. |
+| `generated` (**prod**) | The model writes a fresh problem with runnable tests per session, via structured outputs (`GeneratedProblem`). Requires `OPENAI_API_KEY`. |
+
+`generated` falls back to the bank — loudly — when the key is missing or the model returns something
+malformed. `ProblemGenerator.convert` structurally validates first: entry point present, tests non-empty,
+reference solution and starter code both defining that function, every `argsJson`/`expectedJson` parsing
+as JSON. A subtly *wrong* test can still get through; that is the residual risk of generating problems.
+
+Because a generated problem exists only for the life of its session, `SessionState` holds the whole
+`Problem`, not an id. There is nothing to look it up in.
+
+**`cd web && npm run check:problems`** runs every bank problem's reference solution against its own test
+cases. Run it after touching any problem JSON — a wrong expectation is invisible until a candidate writes
+a correct answer and gets called wrong, which is the worst possible place to find it.
 
 ---
 

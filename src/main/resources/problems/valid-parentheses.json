@@ -1,0 +1,58 @@
+{
+  "id": "valid-parentheses",
+  "title": "Valid Parentheses",
+  "difficulty": "easy",
+  "tags": [
+    "stack",
+    "string"
+  ],
+  "statement": "Given a string `s` containing only the characters `()[]{}`, determine whether the input string is valid. A string is valid when every open bracket is closed by the same type of bracket, and brackets are closed in the correct order.",
+  "examples": [
+    {
+      "input": "s = \"()[]{}\"",
+      "output": "true",
+      "explanation": "Every bracket is matched in order."
+    },
+    {
+      "input": "s = \"(]\"",
+      "output": "false",
+      "explanation": "The closing bracket does not match the open one."
+    },
+    {
+      "input": "s = \"([)]\"",
+      "output": "false",
+      "explanation": "Correctly matched types, but interleaved rather than nested."
+    }
+  ],
+  "starterCode": "/**\n * @param {string} s\n * @return {boolean}\n */\nfunction isValid(s) {\n  // your code here\n}\n",
+  "entryPoint": "isValid",
+  "match": "exact",
+  "tests": [
+    {"args": ["()"], "expected": true},
+    {"args": ["()[]{}"], "expected": true},
+    {"args": ["(]"], "expected": false},
+    {"args": ["([)]"], "expected": false},
+    {"args": ["{[]}"], "expected": true},
+    {"args": [""], "expected": true},
+    {"args": ["["], "expected": false},
+    {"args": ["]"], "expected": false}
+  ],
+  "referenceSolution": "function isValid(s) {\n  const pairs = { ')': '(', ']': '[', '}': '{' };\n  const stack = [];\n  for (const ch of s) {\n    if (ch === '(' || ch === '[' || ch === '{') {\n      stack.push(ch);\n    } else {\n      if (stack.pop() !== pairs[ch]) return false;\n    }\n  }\n  return stack.length === 0;\n}",
+  "optimalComplexity": "O(n) time, O(n) space — a single stack pass.",
+  "rubric": [
+    "Uses a stack. A counter alone cannot handle mixed bracket types.",
+    "Returns false on a closing bracket when the stack is empty.",
+    "Returns false at the end if the stack is not empty — this is the most commonly missed case.",
+    "Handles the empty string as valid."
+  ],
+  "followUps": [
+    "What if the string could also contain other characters that should be ignored?",
+    "What is the minimum number of insertions needed to make the string valid?",
+    "Can you do it without a stack if there is only one bracket type?"
+  ],
+  "similarProblems": [
+    "Minimum Remove to Make Valid Parentheses",
+    "Longest Valid Parentheses",
+    "Basic Calculator"
+  ]
+}
