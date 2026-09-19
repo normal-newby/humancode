@@ -9,7 +9,7 @@ export function TypingIndicator() {
   return (
     <div className="grid grid-cols-[1.25rem_1fr] gap-x-2">
       <span aria-hidden className="text-faint">
-        &gt;
+        ▌
       </span>
       <span aria-hidden className="animate-blink text-accent select-none">
         ▍

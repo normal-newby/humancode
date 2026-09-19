@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
-/* Tokens — see UI-DESIGN.md §3. Warm near-black the way a terminal on a dark
-   theme reads, with one warm accent kept deliberately clear of the red/green
+/* Tokens — see UI-DESIGN.md §3. Cool near-black the way a terminal on a dark
+   theme reads, with one blue accent kept deliberately clear of the red/green
    the impatience meter owns. */
 @theme {
-  --color-canvas: #1c1b19;
-  --color-surface: #24231f; /* meter track mask, scrollbars */
+  --color-canvas: #0d0f13;
+  --color-surface: #171a21; /* the tab, the meter track mask, scrollbars */
 
-  --color-ink: #e6e2d8;
-  --color-sub: #8a857a;
-  --color-faint: #4b4841;
+  --color-ink: #e4e8ee;
+  --color-sub: #8b94a3;
+  --color-faint: #454c59;
 
-  --color-accent: #d98b63;
+  --color-accent: #5aa7ff;
 
   --color-calm: #6bbf7b;
   --color-warm: #d8a13c;

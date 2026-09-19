@@ -101,10 +101,16 @@ wiring a model call into curveball delivery, stop — the entire point was that 
 
 **Before touching anything visual, read [UI-DESIGN.md](UI-DESIGN.md).** It is the binding spec for
 layout, palette, motion and the anti-LeetCode rules. The short version: **you are the model.** A
-Claude Code-style log with the roles swapped — `>` lines are the human on the other side prompting
-you, `⏺` blocks are your output, your live turn is the editor, `submit` closes a turn, a heckle
-arriving mid-keystroke renders as `⎿ Interrupted by user`, and the footer counts your keystrokes like
-tokens while their impatience meter fills. One centred column; no rails, split panes or borders.
+Codex CLI-style log with the roles swapped — `▌` lines are the human on the other side prompting you,
+`•` blocks are your output, your live turn is the editor, `submit` closes a turn, a heckle arriving
+mid-keystroke renders as `└ Interrupted by user`, and the footer counts your keystrokes like tokens
+while their impatience meter fills. One centred column under one `openai codex` window tab; no rails,
+split panes or borders.
+
+The app is **dressed as Codex on purpose** — it is being shown to an OpenAI sponsor. UI-DESIGN.md §0
+draws the line: borrow the grammar and name the CLI, never claim to be it. No OpenAI logo, no real
+model id anywhere that reads as configuration rather than a punchline, no suggestion that anything on
+screen came from an OpenAI model. `model: you` is both the joke and the disclaimer.
 
 | Layer | Choice |
 |---|---|

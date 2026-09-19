@@ -47,12 +47,12 @@ export function Block({ marker, tone, children }: { marker: string; tone: string
   )
 }
 
-/** A dim continuation line under a block, the way tool output hangs. */
+/** A dim continuation line under a block, the way codex hangs tool output. */
 export function Result({ tone = 'text-sub', children }: { tone?: string; children: ReactNode }) {
   return (
     <div className={`mt-1 flex items-baseline gap-2 text-xs ${tone}`}>
       <span aria-hidden className="text-faint">
-        ⎿
+        └
       </span>
       <span className="min-w-0 break-words">{children}</span>
     </div>
@@ -71,7 +71,7 @@ function Prompt({ entry, newest, onTick }: { entry: PromptEntry; newest: boolean
 
   return (
     <div className={newest ? 'animate-turn-in' : 'dimmable'}>
-      <Block marker=">" tone={newest ? 'text-accent' : 'text-faint'}>
+      <Block marker="▌" tone={newest ? 'text-accent' : 'text-faint'}>
         <TypedText
           text={entry.line}
           animate={animate}
@@ -103,9 +103,9 @@ function Prompt({ entry, newest, onTick }: { entry: PromptEntry; newest: boolean
 function Turn({ entry }: { entry: TurnEntry }) {
   return (
     <div className="dimmable">
-      <Block marker="⏺" tone="text-faint">
+      <Block marker="•" tone="text-faint">
         <p className="text-[15px] leading-relaxed text-faint">
-          {entry.empty ? '(no output)' : `Write(${entry.file})`}
+          {entry.empty ? '(no output)' : `Edited ${entry.file}`}
         </p>
         <MetaLine stamp={entry.stamp} />
         {entry.interrupted && <Result tone="text-hot">Interrupted by user</Result>}
@@ -117,9 +117,9 @@ function Turn({ entry }: { entry: TurnEntry }) {
 /**
  * The log (UI-DESIGN.md §4.2).
  *
- * <p>Read it as a terminal agent's transcript with the roles swapped: `>` lines
- * are the human prompting, `⏺` blocks are your output. Their standing prompt is
- * pinned at the top; everything since scrolls under it.
+ * <p>Read it as a codex session with the roles swapped: `▌` lines are the human
+ * prompting, `•` blocks are your output. Their standing prompt is pinned at the
+ * top; everything since scrolls under it.
  */
 export function Transcript({ statement, entries, incoming, connected }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -149,7 +149,7 @@ export function Transcript({ statement, entries, incoming, connected }: Props) {
       <div className="mx-auto w-full max-w-[84ch] px-6">
         {/* Their standing prompt. It is what you are still being asked. */}
         <div className="dimmable-soft sticky top-0 z-10 bg-canvas pt-8 pb-3 transition-opacity duration-300">
-          <Block marker=">" tone="text-faint">
+          <Block marker="▌" tone="text-faint">
             <TypedText
               text={statement}
               animate

@@ -33,10 +33,10 @@ export function LiveTurn({ files, stamp, onTelemetry, onCodeChange, onSubmit }: 
     <div className="mx-auto w-full max-w-[84ch] px-6">
       <div className="grid grid-cols-[1.25rem_1fr] gap-x-2">
         <span aria-hidden className="text-accent">
-          ⏺
+          •
         </span>
         <div className="min-w-0">
-          <p className="text-[15px] leading-relaxed text-ink">Write({label})</p>
+          <p className="text-[15px] leading-relaxed text-ink">Editing {label}</p>
 
           <div className="mt-1 h-[38vh]">
             <EditorPane

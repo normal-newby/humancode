@@ -3,19 +3,27 @@
 The interface has one job: make it feel like **you are the model and there is a human on the other
 side of the glass, prompting you and losing patience.** Every decision below follows from that.
 
-Reference point is **Claude Code**, not an IDE and not a practice site — with the roles swapped. In a
-coding agent's terminal the human types `>` and the machine answers under a `⏺`, stamping what the
-answer cost underneath. Here the human on the other side sends the `>` prompts, and the `⏺` blocks
-are yours: your code is the output being generated, your keystrokes are the tokens, and the footer
-counts them while someone waits.
+Reference point is **OpenAI's Codex CLI**, not an IDE and not a practice site — with the roles
+swapped. In a coding agent's terminal the human's message sits behind a `▌` bar and the machine
+answers under a `•`, stamping what the answer cost underneath. Here the human on the other side sends
+the `▌` prompts, and the `•` blocks are yours: your code is the output being generated, your
+keystrokes are the tokens, and the footer counts them while someone waits.
 
 That swap is the whole product. It makes three things literal that were only jokes before: the meta
 line is a usage stamp on your own output, the footer spinner narrates the thing generating text
 (which is you), and a heckle arriving mid-keystroke is an **interrupt** — the most recognisable
 artifact in the reference, and the best beat in the app.
 
-We borrow the grammar, never the branding. No vendor logo, no vendor wordmark, no vendor model names
-in the chrome. The accent below is ours.
+**The app is dressed as Codex, deliberately**, because it is being shown to an OpenAI sponsor. That
+is a product decision, not a licence to impersonate, and the line it holds is: **we borrow the
+grammar and we name the CLI; we never claim to be it.** So the window tab says `openai codex` (§4.0),
+the prelude types `codex` (§4.8a), the glyphs and the blue are that CLI's, and the report card signs
+off `codex exited`. What is nowhere: any OpenAI logo or mark, any real model id, any claim of
+affiliation, and any suggestion that output here came from an OpenAI model. `model: you` is the joke
+and it is also the disclaimer — the only model in this session is the candidate.
+
+Adding anything that would work as the real thing — a logo, a login, a plausible model id in a place
+that looks like configuration rather than a punchline — is out, and stays out.
 
 ---
 
@@ -25,42 +33,45 @@ In a normal coding site, the problem is a panel and you are a panel — two peer
 framing is wrong here. So:
 
 - **One centred column.** No rails, no split panes, no dividers, nothing docked to an edge.
-- **`>` lines are theirs.** The problem, every heckle. The first one is pinned at the top, because it
+- **`▌` lines are theirs.** The problem, every heckle. The first one is pinned at the top, because it
   is what you are still being asked.
-- **`⏺` blocks are yours.** Your turn in progress *is* the editor; closed turns collapse to the tool
-  call they amounted to — `Write(twoSum.js)` — plus what it cost.
+- **`•` blocks are yours.** Your turn in progress *is* the editor; closed turns collapse to the tool
+  call they amounted to — `Edited twoSum.js` — plus what it cost.
 - **Every closed turn carries a dim meta line** — elapsed time first, then characters written and
   deleted, formatted exactly like a token-usage readout. §5 is the whole spec.
 - **Their caret blinks before they speak** (§4.4), at the point in the log where the prompt will land.
 - **One footer** carries the rest: what you are doing, the session total, their patience, key hints.
+- **One tab** above all of it (§4.0), so the four screens read as one terminal someone left open.
 
 ```
-   > two sum. given an array of integers and a target, return
+ ▌ openai codex   ~/interviews/you — coding              ← the tab, §4.0
+
+   ▌ two sum. given an array of integers and a target, return
      the indices of the two numbers that add to it. in any order.
    ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
-   ⏺ Write(twoSum.js)
-     ⎿  01:38 · ↑ 214 · ↓ 12
-   > nested loop. bold choice for an array this size.
-   ⏺ Write(twoSum.js)
-     ⎿  00:47 · ↑ 96 · ↓ 140
-     ⎿  Interrupted by user
-   > still with me? that cursor hasn't moved in a wh▍     ← revealing, §4.6
-     ⎿  staring at line 12 for 94 seconds                 ← their note
-   ⏺ (no output)
-     ⎿  03:55 · ↑ 0 · ↓ 0 · idle 47s
-   > ▍                                                    ← composing, §4.4
+   • Edited twoSum.js
+     └  01:38 · ↑ 214 · ↓ 12
+   ▌ nested loop. bold choice for an array this size.
+   • Edited twoSum.js
+     └  00:47 · ↑ 96 · ↓ 140
+     └  Interrupted by user
+   ▌ still with me? that cursor hasn't moved in a wh▍     ← revealing, §4.6
+     └  staring at line 12 for 94 seconds                 ← their note
+   • (no output)
+     └  03:55 · ↑ 0 · ↓ 0 · idle 47s
+   ▌ ▍                                                    ← composing, §4.4
                                                             ← log scrolls
-   ⏺ Write(twoSum.js)                                     ← your live turn
+   • Editing twoSum.js                                    ← your live turn
      12  function twoSum(nums, target) {
      13    const seen = new Map();
      14    for (let i = 0; i < nums.length; i++) {
-     ⎿  00:12 · ↑ 84 · ↓ 3                                ← live, this turn
-   ✻ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ⏎ submit  ^d end  esc to interrupt
+     └  00:12 · ↑ 84 · ↓ 3                                ← live, this turn
+   ⠹ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ⏎ submit  ^d end  esc to interrupt
 ```
 
 Column is `max-width: 84ch`, centred. The live turn and the footer are pinned to the bottom of the
 viewport and the log scrolls behind them — a terminal keeps the output still being written at the
-bottom, and everything finished above it. Markers sit in a `1.25rem` left column so `>` and `⏺` line
+bottom, and everything finished above it. Markers sit in a `1.25rem` left column so `▌` and `•` line
 up all the way down; that single alignment is most of why the screen reads as one surface.
 
 **The log keeps its scrollback.** A meta line is a stamp on a turn, and it only means anything if the
@@ -83,8 +94,9 @@ Call these out in review. Any one of them collapses the whole concept back into 
 | A pass count, a failure list, a green check anywhere in the session | The run result is a signal for the model, never a readout for the candidate |
 | Dense icon toolbars | Key hints in the footer — `⏎ submit`, `^d end`. No filled buttons, no icons |
 | A big green "Accepted" banner | They say something begrudging in their next prompt. That is the reward |
-| Chat bubbles, avatars, speech tails, alternating alignment | Flush-left log lines under a `>` or `⏺` marker. Nobody's terminal has bubbles |
-| An input box around the editor | The editor is a `⏺` block, not a composer. A box makes you the user again and undoes the premise |
+| Chat bubbles, avatars, speech tails, alternating alignment | Flush-left log lines under a `▌` or `•` marker. Nobody's terminal has bubbles |
+| An input box around the editor | The editor is a `•` block, not a composer. A box makes you the user again and undoes the premise |
+| A tab **bar** — two tabs, a `+`, a close `×` | One tab, fill only, nothing to click (§4.0). One tab is a window title; two is IDE furniture |
 | Emoji anywhere in the chrome | The glyph set in §4.1 and nothing else |
 
 The general rule: **if it looks like a tool, it is wrong. It should look like an agent session someone
@@ -94,25 +106,26 @@ else is running, and you are the agent.**
 
 ## 3. Tokens
 
-Warm near-black, the way a terminal on a dark theme reads, with one warm accent. The accent is
-deliberately warm-coral so it never collides with the red/green semantics the impatience meter owns,
-and it is ours — do not reach for a vendor's brand colour to sell the resemblance.
+Cool near-black, the way a terminal on a dark theme reads, with one blue accent. Blue is the whole
+restyle: it is what makes the screen read as Codex rather than as the warm-coral agent it was
+borrowing from before, and it sits further from the red/green the impatience meter owns than the
+coral ever did.
 
 Live in `web/src/index.css`.
 
 ```css
 @theme {
   /* surfaces */
-  --color-canvas:  #1c1b19;  /* page — warm near-black, terminal-dark */
-  --color-surface: #24231f;  /* meter track mask, scrollbars */
+  --color-canvas:  #0d0f13;  /* page — cool near-black, terminal-dark */
+  --color-surface: #171a21;  /* the tab, meter track mask, scrollbars */
 
   /* text */
-  --color-ink:     #e6e2d8;  /* live turn, code */
-  --color-sub:     #8a857a;  /* meta lines, status line, notes */
-  --color-faint:   #4b4841;  /* past turns, glyphs, the one border */
+  --color-ink:     #e4e8ee;  /* live turn, code */
+  --color-sub:     #8b94a3;  /* meta lines, status line, notes */
+  --color-faint:   #454c59;  /* past turns, glyphs, the one border */
 
-  /* accent — every caret, their newest `>`, your live `⏺` */
-  --color-accent:  #d98b63;
+  /* accent — every caret, their newest `▌`, your live `•` */
+  --color-accent:  #5aa7ff;
 
   /* meter semantics: calm is good, hot is bad */
   --color-calm:    #6bbf7b;
@@ -126,6 +139,11 @@ Live in `web/src/index.css`.
 
 Tailwind 4 derives the utilities from these names: `bg-canvas`, `text-ink`, `text-sub`, `text-faint`,
 `bg-surface`, `text-accent`, `text-hot`, and the `wide:` variant.
+
+**Monaco's theme is a second copy of these values** (`EditorPane.tsx`, `defineTheme('humancode')`),
+because Monaco cannot read CSS custom properties. Change a token here and change it there in the same
+commit — `editor.background` drifting from `--color-canvas` by one hex digit is exactly how the live
+turn stops reading as text on the page and starts reading as an embedded widget.
 
 **Everything is monospace.** Prose, numbers, the status line, the interviewer's lines. One typeface
 across the whole app is most of the terminal feeling, and it makes the meta lines align for free.
@@ -143,11 +161,36 @@ Type scale — small and tight. A terminal has essentially one size; the thing t
 
 Lowercase everything, including their prompts. `submit`, `end`, `idle 47s`. Never Title Case, never
 ALL CAPS. A terminal does not shout. The two exceptions are the log's own vocabulary, which is quoted
-from the reference and must stay recognisable: `Write(twoSum.js)` and `Interrupted by user`.
+from the reference and must stay recognisable: `Edited twoSum.js` and `Interrupted by user`.
 
 ---
 
 ## 4. Zones
+
+### 4.0 The window tab
+
+Flush to the top-left of every screen, on all four of them:
+
+```
+▌ openai codex   ~/interviews/you — coding
+```
+
+It is the frame the whole app sits in, and it does one job: the start screen, the prelude, the
+interview and the report card are **not four pages**, they are one terminal that someone left open.
+Nothing else in the app establishes that, and without it the report card in particular reads as a
+results page that replaced the session rather than as the same window after the process exited.
+
+- **A tab by fill alone.** `--color-surface` against the canvas, no border, no radius, no close
+  affordance, nothing to click. §2 bans bordered cards and docked panels; a change of background is
+  inside that rule.
+- **There is exactly one, and there will only ever be one.** Two tabs is a tab bar, and a tab bar is
+  IDE furniture — that is the thing §2 is actually about. One tab is a window title.
+- **The status after the cwd is the screen's own word**: `starting`, `coding`, `session ended`. It is
+  the only thing in the tab that changes.
+- **It never dims.** §7 recedes what you produced and what it cost; the window around it is not part
+  of that and would read as a rendering glitch if it flickered on every keystroke.
+- The cwd is `~/interviews/you`, which is the same joke as `model: you` and is exported from one
+  place so the prelude and the tab cannot disagree.
 
 ### 4.1 Glyphs
 
@@ -155,23 +198,28 @@ The whole vocabulary. Adding to this list is a design change, not an implementat
 
 | Glyph | Code point | Means |
 |---|---|---|
-| `>` | U+003E | **their** prompt |
-| `⏺` | U+23FA | **your** turn — the live one, or a closed one |
-| `⎿` | U+23BF | a receipt or an aside, attached to the block above |
-| `✻` | U+273B | the footer spinner: you, generating |
+| `▌` | U+258C | **their** prompt — the bar a CLI puts the human's own message behind |
+| `•` | U+2022 | **your** turn — the live one, or a closed one |
+| `└` | U+2514 | a receipt or an aside, attached to the block above |
+| `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` | U+280B… | the footer spinner: you, generating |
 | `↑` `↓` | U+2191 / U+2193 | characters written / deleted |
 | `⧉` | U+29C9 | a paste |
 | `▍` | U+258D | someone is mid-sentence (§4.4, §4.6) |
+| `$` | U+0024 | the shell, in the prelude only (§4.8a) |
+
+`▌` is doing two jobs and that is deliberate: it marks their prompts in the log **and** it is the
+accent bar in the window tab. Same glyph, same meaning both times — *the other side of this is a
+human*.
 
 All glyphs are `--color-faint` and `aria-hidden` — they are texture, never the only carrier of
-meaning (§10). Three exceptions, all `--color-accent`: the `⏺` on your live turn, the `>` on their
+meaning (§10). Three exceptions, all `--color-accent`: the `•` on your live turn, the `▌` on their
 newest prompt, and every `▍` caret. With Monaco's own caret those are the only accented things on
 screen — which means the accent always marks *whoever is currently producing text*.
 
 ### 4.2 The log
 
 Flush-left, `max-width: 84ch`, `1.25rem` between blocks. Every block is a marker in a `1.25rem` left
-column and its content hanging beside it, so `>` and `⏺` align all the way down.
+column and its content hanging beside it, so `>` and `•` align all the way down.
 
 **Their standing prompt is pinned** to the top of the scroll container, at `--color-ink` even after
 everything else has dimmed. It is what you are still being asked and it does not go away. A `┄`
@@ -181,9 +229,9 @@ Below it the log alternates, the way an agent transcript does:
 
 | Block | Renders as |
 |---|---|
-| their prompt | `>` + the line, typed out (§4.6), with their notes as `⎿` asides under it |
-| your closed turn | `⏺ Write(twoSum.js)` + the meta line, plus `⎿ Interrupted by user` when they cut in |
-| your closed turn, nothing typed | `⏺ (no output)` + the meta line carrying `idle 47s` |
+| their prompt | `▌` + the line, typed out (§4.6), with their notes as `└` asides under it |
+| your closed turn | `• Edited twoSum.js` + the meta line, plus `└ Interrupted by user` when they cut in |
+| your closed turn, nothing typed | `• (no output)` + the meta line carrying `idle 47s` |
 
 `(no output)` is not a joke at the candidate's expense — it is what the log genuinely has to say about
 a turn in which nothing was generated, and it is the sentence a model's transcript would carry. It
@@ -209,14 +257,14 @@ A turn closes when:
 | Event | Closes with |
 |---|---|
 | `⏎ submit` | a plain stamp — you handed it over |
-| their prompt, while you were typing | `⎿ Interrupted by user` |
+| their prompt, while you were typing | `└ Interrupted by user` |
 | their prompt, while you were idle | a stamp carrying `idle 47s` |
 
 Every prompt closes a turn, because a user message ends an assistant's turn — but only the ones that
 land mid-keystroke are *interrupts*. You cannot interrupt someone who was not talking, and pretending
 otherwise would spend the best artifact in the app on nothing.
 
-The turn in progress is the editor: Monaco, headed by `⏺ Write(app.js)`, stamped underneath with a
+The turn in progress is the editor: Monaco, headed by `• Editing app.js`, stamped underneath with a
 live meta line counting **this turn only**. It is pinned to the bottom of the viewport because that is
 where a terminal keeps the output still being written. A problem with more than one file gets a file
 navigator between the header and the editor — see §4.3a.
@@ -235,24 +283,24 @@ navigator between the header and the editor — see §4.3a.
 
 Problems are however many files they need — an HTML/CSS/JS scaffold for something visual, one file
 for something simpler — decided once when the problem was authored or generated, never mid-session.
-When there is more than one, a row of filenames sits between the `Write(...)` header and the editor:
+When there is more than one, a row of filenames sits between the `Edited ...` header and the editor:
 
 ```
-⏺ Write(app.js)
+• Editing app.js
   index.html   styles.css   app.js
      12  function addTodo() {
      13    const input = document.getElementById('new-todo');
-  ⎿  00:12 · ↑ 84 · ↓ 3
+  └  00:12 · ↑ 84 · ↓ 3
 ```
 
 This is a narrower case than the tabs §2 forbids — that rule is about *content* tabs (Description /
 Solutions / Submissions), a different view of the same problem. A file navigator switches which file
-of your own output is on screen, which is closer to the `Write(...)` header itself than to a tab bar.
+of your own output is on screen, which is closer to the `Edited ...` header itself than to a tab bar.
 Still, it stays inside the vocabulary §2 sets rather than importing IDE furniture wholesale:
 
 - **No borders, no pills, no icons.** Plain lowercase filenames, separated by whitespace — texture,
   not chrome.
-- The active file is `--color-accent`, the same way the live `⏺` and their newest `>` are — accent
+- The active file is `--color-accent`, the same way the live `•` and their newest `>` are — accent
   always marks whoever is currently producing output, and here that is whichever file you are looking
   at. Inactive filenames are `--color-faint`, `--color-sub` on hover.
 - Switching files is a view change, not a new turn. It does not touch the meta line, the turn
@@ -260,16 +308,16 @@ Still, it stays inside the vocabulary §2 sets rather than importing IDE furnitu
 - A single-file problem shows no navigator at all. It would be one inert, always-accent label doing
   no work.
 
-The closed turn's `Write(...)` label reflects what was actually touched that turn, not what was
+The closed turn's `Edited ...` label reflects what was actually touched that turn, not what was
 merely viewed: one file names itself, a few name themselves, more than a couple collapses to a count
-(`Write(3 files)`) rather than crowding the log with a file listing.
+(`Editing 3 files`) rather than crowding the log with a file listing.
 
 ### 4.3b The preview
 
 Problems are small apps now (CLAUDE.md §6), so the last entry in the navigator row is not a file:
 
 ```
-⏺ Write(3 files)
+• Editing 3 files
   index.html   styles.css   app.js    preview
 ```
 
@@ -333,12 +381,12 @@ It takes the shape a coding agent's footer takes — spinner, what is happening,
 one parenthesis:
 
 ```
-✻ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ⏎ submit  ^d end  esc to interrupt
+⠹ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ⏎ submit  ^d end  esc to interrupt
 ```
 
 | Segment | Content |
 |---|---|
-| activity | the cycling `✻`, one lowercase word for what you are doing, then `(clock · totals)` |
+| activity | the braille dot spinner, one lowercase word for what you are doing, then `(clock · totals)` |
 | impatience | §6 — **theirs**, and labelled as such |
 | hints | `⏎ submit`, `^d end`, and the tell |
 
@@ -471,6 +519,52 @@ visible only in how hard the thing they were handed turns out to be.
 The picker keeps its value across sessions, so ending one with `^d` and starting another lands you on
 the same level without re-answering. Raising the stakes should be a deliberate click.
 
+### 4.8a The prelude
+
+Clicking the start screen's `$ codex` does not drop you into the session. It cuts to a shell, at the
+log's own column and top offset, and types the command they just ran:
+
+```
+$ codex▍
+• codex cli  v1.0.3
+  └  model: you  ·  approval: never asked
+  └  cwd: ~/interviews/you
+  └  1 human connected. they want a feature built.
+  ⠹ waiting for them to finish typing…        ← only while the session is still coming
+```
+
+Then the pinned `▌` replaces the `$` on the same pixel and the problem statement types itself out
+(§4.6). About 1.9s end to end — the `$ codex` on the start screen is the same string, so the link
+reads as the command and clicking it makes the terminal type it.
+
+It does two jobs, and it is worth keeping only because it does both:
+
+- **It states the premise in the one register the app has.** `model: you` is the thesis of the whole
+  product as a config line, and it lands before a word of explanation. `approval: never asked` is the
+  impatience meter announcing itself, and `they want a feature built` is the only place the app says
+  out loud what is about to happen. Nothing here explains; every line is a setting with a value.
+- **It covers `POST /api/sessions`.** That is a pool hit on a good day and a cold generation on a bad
+  one (CLAUDE.md §6), and the old start screen spent that time on a static `finding someone to judge
+  you…`.
+
+The rules that keep it honest:
+
+- **The script and the request run together, and neither hands over alone.** The animation finishing
+  with no problem behind it is a dead screen; a problem arriving before the animation finishes must
+  not cut it short. `App` waits on both.
+- **If the script runs out first, the spinner takes over** rather than the screen sitting there
+  finished and silent. A cold pool is a minute, and a frozen banner reads as a crash.
+- **Nothing here is a panel and nothing here is a box.** §2 applies in full — the CLI being quoted
+  draws its banner inside a rounded border, and that is precisely the part not to borrow. It is a `•`
+  block with `└` receipts, the same shape one of your own closed turns takes.
+- **Their caret, so it blinks.** Solid while the command is being typed, blinking once it is not
+  (§4.4). It is the first thing on screen that belongs to them.
+- **Accent marks `you`** in `model: you`, and the `•` on the banner. §4.1's rule is that the accent
+  follows whoever is producing output; on this screen that is about to be the candidate, which is the
+  reason the accent is on that word and not on the version string.
+- **Under `prefers-reduced-motion` the banner is simply there**, held half a second, then it hands
+  over.
+
 ---
 
 ## 5. The meta line
@@ -482,7 +576,7 @@ It hangs under a closed turn — under **your** output, which is what makes it a
 than a timestamp. Indented to align with the block's first character:
 
 ```
-⎿  04:12 · ↑ 412 · ↓ 180 · ⧉ 1 · idle 22s
+└  04:12 · ↑ 412 · ↓ 180 · ⧉ 1 · idle 22s
 ```
 
 Rules:
@@ -586,11 +680,15 @@ picks the activity pool, so the two can never disagree.
 
 Sparse and slow. Nothing bounces, nothing slides in from off-screen.
 
+**One exception, and it is the spinner.** A CLI spinner spins at CLI speed; a dot spinner stepped at
+this app's ambient pace does not read as a spinner, it reads as a glyph twitching. 110ms is the rate
+every terminal uses and it is the rate that makes the footer read as a live process.
+
 | Element | Motion | Duration |
 |---|---|---|
 | Line reveal (§4.6) | character by character, 16ms tick | ~2.8s, any length |
 | Activity word (§4.5) | swap, no transition | re-picks every 3.5s |
-| `✻` spinner | glyph cycle `✻ ✳ ✢ ✳` | 600ms/frame |
+| Spinner | braille dot cycle `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` | 110ms/frame |
 | Caret `▍` while revealing | none — solid, does not blink | — |
 | Their caret (§4.4) | hard blink, `steps(1, end)` | 1.1s loop |
 | Their caret, before a prompt | held before delivery | 850ms |
@@ -606,7 +704,7 @@ receipt lands under it. Simultaneous, it is noise; delayed, it is a verdict.
 
 All of it inside a `prefers-reduced-motion: reduce` guard that drops to instant state changes. The
 pulse, the spinner and the line reveal in particular must not run for people who have asked for
-reduced motion — the spinner falls back to a static `✻`, and lines simply appear. The activity word
+reduced motion — the spinner falls back to a static `⠋`, and lines simply appear. The activity word
 still rotates: it is information, not animation.
 
 ---
@@ -641,7 +739,7 @@ Below `700px` this is a viewing experience, not a working one. Keep it legible; 
 - **A revealing line carries its full text in an `sr-only` span from the first frame**, and the
   animating copy is `aria-hidden`. Announcing a growing prefix sixty times a second would make the
   live region unusable. Nobody waits out a typing animation to hear the question.
-- The `✻` notes block is a real `<button>` with `aria-expanded`, not a clickable div.
+- Any notes block that is clickable is a real `<button>` with `aria-expanded`, not a clickable div.
 - Focus mode changes opacity only — never `display` or `visibility` — so focus order and screen
   readers are unaffected.
 - Focus rings are `--color-accent`, 2px, always visible on keyboard focus. Never `outline: none`.
@@ -655,18 +753,21 @@ Implemented. Recorded here so the intent survives the next refactor:
 | Component | Role |
 |---|---|
 | `App.tsx` | Owns the log, the turn boundaries, the prompt queue, the `typing` flag and the local clock. One centred column; log scrolls, live turn + footer pinned. |
-| `Transcript.tsx` | §4.2. Their pinned prompt, then alternating `>` prompts and `⏺` closed turns. Holds `Prompt`, `Turn`, `Block` and `Result` internally. |
-| *new* `LiveTurn.tsx` | §4.3. `⏺ Write(file)` + the editor + the ticking meta line. The only place the editor is mounted. |
+| `Transcript.tsx` | §4.2. Their pinned prompt, then alternating `▌` prompts and `•` closed turns. Holds `Prompt`, `Turn`, `Block` and `Result` internally. |
+| `ReportView.tsx` | §4.7. Two blocks: `• codex exited` carrying the session's numbers, then the human's `▌` verdict typed out. The numbers stay out of the verdict block so they cannot read as a score. |
+| *new* `LiveTurn.tsx` | §4.3. `• Editing file` + the editor + the ticking meta line. The only place the editor is mounted. |
 | *new* `TypingIndicator.tsx` | §4.4. Their `>` and a blinking `▍` at the tail of the log. |
 | `PreviewPane.tsx` + `lib/buildPreview.ts` | §4.3b. The candidate's page in a sandboxed frame; the lib assembles the files into one document. |
 | `MetaLine.tsx` | §5. Per-turn deltas, frozen when the turn closes; the `live` variant counts the turn in progress. |
-| `StatusLine.tsx` | §4.5. `✻ word… (clock · totals)`, the meter, `⏎ submit`, `^d end`, and the `esc` tell. |
+| `StatusLine.tsx` | §4.5. `⠹ word… (clock · totals)`, the meter, `⏎ submit`, `^d end`, and the `esc` tell. |
 | `DifficultyPicker.tsx` | §4.8. Three lowercase words on the start screen, radios under the hood. The only difficulty word in the app. |
+| *new* `BootSequence.tsx` | §4.8a. The prelude: the typed `codex`, the banner, and the spinner that covers a slow session request. Reuses `Transcript`'s `Block`/`Result` so the grammar cannot drift. |
+| *new* `WindowTab.tsx` | §4.0. The one tab, and the exported `CWD` the prelude also prints. Rendered by each of the four screens, never dimmed. |
 | `ImpatienceMeter.tsx` | §6. Masked gradient, `96×8`, labelled `human impatience`; pulse on the number. |
 | `EditorPane.tsx` | Monaco with no border and no fill, background matched to `--color-canvas`. `ctrl+enter` submits. One model per file (§4.3a), swapped via `setModel`; owns the file navigator row itself. |
 | `TypedText.tsx` + `hooks/useTypewriter.ts` | §4.6. The hook owns pacing and the reduced-motion escape; the component owns the caret and the `sr-only` full text. |
 | `hooks/useActivity.ts` | The word pools and the 3.5s rotation. Pools are data — edit them, do not add states casually. |
-| `Spinner.tsx` | The cycling `✻`. Static under reduced motion. |
+| `Spinner.tsx` | The braille dot spinner. Static under reduced motion. |
 | `hooks/useTypingFocus.ts` | The single `typing` boolean behind focus mode — and the same boolean decides whether a prompt counts as an interrupt. |
 | `lib/format.ts` | `clock()` and `compact()` — the `1.2k` rule lives in one place, since the meta lines and the footer must agree. |
 | `index.css` | Tokens from §3, focus-mode rules, reveal/blink/pulse keyframes, reduced-motion guard, **thin/faint scrollbar styling** — the native scrollbar is bright and reads as exactly the bolted-on chrome §2 forbids. |

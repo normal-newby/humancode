@@ -86,19 +86,19 @@ function EditorPaneImpl({ files, onTelemetry, onCodeChange, onRun }: Props) {
       colors: {
         // Must match --color-canvas exactly, or the turn reads as an embedded
         // widget rather than as text on the page.
-        'editor.background': '#1c1b19',
-        'editorGutter.background': '#1c1b19',
+        'editor.background': '#0d0f13',
+        'editorGutter.background': '#0d0f13',
         'editor.lineHighlightBackground': '#00000000',
         'editor.lineHighlightBorder': '#00000000',
-        'editorLineNumber.foreground': '#4b4841',
-        'editorLineNumber.activeForeground': '#8a857a',
-        'editorCursor.foreground': '#d98b63',
-        'editorIndentGuide.background1': '#2d2c27',
-        'editorIndentGuide.activeBackground1': '#4b4841',
-        'editorWidget.background': '#24231f',
-        'scrollbarSlider.background': '#2d2c27',
-        'scrollbarSlider.hoverBackground': '#4b4841',
-        'scrollbarSlider.activeBackground': '#4b4841',
+        'editorLineNumber.foreground': '#454c59',
+        'editorLineNumber.activeForeground': '#8b94a3',
+        'editorCursor.foreground': '#5aa7ff',
+        'editorIndentGuide.background1': '#1e232c',
+        'editorIndentGuide.activeBackground1': '#454c59',
+        'editorWidget.background': '#171a21',
+        'scrollbarSlider.background': '#1e232c',
+        'scrollbarSlider.hoverBackground': '#454c59',
+        'scrollbarSlider.activeBackground': '#454c59',
       },
     })
   }, [])

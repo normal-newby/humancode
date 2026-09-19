@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { finishSession, startSession, submitTurn } from './api/client'
+import { useCallback, useEffect, useRef, useState } from "react";
+import { finishSession, startSession, submitTurn } from "./api/client";
 import type {
   Difficulty,
   ProblemFile,
@@ -7,186 +7,222 @@ import type {
   SessionResponse,
   TelemetryItem,
   Utterance,
-} from './api/types'
-import { DifficultyPicker } from './components/DifficultyPicker'
-import { LiveTurn } from './components/LiveTurn'
-import type { TurnStamp } from './components/MetaLine'
-import { ReportView } from './components/ReportView'
-import { StatusLine } from './components/StatusLine'
-import { Transcript, type Entry, type PromptEntry } from './components/Transcript'
-import { useSessionStream } from './hooks/useSessionStream'
-import { useTelemetry } from './hooks/useTelemetry'
-import { useTypingFocus } from './hooks/useTypingFocus'
+} from "./api/types";
+import { BOOT_COMMAND, BootSequence } from "./components/BootSequence";
+import { DifficultyPicker } from "./components/DifficultyPicker";
+import { LiveTurn } from "./components/LiveTurn";
+import type { TurnStamp } from "./components/MetaLine";
+import { ReportView } from "./components/ReportView";
+import { StatusLine } from "./components/StatusLine";
+import {
+  Transcript,
+  type Entry,
+  type PromptEntry,
+} from "./components/Transcript";
+import { WindowTab } from "./components/WindowTab";
+import { useSessionStream } from "./hooks/useSessionStream";
+import { useTelemetry } from "./hooks/useTelemetry";
+import { useTypingFocus } from "./hooks/useTypingFocus";
 
 /** Beyond this, the closed-turn label collapses to a count rather than naming every file. */
-const MAX_NAMED_FILES_IN_LABEL = 2
+const MAX_NAMED_FILES_IN_LABEL = 2;
 
 /** Stable reference so `files` does not look like a new value on every render before a session exists. */
-const NO_FILES: ProblemFile[] = []
+const NO_FILES: ProblemFile[] = [];
 
 /** Triggers whose closed turn should carry the `idle Ns` receipt. */
-const IDLE_TRIGGERS = new Set(['IDLE', 'NO_START', 'SLOW_PROGRESS'])
+const IDLE_TRIGGERS = new Set(["IDLE", "NO_START", "SLOW_PROGRESS"]);
 
 /** The log keeps its scrollback, but not unboundedly — see UI-DESIGN.md §4.2. */
-const MAX_ENTRIES = 50
+const MAX_ENTRIES = 50;
 
 /** How long their caret blinks before the prompt it is composing lands. */
-const COMPOSING_MS = 850
+const COMPOSING_MS = 850;
 
 interface Counters {
-  written: number
-  deleted: number
-  pastes: number
+  written: number;
+  deleted: number;
+  pastes: number;
 }
 
-const ZERO: Counters = { written: 0, deleted: 0, pastes: 0 }
+const ZERO: Counters = { written: 0, deleted: 0, pastes: 0 };
 
 /** Counters and session-clock reading at the moment the current turn opened. */
 interface TurnBase extends Counters {
-  atElapsed: number
+  atElapsed: number;
 }
 
-const TURN_ZERO: TurnBase = { ...ZERO, atElapsed: 0 }
+const TURN_ZERO: TurnBase = { ...ZERO, atElapsed: 0 };
 
 export default function App() {
-  const [session, setSession] = useState<SessionResponse | null>(null)
-  const [startedAt, setStartedAt] = useState<number | null>(null)
-  const [elapsed, setElapsed] = useState(0)
-  const [starting, setStarting] = useState(false)
-  const [running, setRunning] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [entries, setEntries] = useState<Entry[]>([])
-  const [armed, setArmed] = useState(false)
-  const [escFlash, setEscFlash] = useState(false)
+  const [session, setSession] = useState<SessionResponse | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [starting, setStarting] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [armed, setArmed] = useState(false);
+  const [escFlash, setEscFlash] = useState(false);
   /** Their choice, sent with the session. Medium is the honest default. */
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
-  const [report, setReport] = useState<ReportCard | null>(null)
-  const [finishing, setFinishing] = useState(false)
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+  const [report, setReport] = useState<ReportCard | null>(null);
+  const [finishing, setFinishing] = useState(false);
+
+  /** The prelude is on screen (§4.8a). */
+  const [booting, setBooting] = useState(false);
+  /** Its script has run out. */
+  const [bootDone, setBootDone] = useState(false);
+  /** The session, fetched while the prelude played, waiting to be handed over. */
+  const [pending, setPending] = useState<SessionResponse | null>(null);
 
   /** Utterances waiting behind their typing indicator. */
-  const [queue, setQueue] = useState<Utterance[]>([])
-  const [composing, setComposing] = useState(false)
+  const [queue, setQueue] = useState<Utterance[]>([]);
+  const [composing, setComposing] = useState(false);
 
   /**
    * Session totals, counted client-side rather than read off the server's
    * metrics: telemetry only flushes every 1.5s, and a footer that lags the
    * typing by a second and a half looks broken.
    */
-  const [totals, setTotals] = useState<Counters>(ZERO)
-  const totalsRef = useRef<Counters>(ZERO)
+  const [totals, setTotals] = useState<Counters>(ZERO);
+  const totalsRef = useRef<Counters>(ZERO);
   /** Where the turn in progress started, so its stamp is a delta. */
-  const [turnBase, setTurnBase] = useState<TurnBase>(TURN_ZERO)
-  const turnBaseRef = useRef<TurnBase>(TURN_ZERO)
+  const [turnBase, setTurnBase] = useState<TurnBase>(TURN_ZERO);
+  const turnBaseRef = useRef<TurnBase>(TURN_ZERO);
   /** Last real edit, for the `idle Ns` receipt. Set when the session begins. */
-  const lastActivityRef = useRef<number>(0)
+  const lastActivityRef = useRef<number>(0);
   /** Utterances already queued. */
-  const seenRef = useRef<Set<string>>(new Set())
+  const seenRef = useRef<Set<string>>(new Set());
   /** Notes already attached to a prompt. */
-  const seenNotesRef = useRef(0)
+  const seenNotesRef = useRef(0);
   /** Monotonic, so two turns closing in the same second cannot collide. */
-  const turnSeqRef = useRef(0)
+  const turnSeqRef = useRef(0);
   /** Files touched (EDIT or PASTE) since the current turn opened. */
-  const touchedFilesRef = useRef<Set<string>>(new Set())
-  const startedAtRef = useRef<number | null>(null)
+  const touchedFilesRef = useRef<Set<string>>(new Set());
+  const startedAtRef = useRef<number | null>(null);
 
-  const sessionId = session?.sessionId ?? null
-  const stream = useSessionStream(sessionId)
-  const { record, setCode, flush, stop } = useTelemetry(sessionId)
-  const { typing, mark } = useTypingFocus()
+  const sessionId = session?.sessionId ?? null;
+  const stream = useSessionStream(sessionId);
+  const { record, setCode, flush, stop } = useTelemetry(sessionId);
+  const { typing, mark } = useTypingFocus();
   /** Readable inside callbacks: were you mid-sentence when they cut in? */
-  const typingRef = useRef(false)
+  const typingRef = useRef(false);
   useEffect(() => {
-    typingRef.current = typing
-  }, [typing])
+    typingRef.current = typing;
+  }, [typing]);
 
-  const files = session?.problem.files ?? NO_FILES
+  const files = session?.problem.files ?? NO_FILES;
 
   const handleCodeChange = useCallback(
     (file: string, code: string) => {
-      setCode(file, code)
+      setCode(file, code);
     },
     [setCode],
-  )
+  );
 
   /** Only real work counts as typing — focus/blur must not dim the log. */
   const handleTelemetry = useCallback(
     (item: TelemetryItem) => {
-      if (item.type === 'EDIT' || item.type === 'PASTE') {
-        mark()
-        lastActivityRef.current = Date.now()
-        touchedFilesRef.current.add(item.file)
+      if (item.type === "EDIT" || item.type === "PASTE") {
+        mark();
+        lastActivityRef.current = Date.now();
+        touchedFilesRef.current.add(item.file);
 
         // A paste also arrives as an EDIT, so only count the pastes here.
         const next: Counters =
-          item.type === 'PASTE'
+          item.type === "PASTE"
             ? { ...totalsRef.current, pastes: totalsRef.current.pastes + 1 }
             : {
                 ...totalsRef.current,
                 written: totalsRef.current.written + item.inserted,
                 deleted: totalsRef.current.deleted + item.deleted,
-              }
-        totalsRef.current = next
-        setTotals(next)
+              };
+        totalsRef.current = next;
+        setTotals(next);
       }
-      record(item)
+      record(item);
     },
     [mark, record],
-  )
+  );
 
   /** One file names itself; a few name themselves; more collapses to a count. */
   const turnFileLabel = useCallback(() => {
-    const touched = [...touchedFilesRef.current]
-    touchedFilesRef.current = new Set()
+    const touched = [...touchedFilesRef.current];
+    touchedFilesRef.current = new Set();
     if (touched.length === 0) {
-      return files[0]?.name ?? ''
+      return files[0]?.name ?? "";
     }
     if (touched.length <= MAX_NAMED_FILES_IN_LABEL) {
-      return touched.join(', ')
+      return touched.join(", ");
     }
-    return `${touched.length} files`
-  }, [files])
+    return `${touched.length} files`;
+  }, [files]);
+
+  /** Everything a fresh session has to zero. Runs when the prelude hands over. */
+  const enter = useCallback((started: SessionResponse) => {
+    setSession(started);
+    setReport(null);
+    const now = Date.now();
+    setStartedAt(now);
+    startedAtRef.current = now;
+    setElapsed(0);
+    setEntries([]);
+    setQueue([]);
+    setComposing(false);
+    setTotals(ZERO);
+    totalsRef.current = ZERO;
+    setTurnBase(TURN_ZERO);
+    turnBaseRef.current = TURN_ZERO;
+    lastActivityRef.current = now;
+    seenRef.current = new Set();
+    seenNotesRef.current = 0;
+    turnSeqRef.current = 0;
+    touchedFilesRef.current = new Set();
+  }, []);
 
   const begin = useCallback(async () => {
-    setStarting(true)
-    setError(null)
+    setError(null);
+    setStarting(true);
+    setBooting(true);
+    setBootDone(false);
+    setPending(null);
     try {
-      const started = await startSession({ difficulty })
-      setSession(started)
-      setReport(null)
-      const now = Date.now()
-      setStartedAt(now)
-      startedAtRef.current = now
-      setElapsed(0)
-      setEntries([])
-      setQueue([])
-      setComposing(false)
-      setTotals(ZERO)
-      totalsRef.current = ZERO
-      setTurnBase(TURN_ZERO)
-      turnBaseRef.current = TURN_ZERO
-      lastActivityRef.current = now
-      seenRef.current = new Set()
-      seenNotesRef.current = 0
-      turnSeqRef.current = 0
-      touchedFilesRef.current = new Set()
+      setPending(await startSession({ difficulty }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(e instanceof Error ? e.message : String(e));
+      setBooting(false);
     } finally {
-      setStarting(false)
+      setStarting(false);
     }
-  }, [difficulty])
+  }, [difficulty]);
+
+  const handleBootDone = useCallback(() => setBootDone(true), []);
+
+  /**
+   * The prelude and the session request run together, and whichever finishes
+   * last is what the candidate waits on. Neither hands over alone: the animation
+   * with no problem behind it is a dead screen, and a problem arriving without
+   * it snaps straight past the premise.
+   */
+  useEffect(() => {
+    if (!booting || !bootDone || !pending) return;
+    enter(pending);
+    setPending(null);
+    setBooting(false);
+  }, [booting, bootDone, enter, pending]);
 
   // Local clock: telemetry only flushes when there are events, so the server's
   // elapsed count stalls the moment you stop typing — which is exactly when the
   // clock matters most.
   useEffect(() => {
-    if (!startedAt) return
+    if (!startedAt) return;
     const timer = window.setInterval(
       () => setElapsed(Math.floor((Date.now() - startedAt) / 1000)),
       1000,
-    )
-    return () => window.clearInterval(timer)
-  }, [startedAt])
+    );
+    return () => window.clearInterval(timer);
+  }, [startedAt]);
 
   /**
    * Closes the turn in progress and stamps it with what it cost (§4.3). Every
@@ -195,26 +231,26 @@ export default function App() {
    */
   const closeTurn = useCallback(
     (interrupted: boolean, idleSeconds: number | null) => {
-      const base = turnBaseRef.current
-      const current = totalsRef.current
+      const base = turnBaseRef.current;
+      const current = totalsRef.current;
       const nowElapsed = startedAtRef.current
         ? Math.floor((Date.now() - startedAtRef.current) / 1000)
-        : 0
-      turnSeqRef.current += 1
-      const written = current.written - base.written
-      const deleted = current.deleted - base.deleted
-      const pastes = current.pastes - base.pastes
+        : 0;
+      turnSeqRef.current += 1;
+      const written = current.written - base.written;
+      const deleted = current.deleted - base.deleted;
+      const pastes = current.pastes - base.pastes;
       // Read (and drain) the touched-file set out here, never inside the
       // updater below: React calls an updater during render, twice under
       // StrictMode, so the second call would find the set already emptied and
       // label every turn with the first file in the problem.
-      const file = turnFileLabel()
+      const file = turnFileLabel();
 
       setEntries((previous) =>
         [
           ...previous,
           {
-            kind: 'turn' as const,
+            kind: "turn" as const,
             id: `turn-${turnSeqRef.current}`,
             file,
             empty: written === 0 && deleted === 0 && pastes === 0,
@@ -228,72 +264,77 @@ export default function App() {
             },
           },
         ].slice(-MAX_ENTRIES),
-      )
+      );
 
-      const next: TurnBase = { ...current, atElapsed: nowElapsed }
-      turnBaseRef.current = next
-      setTurnBase(next)
+      const next: TurnBase = { ...current, atElapsed: nowElapsed };
+      turnBaseRef.current = next;
+      setTurnBase(next);
     },
     [turnFileLabel],
-  )
+  );
 
   /** Queue new utterances; they land after their caret has blinked at you. */
   useEffect(() => {
-    const fresh = stream.utterances.filter((utterance) => !seenRef.current.has(utterance.id))
-    if (fresh.length === 0) return
-    fresh.forEach((utterance) => seenRef.current.add(utterance.id))
-    setQueue((previous) => [...previous, ...fresh])
-  }, [stream.utterances])
+    const fresh = stream.utterances.filter(
+      (utterance) => !seenRef.current.has(utterance.id),
+    );
+    if (fresh.length === 0) return;
+    fresh.forEach((utterance) => seenRef.current.add(utterance.id));
+    setQueue((previous) => [...previous, ...fresh]);
+  }, [stream.utterances]);
 
   // Keyed on the queue alone: a second prompt arriving mid-blink re-arms the
   // timer for the one already waiting rather than cancelling it, which is what
   // guarding on `composing` here would have done.
   useEffect(() => {
     if (queue.length === 0) {
-      setComposing(false)
-      return
+      setComposing(false);
+      return;
     }
-    setComposing(true)
+    setComposing(true);
     const timer = window.setTimeout(() => {
-      const [next, ...rest] = queue
+      const [next, ...rest] = queue;
       const idleSeconds = IDLE_TRIGGERS.has(next.trigger)
         ? Math.round((Date.now() - lastActivityRef.current) / 1000)
-        : null
+        : null;
 
-      closeTurn(typingRef.current, idleSeconds)
+      closeTurn(typingRef.current, idleSeconds);
       setEntries((previous) =>
         [
           ...previous,
           {
-            kind: 'prompt' as const,
+            kind: "prompt" as const,
             id: next.id,
             line: next.line,
             canned: next.canned,
             notes: [],
           },
         ].slice(-MAX_ENTRIES),
-      )
-      setQueue(rest)
-    }, COMPOSING_MS)
+      );
+      setQueue(rest);
+    }, COMPOSING_MS);
 
-    return () => window.clearTimeout(timer)
-  }, [closeTurn, queue])
+    return () => window.clearTimeout(timer);
+  }, [closeTurn, queue]);
 
   /** Their notes hang under whichever prompt they were taken during. */
   useEffect(() => {
-    const fresh = stream.notes.slice(seenNotesRef.current)
-    if (fresh.length === 0) return
-    seenNotesRef.current = stream.notes.length
+    const fresh = stream.notes.slice(seenNotesRef.current);
+    if (fresh.length === 0) return;
+    seenNotesRef.current = stream.notes.length;
 
     setEntries((previous) => {
-      const index = previous.map((entry) => entry.kind).lastIndexOf('prompt')
-      if (index === -1) return previous
-      const copy = [...previous]
-      const target = copy[index] as PromptEntry
-      copy[index] = { ...target, notes: [...target.notes, ...fresh.map((note) => note.note)] }
-      return copy
-    })
-  }, [stream.notes])
+      const index = previous.map((entry) => entry.kind).lastIndexOf("prompt");
+      if (index === -1) return previous;
+      const copy = [...previous];
+      const target = copy[index] as PromptEntry;
+      copy[index] = {
+        ...target,
+        notes: [...target.notes, ...fresh.map((note) => note.note)],
+      };
+      return copy;
+    });
+  }, [stream.notes]);
 
   /**
    * Hand the turn back: close it, then let them judge what you handed over.
@@ -301,40 +342,40 @@ export default function App() {
    * judges the current diff against the rubric, same as every other reaction.
    */
   const submit = useCallback(async () => {
-    if (!sessionId || running) return
-    setRunning(true)
-    closeTurn(false, null)
+    if (!sessionId || running) return;
+    setRunning(true);
+    closeTurn(false, null);
     try {
-      await submitTurn(sessionId)
+      await submitTurn(sessionId);
     } catch (e) {
-      console.warn('[humancode] submit failed', e)
+      console.warn("[humancode] submit failed", e);
     } finally {
-      setRunning(false)
+      setRunning(false);
     }
-  }, [closeTurn, running, sessionId])
+  }, [closeTurn, running, sessionId]);
 
   const end = useCallback(async () => {
-    if (!sessionId) return
-    setFinishing(true)
+    if (!sessionId) return;
+    setFinishing(true);
     try {
       // The last batch has to land before the report is written, or the
       // interviewer grades a buffer up to 1.5s stale — and it has to be the
       // last one, because /finish drops the session from the live map and
       // anything sent after it 404s.
-      await flush()
-      stop()
-      const result = await finishSession(sessionId)
-      setReport(result.report)
+      await flush();
+      stop();
+      const result = await finishSession(sessionId);
+      setReport(result.report);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setFinishing(false)
-      setSession(null)
-      setStartedAt(null)
-      startedAtRef.current = null
-      setArmed(false)
+      setFinishing(false);
+      setSession(null);
+      setStartedAt(null);
+      startedAtRef.current = null;
+      setArmed(false);
     }
-  }, [flush, sessionId, stop])
+  }, [flush, sessionId, stop]);
 
   /**
    * `^d` ends the session, on the second press — the terminal's own way out,
@@ -343,72 +384,90 @@ export default function App() {
    * copying a line should not end their interview.
    */
   useEffect(() => {
-    if (!sessionId) return
+    if (!sessionId) return;
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setEscFlash(true)
-        return
+      if (event.key === "Escape") {
+        setEscFlash(true);
+        return;
       }
-      if (!event.ctrlKey || event.key.toLowerCase() !== 'd') return
-      event.preventDefault()
+      if (!event.ctrlKey || event.key.toLowerCase() !== "d") return;
+      event.preventDefault();
       setArmed((previous) => {
         if (previous) {
-          void end()
-          return false
+          void end();
+          return false;
         }
-        return true
-      })
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [end, sessionId])
+        return true;
+      });
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [end, sessionId]);
 
   useEffect(() => {
-    if (!armed) return
-    const timer = window.setTimeout(() => setArmed(false), 3000)
-    return () => window.clearTimeout(timer)
-  }, [armed])
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
 
   useEffect(() => {
-    if (!escFlash) return
-    const timer = window.setTimeout(() => setEscFlash(false), 2000)
-    return () => window.clearTimeout(timer)
-  }, [escFlash])
+    if (!escFlash) return;
+    const timer = window.setTimeout(() => setEscFlash(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [escFlash]);
 
   useEffect(() => {
-    if (!sessionId) return
-    const handler = (event: BeforeUnloadEvent) => event.preventDefault()
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [sessionId])
+    if (!sessionId) return;
+    const handler = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [sessionId]);
 
   if (report) {
-    return <ReportView report={report} onRestart={() => setReport(null)} />
+    return <ReportView report={report} onRestart={() => setReport(null)} />;
+  }
+
+  if (booting) {
+    return <BootSequence ready={pending !== null} onDone={handleBootDone} />;
   }
 
   if (!session) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-canvas px-6">
-        <div className="w-full max-w-[52ch]">
-          <h1 className="text-2xl lowercase tracking-tight text-ink">humancode</h1>
-          <p className="mt-4 text-sm leading-relaxed text-sub">
-            the interview, inverted. they prompt. you generate. they watch the tokens go by and
-            form opinions.
-          </p>
-          <DifficultyPicker value={difficulty} onChange={setDifficulty} disabled={starting} />
+      <main className="flex min-h-screen flex-col bg-canvas">
+        <WindowTab />
+        {/* The centring lives on a wrapper, not on the column itself — the
+            column's children are blocks and must stay left-aligned. */}
+        <div className="flex flex-1 items-center justify-center px-6">
+          <div className="w-full max-w-[52ch]">
+            <h1 className="text-2xl lowercase tracking-tight text-ink">
+              humancode
+            </h1>
+            <p className="mt-4 text-sm leading-relaxed text-sub">
+              the interview, inverted. they prompt. you generate. they watch the
+              tokens go by and form opinions.
+            </p>
+            <DifficultyPicker
+              value={difficulty}
+              onChange={setDifficulty}
+              disabled={starting}
+            />
 
-          <button
-            type="button"
-            onClick={begin}
-            disabled={starting}
-            className="mt-10 text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
-          >
-            {starting ? 'finding someone to judge you…' : 'begin'}
-          </button>
-          {error && <p className="mt-6 text-xs text-hot">{error}</p>}
+            <button
+              type="button"
+              onClick={begin}
+              disabled={starting}
+              className="mt-10 text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
+            >
+              <span aria-hidden className="text-faint">
+                ${" "}
+              </span>
+              {BOOT_COMMAND}
+            </button>
+            {error && <p className="mt-6 text-xs text-hot">{error}</p>}
+          </div>
         </div>
       </main>
-    )
+    );
   }
 
   // The live stamp under your editor: what this turn has cost so far. Session
@@ -419,10 +478,17 @@ export default function App() {
     deleted: totals.deleted - turnBase.deleted,
     pastes: totals.pastes - turnBase.pastes,
     idleSeconds: null,
-  }
+  };
 
   return (
-    <div data-typing={typing} className="flex h-screen flex-col bg-canvas text-ink">
+    <div
+      data-typing={typing}
+      className="flex h-screen flex-col bg-canvas text-ink"
+    >
+      {/* Not dimmable. It is the window, not the session — §7 recedes what you
+          produced and what it cost, never the frame around it. */}
+      <WindowTab status="coding" />
+
       <Transcript
         statement={session.problem.statement}
         entries={entries}
@@ -443,7 +509,7 @@ export default function App() {
           elapsedSeconds={elapsed}
           totals={totals}
           impatience={stream.impatience}
-          activity={running ? 'running' : typing ? 'writing' : 'idle'}
+          activity={running ? "running" : typing ? "writing" : "idle"}
           running={running}
           finishing={finishing}
           armed={armed}
@@ -453,5 +519,5 @@ export default function App() {
         />
       </div>
     </div>
-  )
+  );
 }

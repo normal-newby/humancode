@@ -29,7 +29,7 @@ interface Props {
 /**
  * The meta line (UI-DESIGN.md §5).
  *
- * <p>`⎿  04:12 · ↑ 412 · ↓ 180 · ⧉ 1 · idle 22s`
+ * <p>`└  04:12 · ↑ 412 · ↓ 180 · ⧉ 1 · idle 22s`
  *
  * <p>Time first, always. The character counts are deliberately formatted like a
  * token-usage readout — the resemblance is the joke and the units are the ones
@@ -68,7 +68,7 @@ export function MetaLine({ stamp, live = false, canned = false }: Props) {
       <span className="sr-only">{spoken}</span>
 
       <span aria-hidden className="text-faint">
-        ⎿
+        └
       </span>
       <span aria-hidden className="flex flex-wrap items-baseline gap-x-2">
         {segments.map((segment, index) => (
