@@ -2,7 +2,10 @@ package com.example.humancode.interview;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,13 +31,14 @@ public final class SessionState {
     private final Instant startedAt;
 
     private volatile Phase phase = Phase.INTRO;
-    private volatile String code;
+    /** Filename -> current content, one entry per {@link Problem#files()}. */
+    private final Map<String, String> code = new ConcurrentHashMap<>();
     /**
-     * The buffer as it stood the last time the interviewer spoke. The prompt
-     * diffs this against {@link #code} so a reaction can be about what just
-     * changed rather than about the same shape of code as last time.
+     * Filename -> content as it stood the last time the interviewer spoke. The
+     * prompt diffs this against {@link #code} so a reaction can be about what
+     * just changed rather than about the same shape of code as last time.
      */
-    private volatile String previousCode;
+    private final Map<String, String> previousCode = new ConcurrentHashMap<>();
     private volatile String language;
 
     private volatile Instant lastEventAt;
@@ -49,8 +53,8 @@ public final class SessionState {
     private final AtomicLong charsDeleted = new AtomicLong();
     private final AtomicInteger pasteCount = new AtomicInteger();
     private final AtomicLong pastedChars = new AtomicLong();
-    private final AtomicInteger runCount = new AtomicInteger();
-    private final AtomicInteger failedRunCount = new AtomicInteger();
+    /** How many times the candidate has handed the turn back for judgment. */
+    private final AtomicInteger submitCount = new AtomicInteger();
 
     /** What the interviewer has said, in order. */
     private final List<Utterance> transcript = new CopyOnWriteArrayList<>();
@@ -63,8 +67,10 @@ public final class SessionState {
         this.sessionId = sessionId;
         this.problem = problem;
         this.language = language;
-        this.code = problem.starterCode();
-        this.previousCode = problem.starterCode();
+        for (Problem.ProblemFile file : problem.files()) {
+            code.put(file.name(), file.starterContent());
+            previousCode.put(file.name(), file.starterContent());
+        }
         this.startedAt = Instant.now();
         this.lastEventAt = this.startedAt;
     }
@@ -97,27 +103,40 @@ public final class SessionState {
         this.phase = phase;
     }
 
-    public String code() {
-        return code;
+    public String code(String file) {
+        return code.get(file);
     }
 
-    public void code(String code) {
-        this.code = code;
+    public void code(String file, String content) {
+        code.put(file, content);
     }
 
-    /** The buffer as of the interviewer's last line. Never null. */
-    public String previousCode() {
-        return previousCode;
+    /** Every file's current content, in the problem's declared order. */
+    public Map<String, String> code() {
+        return orderedCopy(code);
+    }
+
+    /** Every file's content as of the interviewer's last line. Never null entries. */
+    public Map<String, String> previousCode() {
+        return orderedCopy(previousCode);
     }
 
     /**
-     * Moves the diff baseline up to the current buffer. Called once the
+     * Moves the diff baseline up to the current buffers. Called once the
      * interviewer has actually spoken, so the next reaction sees only what
      * happened after this line — never call it on a suppressed trigger, or the
      * work done in between becomes invisible.
      */
     public void markCodeSpokenFor() {
-        this.previousCode = this.code;
+        previousCode.putAll(code);
+    }
+
+    private Map<String, String> orderedCopy(Map<String, String> source) {
+        Map<String, String> ordered = new LinkedHashMap<>();
+        for (Problem.ProblemFile file : problem.files()) {
+            ordered.put(file.name(), source.get(file.name()));
+        }
+        return ordered;
     }
 
     public String language() {
@@ -164,11 +183,8 @@ public final class SessionState {
         lastEventAt = Instant.now();
     }
 
-    public void recordRun(boolean passed) {
-        runCount.incrementAndGet();
-        if (!passed) {
-            failedRunCount.incrementAndGet();
-        }
+    public void recordSubmit() {
+        submitCount.incrementAndGet();
         lastEventAt = Instant.now();
     }
 
@@ -192,12 +208,8 @@ public final class SessionState {
         return pastedChars.get();
     }
 
-    public int runCount() {
-        return runCount.get();
-    }
-
-    public int failedRunCount() {
-        return failedRunCount.get();
+    public int submitCount() {
+        return submitCount.get();
     }
 
     // --- derived ------------------------------------------------------------
@@ -232,11 +244,6 @@ public final class SessionState {
     public double deleteRatio() {
         long inserted = charsInserted.get();
         return inserted == 0 ? 0 : (double) charsDeleted.get() / inserted;
-    }
-
-    /** Whether at least one run during the session actually passed. */
-    public boolean testsEverPassed() {
-        return runCount.get() - failedRunCount.get() > 0;
     }
 
     // --- transcript / notes -------------------------------------------------

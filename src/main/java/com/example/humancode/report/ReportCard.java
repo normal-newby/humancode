@@ -23,9 +23,7 @@ public record ReportCard(
             long charsWritten,
             long charsDeleted,
             int pasteCount,
-            int runCount,
-            int failedRunCount,
-            int finalImpatience,
-            boolean testsEverPassed) {
+            int submitCount,
+            int finalImpatience) {
     }
 }

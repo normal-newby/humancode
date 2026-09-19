@@ -2,36 +2,32 @@ export type Phase = 'INTRO' | 'CODING' | 'FOLLOWUP' | 'REPORT' | 'DONE'
 
 export type Mood = 'NEUTRAL' | 'AMUSED' | 'IMPATIENT' | 'EXASPERATED' | 'IMPRESSED'
 
-export type EventType = 'EDIT' | 'PASTE' | 'RUN' | 'FOCUS' | 'BLUR'
+export type EventType = 'EDIT' | 'PASTE' | 'FOCUS' | 'BLUR'
 
-export interface ProblemExample {
-  input: string
-  output: string
-  explanation: string | null
+/**
+ * One file in the candidate's editor. However many files a problem needs —
+ * an HTML/CSS/JS scaffold for something visual, a single file for something
+ * simpler — decided once when the problem was authored or generated.
+ */
+export interface ProblemFile {
+  name: string
+  /** A Monaco language id, e.g. 'html', 'css', 'javascript'. */
+  language: string
+  starterContent: string
 }
 
 /**
- * The candidate-facing view of a problem. The server strips the reference
- * solution and rubric before this ever reaches the browser — they only exist
- * inside the interviewer's prompt.
+ * The candidate-facing view of a problem. The server strips every file's
+ * reference content, the rubric and the curveballs before this ever reaches
+ * the browser — they only exist inside the interviewer's prompt.
  */
-export interface TestCase {
-  args: unknown[]
-  expected: unknown
-}
-
 export interface Problem {
   id: string
   title: string
   difficulty: string
   tags: string[]
   statement: string
-  examples: ProblemExample[]
-  starterCode: string
-  /** The function the test runner calls. */
-  entryPoint: string
-  tests: TestCase[]
-  match: 'exact' | 'unordered'
+  files: ProblemFile[]
 }
 
 export interface Utterance {
@@ -50,10 +46,8 @@ export interface ReportCardStats {
   charsWritten: number
   charsDeleted: number
   pasteCount: number
-  runCount: number
-  failedRunCount: number
+  submitCount: number
   finalImpatience: number
-  testsEverPassed: boolean
 }
 
 /** The end-of-session report — verdict, insults, begrudging compliments, similar problems. */
@@ -87,8 +81,7 @@ export interface Metrics {
   charsDeleted: number
   deleteRatio: number
   pasteCount: number
-  runCount: number
-  failedRunCount: number
+  submitCount: number
   impatience: number
 }
 
@@ -96,20 +89,21 @@ export interface TelemetryItem {
   type: EventType
   inserted: number
   deleted: number
+  /** Which file the edit happened in. */
+  file: string
   detail?: string | null
 }
 
+/**
+ * One batch of editor telemetry. `files` carries every file's full content,
+ * not just whichever one is active — see App.tsx's telemetry flush for why:
+ * a batch that only carried the active file could leave another file's
+ * server-side copy silently stale if it was edited then switched away from
+ * inside the same flush window.
+ */
 export interface TelemetryBatch {
   events: TelemetryItem[]
-  code: string
-}
-
-export interface RunResult {
-  passed: boolean
-  passedCount: number
-  failedCount: number
-  firstFailure: string | null
-  durationMs: number
+  files: Record<string, string>
 }
 
 /** Payloads pushed over SSE, keyed by event name. */

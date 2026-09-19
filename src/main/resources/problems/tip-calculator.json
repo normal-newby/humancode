@@ -1,0 +1,39 @@
+{
+  "id": "tip-calculator",
+  "title": "Tip Calculator",
+  "difficulty": "easy",
+  "tags": ["dom", "forms", "numbers"],
+  "statement": "Build a tip calculator. As the bill amount or tip percent changes, the tip and total should update live, with no submit button.",
+  "files": [
+    {
+      "name": "index.html",
+      "language": "html",
+      "starterContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>tip calculator</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>tip calculator</h1>\n  <label>bill amount<input id=\"bill\" type=\"number\" min=\"0\" step=\"0.01\" /></label>\n  <label>tip percent<input id=\"tip-percent\" type=\"number\" min=\"0\" step=\"1\" value=\"15\" /></label>\n  <div class=\"result\">\n    <p>tip: <span id=\"tip-amount\">$0.00</span></p>\n    <p>total: <span id=\"total-amount\">$0.00</span></p>\n  </div>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n",
+      "referenceContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>tip calculator</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>tip calculator</h1>\n  <label>bill amount<input id=\"bill\" type=\"number\" min=\"0\" step=\"0.01\" /></label>\n  <label>tip percent<input id=\"tip-percent\" type=\"number\" min=\"0\" step=\"1\" value=\"15\" /></label>\n  <div class=\"result\">\n    <p>tip: <span id=\"tip-amount\">$0.00</span></p>\n    <p>total: <span id=\"total-amount\">$0.00</span></p>\n  </div>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n"
+    },
+    {
+      "name": "styles.css",
+      "language": "css",
+      "starterContent": "body {\n  font-family: sans-serif;\n  max-width: 320px;\n  margin: 40px auto;\n}\n\nlabel {\n  display: block;\n  margin-bottom: 12px;\n}\n\ninput {\n  width: 100%;\n  padding: 6px;\n  box-sizing: border-box;\n}\n\n.result {\n  margin-top: 20px;\n  font-size: 1.1em;\n}\n\n/* your code here: make the total line stand out from the tip line */\n",
+      "referenceContent": "body {\n  font-family: sans-serif;\n  max-width: 320px;\n  margin: 40px auto;\n}\n\nlabel {\n  display: block;\n  margin-bottom: 12px;\n}\n\ninput {\n  width: 100%;\n  padding: 6px;\n  box-sizing: border-box;\n}\n\n.result {\n  margin-top: 20px;\n  font-size: 1.1em;\n}\n\n#total-amount {\n  font-weight: bold;\n  font-size: 1.3em;\n}\n"
+    },
+    {
+      "name": "app.js",
+      "language": "javascript",
+      "starterContent": "const billInput = document.getElementById('bill');\nconst tipInput = document.getElementById('tip-percent');\nconst tipOut = document.getElementById('tip-amount');\nconst totalOut = document.getElementById('total-amount');\n\nfunction recalculate() {\n  // your code here\n}\n\nbillInput.addEventListener('input', recalculate);\ntipInput.addEventListener('input', recalculate);\n",
+      "referenceContent": "const billInput = document.getElementById('bill');\nconst tipInput = document.getElementById('tip-percent');\nconst tipOut = document.getElementById('tip-amount');\nconst totalOut = document.getElementById('total-amount');\n\nfunction format(n) {\n  return `$${n.toFixed(2)}`;\n}\n\nfunction recalculate() {\n  const bill = parseFloat(billInput.value) || 0;\n  const percent = parseFloat(tipInput.value) || 0;\n  const tip = bill * (percent / 100);\n  const total = bill + tip;\n  tipOut.textContent = format(tip);\n  totalOut.textContent = format(total);\n}\n\nbillInput.addEventListener('input', recalculate);\ntipInput.addEventListener('input', recalculate);\nrecalculate();\n"
+    }
+  ],
+  "rubric": [
+    "Typing a bill amount updates the tip and total live, without a submit button.",
+    "Changing the tip percent recalculates both figures.",
+    "A blank or non-numeric bill is treated as zero rather than showing NaN.",
+    "Amounts are formatted as currency, not raw floating point."
+  ],
+  "curveballs": [
+    "Actually, split the total evenly across a number-of-people field too.",
+    "Round the total up to the nearest dollar instead of showing cents.",
+    "Default the tip percent to 20 instead of 15."
+  ],
+  "similarProblems": ["Currency Converter", "BMI Calculator", "Mortgage Estimator"]
+}

@@ -7,8 +7,9 @@ package com.example.humancode.telemetry;
  * @param detail    human-readable specifics, fed to the model and logged
  * @param urgency   0-100, how much this should move the impatience meter
  * @param cooldown  whether the global quip cooldown applies; false for events
- *                  the interviewer must react to immediately (a paste, a failed
- *                  run) regardless of how recently it spoke
+ *                  the interviewer must react to immediately (a paste, a
+ *                  curveball landing on schedule) regardless of how recently
+ *                  it spoke
  */
 public record Trigger(Kind kind, String detail, int urgency, boolean cooldown) {
 
@@ -29,10 +30,10 @@ public record Trigger(Kind kind, String detail, int urgency, boolean cooldown) {
         HEAVY_DELETE,
         /** Deleting far more than they are writing — thrashing. */
         MASS_DELETION,
-        /** Tests were run and failed. */
-        TESTS_FAILED,
-        /** Tests passed. Time to be begrudgingly positive. */
-        TESTS_PASSED,
+        /** The candidate handed the turn back and believes they are done. */
+        SUBMITTED,
+        /** A pre-authored scope change, sprung mid-task. */
+        CURVEBALL,
         /** Taking a long time with little to show for it. */
         SLOW_PROGRESS
     }

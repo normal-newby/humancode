@@ -26,7 +26,8 @@ Three tiers, in build order. Do not start a tier until the one above it demos en
 - Interviewer avatar whose expression escalates with impatience (use an **original mascot**, not
   a real vendor's logo — an angry-eyebrows Claude Code or OpenAI mark reads as an official product,
   which is a headache you do not need at a demo table).
-- Mid-task curveballs: "now handle duplicates", "actually make it O(1) space".
+- Mid-task curveballs: "actually, make the button yellow instead of green", "now show a count of
+  what's left".
 
 **Stretch**
 - Passive mode: tab stays open, app pings you at random and demands you solve something.
@@ -74,16 +75,25 @@ pass:
 2. `sse.isConnected(sessionId)` — **no listener, no call**, so a closed tab costs nothing;
 3. the `quip-cooldown` (15s) has elapsed — *unless the trigger is `immediate`*.
 
-**`PASTE_BURST`, `TESTS_PASSED` and `TESTS_FAILED` are `immediate` and bypass the cooldown entirely.**
-That is deliberate — a delayed reaction to a paste or a test run feels broken, and the interviewer
-catching your paste *as it happens* is the joke. It was also harmless while `run` was a stub nobody
-clicked. It is not harmless now: every `run` click is an uncooldowned call, so someone hammering the
-button while debugging generates one call per press. If cost or rate limits bite, put a short floor
-(~4s) on `immediate` triggers in `InterviewDirector.fire()` rather than removing the immediacy.
+**`PASTE_BURST`, `FIRST_IMPLEMENTATION` and `CURVEBALL` are `immediate` and bypass the cooldown
+entirely.** That is deliberate for the first two — a delayed reaction to a paste feels broken, and
+the interviewer catching it *as it happens* is the joke. `CURVEBALL` is immediate for a different
+reason: it is a one-shot, timer-gated event, not a reaction to typing, so there is nothing to
+protect it from — see below, it costs no model call either way. `SUBMITTED` (what `TESTS_PASSED`/
+`TESTS_FAILED` used to be, before there was anything to run) respects the cooldown normally, so
+hammering the submit button while debugging does not generate one call per press.
 
 With `humancode.problems.source=generated` (the `prod` profile) there is **one generation call per
 session started**, but it no longer happens in front of the user: `ProblemPool` keeps a couple warm and
 replaces what is taken in the background. See §6.
+
+**`CURVEBALL` costs nothing, ever.** The text is pre-authored (by the problem's `curveballs` list,
+written by whoever authored or generated the problem), the same trust level as the opening problem
+statement — also delivered verbatim, never paraphrased by a model call. `Interviewer.react()`
+special-cases `Trigger.Kind.CURVEBALL` at the top and returns the trigger's own text directly,
+before the client-availability check. No API call, no guard, no fallback. If you ever find yourself
+wiring a model call into curveball delivery, stop — the entire point was that the model decides
+*what* only when it has to, and here it never has to.
 
 ---
 
@@ -104,7 +114,7 @@ tokens while their impatience meter fills. One centred column; no rails, split p
 | Frontend | React 19 + TypeScript + Vite 8 (`.tsx`), `@monaco-editor/react`, Tailwind 4 |
 | Client→server | REST, telemetry batched ~1.5s |
 | Server→client | SSE (`SseEmitter`), one stream per session |
-| Code execution | **In-browser** (see §6) |
+| Code execution | **None** — verification is judgment, not a runner (see §6) |
 
 ### Dependencies
 
@@ -169,9 +179,10 @@ Rules:
 - DTOs and value types are Java `record`s. Mutable entities use Lombok.
 - `SessionState` lives in memory (a `ConcurrentHashMap` keyed by session id) and is *snapshotted* to
   SQLite on phase transitions and at session end. Do not write to the DB on every keystroke.
-- It holds **two** copies of the editor: `code` (current, updated by every telemetry batch) and
-  `previousCode` (the buffer as of the interviewer's last line). The pair is what the prompt diffs —
-  see §5.
+- It holds **two** copies of the editor, per file: `code` (current, updated by every telemetry
+  batch) and `previousCode` (the buffer as of the interviewer's last line), both
+  `Map<String, String>` keyed by filename — a problem is however many files it needs (an
+  HTML/CSS/JS scaffold, or fewer), not one. The pair is what the prompt diffs — see §5.
 
 ### Lombok conventions
 
@@ -281,9 +292,11 @@ line disappears once real calls are happening.
 (`humancode.ai.quip-model`), minimal reasoning effort, small output cap, non-streaming, **structured
 output** so the client receives `{ line, mood, impatienceDelta }` instead of prose it has to parse.
 
-**Deliberate path** — problem statement, hints, curveballs, the report card. Full model
-(`humancode.ai.model`), streamed token-by-token onto the session's SSE channel so the interviewer appears
-to type.
+**Deliberate path** — problem statement, hints, the report card. Full model (`humancode.ai.model`).
+Not streamed yet: every call in the app today, including the report card, is non-streaming;
+token-by-token streaming onto the session's SSE channel is still open (§9).
+
+Curveballs are neither of these. They cost no model call at all — see §2.
 
 ### Prompt caching
 
@@ -310,7 +323,9 @@ Problems are resource files precisely so swapping one swaps a whole cache namesp
 
 The tail carries **both** buffers' worth of information: the current editor contents, and a line diff
 against `SessionState.previousCode` — the code as it stood the last time the interviewer actually
-spoke. `ai/CodeDiff.java` renders it as `-`/`+` lines with line numbers, capped at 40.
+spoke. `ai/CodeDiff.java` renders one file's diff as `-`/`+` lines with line numbers, capped at 40;
+`unifiedAcrossFiles` calls it once per file and headers each block with the filename, so a reaction
+can point at the file that actually changed rather than a single undifferentiated blob.
 
 Without it the model only ever sees a still frame, so it describes the same shape of code every time
 and the session flattens into three interchangeable remarks. With it, a line can be about the thing
@@ -360,35 +375,36 @@ constant — `PromptAssembler.RULES`. There is no persona system: one voice, def
 
 ---
 
-## 6. Running user code
+## 6. Verification — there is no runner
 
-**In the browser, not on the server.** `web/src/workers/testRunner.ts` evaluates the candidate's code in
-a throwaway Web Worker and runs it against the problem's test cases; `web/src/lib/runTests.ts` owns the
-worker lifecycle and POSTs the verdict to `/api/sessions/{id}/run`.
+**Problems are small apps to build (HTML/CSS/JS), not pure functions with test cases, and there is
+no code execution anywhere in this app — not in the browser, not on the server.** This was a
+deliberate pivot away from an earlier design where a Web Worker ran the candidate's code against
+JSON test cases. Verification is now **judgment**: the interviewer reads the candidate's diff
+against the problem's `rubric` — the same trust model the report card already used for grading the
+whole session, now applied to every reaction, including the moment the candidate submits.
 
-Rationale: zero sandbox infrastructure, zero RCE surface, zero cold-start latency, and it works behind
-conference wifi. A server-side runner (Docker, Judge0, Piston) is a project on its own and buys nothing
-the demo needs.
+Rationale for dropping the runner rather than teaching it multi-file HTML/CSS/JS: there is no
+meaningful way to assert "the button is yellow" by executing code in a sandboxed Web Worker, because
+workers have no DOM. Building a second, DOM-capable sandbox (an iframe) to get that back was a real
+option but a materially bigger one — a new execution surface, new failure modes, and a UI panel that
+cuts against UI-DESIGN.md's single-column, no-panels rule. Reading the diff was already most of what
+made reactions specific (see above); extending that same mechanism to verification cost nothing new
+to build.
 
-Three things about this that are load-bearing:
+**`POST /api/sessions/{id}/submit`** (was `/run`) replaced the old test-result endpoint. It takes no
+body — there is no local result to report — increments `SessionState.submitCount()`, and fires
+`TriggerEngine.onSubmit()`, which goes through the ordinary quip path like any other reaction. The
+interviewer's judgment **is not shown**: no pass count, no failure, no green check, anywhere on
+screen. It exists to move the trigger engine and to give the interviewer something to be smug about;
+the candidate finds out how they did by being told. See UI-DESIGN.md §4.7.
 
-- **The timeout lives on the main thread, not in the worker.** A worker cannot interrupt its own
-  `while (true)`, so `runTests` sets a 3s timer and calls `worker.terminate()`. An infinite loop is a
-  *likely* outcome in a timed interview, not an edge case — verified: the page stays fully responsive.
-- **Args are `structuredClone`d per case**, so a candidate who mutates the input cannot corrupt the
-  next test.
-- **`match: "unordered"`** exists for problems like Two Sum where "return the indices in any order"
-  means `[1,0]` is as correct as `[0,1]`. Default is `exact`.
-
-**Test cases are visible to the candidate**, unavoidably — the worker runs in their browser and cannot
-execute a test it was not given. Inputs and outputs are not the algorithm, and `Problem.forCandidate()`
-still strips the reference solution, complexity, rubric and follow-ups. Genuinely hidden tests would
-need a server-side runner.
-
-**The verdict is not.** The run result is POSTed to `/api/sessions/{id}/run` and dropped — the UI never
-renders a pass count, a failure or a green check. It exists to move the trigger engine and to give the
-interviewer something to be smug about; the candidate finds out how they did by being told. See
-UI-DESIGN.md §4.7 before adding any readout.
+A consequence worth knowing: a subtly wrong reference answer or an over-strict rubric item can now
+make the interviewer call correct work wrong, with no automated check to catch it before a candidate
+hits it live. `web/scripts/check-problems.mjs` catches structural mistakes (a missing file, no gap
+between starter and reference content, too few rubric items or curveballs) but cannot verify a
+reference answer is actually correct — there is nothing left to execute it against. Read every bank
+problem's reference content like you'd review a PR before it ships.
 
 ### Problem sources
 
@@ -396,8 +412,8 @@ UI-DESIGN.md §4.7 before adding any readout.
 
 | Value | Behaviour |
 |---|---|
-| `generated` (**the default**) | The model writes a fresh problem with its own runnable tests per session, via structured outputs (`GeneratedProblem`). Requires `OPENAI_API_KEY`. |
-| `bank` (**the `dev` profile**) | `resources/problems/*.json`. Repeatable, machine-verified, free. `-Dspring-boot.run.profiles=dev`. |
+| `generated` (**the default**) | The model writes a fresh app-building problem per session — statement, however many files it needs, rubric, curveballs — via structured outputs (`GeneratedProblem`). Requires `OPENAI_API_KEY`. |
+| `bank` (**the `dev` profile**) | `resources/problems/*.json`. Repeatable, free, structurally checked by `check:problems`. `-Dspring-boot.run.profiles=dev`. |
 
 The default generates. That means a plain `./mvnw spring-boot:run` costs a model call per session
 started, which is deliberate — the product is the generated interview, and a default that quietly
@@ -451,22 +467,19 @@ because neither looks like an error:
   `MAX_OUTPUT_TOKENS` before suspecting the prompt.
 
 `generated` falls back to the bank — loudly — when the key is missing or the model returns something
-malformed. `ProblemGenerator.convert` structurally validates first: entry point is a real JS identifier,
-at least three tests with no duplicate `argsJson`, a statement, reference solution and starter code both
-defining the entry point, starter code shorter than the reference (a starter that *is* the answer passes
-every other check), and every `argsJson`/`expectedJson` parsing as JSON.
+malformed. `ProblemGenerator.convert` structurally validates first: a non-blank statement, at least
+one file, every file has a name/language/starter/reference, at least one file's reference content
+actually differs from its starter (a starter that *is* the answer passes every other check), at
+least three rubric items, and at least one curveball.
 
-A subtly *wrong* test can still get through, and that risk got sharper now that the UI never shows test
-results: a candidate with a correct answer is told they are wrong and has no way to see why. Verifying
-generated tests for real needs a server-side JS runtime, which is a project of its own — §6 says why we
-do not have one.
+There is no way to verify a generated reference answer is actually correct — that risk is inherent
+to dropping the runner (§6) and is trusted the same way the interviewer's live judgment already is.
 
 Because a generated problem exists only for the life of its session, `SessionState` holds the whole
 `Problem`, not an id. There is nothing to look it up in.
 
-**`cd web && npm run check:problems`** runs every bank problem's reference solution against its own test
-cases. Run it after touching any problem JSON — a wrong expectation is invisible until a candidate writes
-a correct answer and gets called wrong, which is the worst possible place to find it.
+**`cd web && npm run check:problems`** structurally validates every bank problem — see §6. Run it
+after touching any problem JSON.
 
 ---
 
@@ -504,7 +517,12 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
   exception, `CannedLines`, which has to match it or the fallback reads as a second interviewer.
 - Two mechanical limits hold that voice up, and both bite silently. `ReactionGuard` caps a line at
   **14 words** (raised from 12: a question carries more scaffolding than a statement), and it rejects
-  any line containing solution language — `loop`, `set`, `sort`, `stack` and friends. A rejected line
+  solution language via the shared `ai/SolutionLanguage` — named strategies outright (two pointers,
+  binary search, and their kin), plus sequencing language paired with an action ("first sort, then
+  scan"). Naming a construct that's already visible in the candidate's code (`loop`, a class, a
+  filename) is deliberately *not* blocked — the interviewer can see their screen, so pointing at
+  what's already there isn't coaching, and blocking it was flattening every reaction into "why did
+  you do that" (bare-noun blocking was tried and reverted for exactly this reason). A rejected line
   is not an error, it is a canned line, so a run of `canned` markers in the UI with no warning in the
   log means the model is writing lines the guard will not pass.
 
@@ -525,7 +543,7 @@ Recorded here so they get made deliberately rather than by accident:
 
 ### Still unbuilt
 
-Core loop is closed (problem → code → telemetry → trigger → reaction → tests → verdict). Not yet built:
-the **report card** (`/api/sessions/{id}/finish` closes the session but generates nothing), **hints**,
-**mid-task curveballs**, the **follow-up phase**, and the **deliberate streamed call path** — §5 describes
-it, but every call today is the quip path.
+Core loop is closed (problem → code → telemetry → trigger → reaction → verdict), the **report card**
+is built (§5, `report/`), and **mid-task curveballs** are built (§2, §6). Not yet built: **hints**,
+the **follow-up phase**, and **real token-by-token streaming** — every call today, including the
+report card, is non-streaming; see §5.

@@ -1,7 +1,6 @@
 package com.example.humancode.problem;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,9 +13,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 /**
- * Every bank problem must be runnable by the browser worker. A problem missing
- * its entry point or tests looks fine on screen and then fails the moment
- * someone presses run.
+ * Every bank problem must give the candidate something to actually build. A
+ * problem where every file's starter already matches its answer looks fine on
+ * screen and hands over a passing solution to stare at.
  */
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
@@ -27,45 +26,43 @@ class ProblemBankTest {
     private ProblemBank bank;
 
     @Test
-    @DisplayName("every problem is executable: entry point, tests, and a matching starter")
-    void everyProblemIsRunnable() {
+    @DisplayName("every problem has files with a real gap between starter and reference content")
+    void everyProblemHasWorkToDo() {
         assertFalse(bank.all().isEmpty(), "the bank must not be empty");
 
         for (Problem problem : bank.all()) {
             String where = "problem '" + problem.id() + "'";
 
-            assertNotNull(problem.entryPoint(), where + " has no entryPoint");
-            assertFalse(problem.entryPoint().isBlank(), where + " has a blank entryPoint");
-            assertFalse(problem.tests().isEmpty(), where + " has no test cases");
+            assertFalse(problem.files().isEmpty(), where + " has no files");
+            assertFalse(problem.rubric().isEmpty(), where + " has no rubric");
+            assertFalse(problem.curveballs().isEmpty(), where + " has no curveballs");
 
-            assertTrue(problem.starterCode().contains(problem.entryPoint()),
-                    where + " starter code does not declare " + problem.entryPoint());
-            assertTrue(problem.referenceSolution().contains(problem.entryPoint()),
-                    where + " reference solution does not define " + problem.entryPoint());
+            boolean anyFileHasWork = problem.files().stream()
+                    .anyMatch(f -> !f.starterContent().equals(f.referenceContent()));
+            assertTrue(anyFileHasWork, where + " has no gap between any starter and reference content");
 
-            assertTrue("exact".equals(problem.match()) || "unordered".equals(problem.match()),
-                    where + " has unknown match mode: " + problem.match());
-
-            for (TestCase test : problem.tests()) {
-                assertNotNull(test.args(), where + " has a test with null args");
+            for (Problem.ProblemFile file : problem.files()) {
+                assertFalse(file.starterContent() == null, where + " file '" + file.name() + "' has no starter");
+                assertFalse(file.referenceContent() == null || file.referenceContent().isBlank(),
+                        where + " file '" + file.name() + "' has no reference content");
             }
         }
     }
 
     @Test
-    @DisplayName("forCandidate strips the solution and rubric but keeps the tests")
+    @DisplayName("forCandidate strips reference content, rubric, curveballs and similar problems")
     void candidateViewHidesTheAnswer() {
         Problem full = bank.all().getFirst();
         Problem candidate = full.forCandidate();
 
-        assertNull(candidate.referenceSolution(), "the reference solution must never reach the browser");
-        assertNull(candidate.optimalComplexity(), "complexity hints must not leak");
         assertTrue(candidate.rubric().isEmpty(), "the rubric must never reach the browser");
-        assertTrue(candidate.followUps().isEmpty(), "follow-ups must not leak");
+        assertTrue(candidate.curveballs().isEmpty(), "curveballs must not leak ahead of time");
+        assertTrue(candidate.similarProblems().isEmpty(), "similar problems must not leak");
 
-        // The worker runs in the candidate's own browser, so it cannot execute
-        // a test it was not given. Inputs and outputs are not the algorithm.
-        assertFalse(candidate.tests().isEmpty(), "tests must reach the browser or nothing can run");
-        assertNotNull(candidate.entryPoint());
+        // The candidate still needs the starter code for every file to work from.
+        assertFalse(candidate.files().isEmpty(), "files must reach the browser or there is nothing to edit");
+        for (Problem.ProblemFile file : candidate.files()) {
+            assertNull(file.referenceContent(), "the reference answer must never reach the browser");
+        }
     }
 }

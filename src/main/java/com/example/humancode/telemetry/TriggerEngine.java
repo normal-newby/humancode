@@ -1,7 +1,9 @@
 package com.example.humancode.telemetry;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.stereotype.Component;
 
@@ -80,6 +82,19 @@ public class TriggerEngine {
             }
         }
 
+        // Curveball: a pre-authored scope change, sprung once the candidate has
+        // had genuine time to get somewhere. Text is trusted, problem-author
+        // content — delivered verbatim by Interviewer, no model call involved.
+        if (state.phase() == Phase.CODING
+                && state.elapsed().compareTo(props.interview().curveballDelay()) > 0
+                && state.charsInserted() >= props.interview().curveballMinChars()
+                && !state.problem().curveballs().isEmpty()
+                && state.fireOnce("curveball")) {
+            List<String> options = state.problem().curveballs();
+            String pick = options.get(ThreadLocalRandom.current().nextInt(options.size()));
+            return Optional.of(Trigger.immediate(Trigger.Kind.CURVEBALL, pick, 5));
+        }
+
         // Long session, little code.
         if (state.elapsed().toMinutes() >= 5
                 && state.charsInserted() < 120
@@ -147,15 +162,17 @@ public class TriggerEngine {
         return Optional.empty();
     }
 
-    public Optional<Trigger> onRun(SessionState state, boolean passed, String summary) {
-        if (passed) {
-            return Optional.of(Trigger.of(Trigger.Kind.TESTS_PASSED,
-                    "All tests passed on run %d. %s".formatted(state.runCount(), summary),
-                    -20));
-        }
-        return Optional.of(Trigger.of(Trigger.Kind.TESTS_FAILED,
-                "Run %d failed. %s".formatted(state.runCount(), summary),
-                10));
+    /**
+     * The candidate handed the turn back. There is no automated verdict to
+     * react to (CLAUDE.md §6) — the interviewer judges the current diff against
+     * the rubric already sitting in the cached prompt prefix, the same way it
+     * judges everything else.
+     */
+    public Optional<Trigger> onSubmit(SessionState state) {
+        return Optional.of(Trigger.of(Trigger.Kind.SUBMITTED,
+                "Candidate submitted (submission %d), %d characters written, %d seconds elapsed."
+                        .formatted(state.submitCount(), state.charsInserted(), state.elapsed().toSeconds()),
+                0));
     }
 
     /** Whether enough time has passed since the last line for another one. */

@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import jakarta.annotation.PostConstruct;
 
+import tools.jackson.databind.ObjectMapper;
+
 /**
  * Owns session lifecycle and the in-memory {@link SessionState} map.
  *
@@ -32,6 +34,7 @@ public class SessionService {
     private final Map<String, SessionState> live = new ConcurrentHashMap<>();
     private final SessionRepository repository;
     private final ProblemSource problems;
+    private final ObjectMapper mapper;
 
     @PostConstruct
     void announceSource() {
@@ -74,7 +77,7 @@ public class SessionService {
         repository.findById(state.sessionId()).ifPresent(entity -> {
             entity.setPhase(state.phase());
             entity.setImpatience(state.impatience());
-            entity.setFinalCode(state.code());
+            entity.setFinalCode(mapper.writeValueAsString(state.code()));
             repository.save(entity);
         });
     }
@@ -85,7 +88,7 @@ public class SessionService {
         repository.findById(state.sessionId()).ifPresent(entity -> {
             entity.setPhase(Phase.DONE);
             entity.setImpatience(state.impatience());
-            entity.setFinalCode(state.code());
+            entity.setFinalCode(mapper.writeValueAsString(state.code()));
             entity.setEndedAt(Instant.now());
             repository.save(entity);
         });

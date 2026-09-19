@@ -1,15 +1,13 @@
-import type { TelemetryItem } from '../api/types'
+import type { ProblemFile, TelemetryItem } from '../api/types'
 import { EditorPane } from './EditorPane'
 import { MetaLine, type TurnStamp } from './MetaLine'
 
 interface Props {
-  file: string
-  language: string
-  initialCode: string
+  files: ProblemFile[]
   /** Deltas within the turn in progress, ticking. */
   stamp: TurnStamp
   onTelemetry: (item: TelemetryItem) => void
-  onCodeChange: (code: string) => void
+  onCodeChange: (file: string, code: string) => void
   onSubmit: () => void
 }
 
@@ -24,15 +22,13 @@ interface Props {
  * <p>No border, no fill. A box would make it an input again, and the whole
  * point is that you are the one producing output here.
  */
-export function LiveTurn({
-  file,
-  language,
-  initialCode,
-  stamp,
-  onTelemetry,
-  onCodeChange,
-  onSubmit,
-}: Props) {
+export function LiveTurn({ files, stamp, onTelemetry, onCodeChange, onSubmit }: Props) {
+  // The accurate, per-file record lives in the closed turn's meta line (built
+  // from what was actually touched); this header is a live label and settles
+  // for "how many files" once there is more than one, rather than trying to
+  // track which one is active a second layer up.
+  const label = files.length === 1 ? files[0].name : `${files.length} files`
+
   return (
     <div className="mx-auto w-full max-w-[84ch] px-6">
       <div className="grid grid-cols-[1.25rem_1fr] gap-x-2">
@@ -40,12 +36,11 @@ export function LiveTurn({
           ⏺
         </span>
         <div className="min-w-0">
-          <p className="text-[15px] leading-relaxed text-ink">Write({file})</p>
+          <p className="text-[15px] leading-relaxed text-ink">Write({label})</p>
 
           <div className="mt-1 h-[38vh]">
             <EditorPane
-              language={language}
-              initialCode={initialCode}
+              files={files}
               onTelemetry={onTelemetry}
               onCodeChange={onCodeChange}
               onRun={onSubmit}

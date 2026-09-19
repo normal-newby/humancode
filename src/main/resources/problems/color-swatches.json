@@ -1,0 +1,39 @@
+{
+  "id": "color-swatches",
+  "title": "Color Swatch Picker",
+  "difficulty": "easy",
+  "tags": ["dom", "events", "state"],
+  "statement": "Build a color swatch picker. Clicking a swatch should select it and show its hex code, and only one swatch should ever be selected at a time.",
+  "files": [
+    {
+      "name": "index.html",
+      "language": "html",
+      "starterContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>swatches</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>pick a color</h1>\n  <div id=\"swatches\" class=\"swatches\">\n    <button class=\"swatch\" style=\"background:#e74c3c\" data-hex=\"#e74c3c\"></button>\n    <button class=\"swatch\" style=\"background:#3498db\" data-hex=\"#3498db\"></button>\n    <button class=\"swatch\" style=\"background:#2ecc71\" data-hex=\"#2ecc71\"></button>\n    <button class=\"swatch\" style=\"background:#f1c40f\" data-hex=\"#f1c40f\"></button>\n    <button class=\"swatch\" style=\"background:#9b59b6\" data-hex=\"#9b59b6\"></button>\n  </div>\n  <p>selected: <span id=\"selected-hex\">none</span></p>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n",
+      "referenceContent": "<!doctype html>\n<html>\n<head>\n  <meta charset=\"utf-8\" />\n  <title>swatches</title>\n  <link rel=\"stylesheet\" href=\"styles.css\" />\n</head>\n<body>\n  <h1>pick a color</h1>\n  <div id=\"swatches\" class=\"swatches\">\n    <button class=\"swatch\" style=\"background:#e74c3c\" data-hex=\"#e74c3c\"></button>\n    <button class=\"swatch\" style=\"background:#3498db\" data-hex=\"#3498db\"></button>\n    <button class=\"swatch\" style=\"background:#2ecc71\" data-hex=\"#2ecc71\"></button>\n    <button class=\"swatch\" style=\"background:#f1c40f\" data-hex=\"#f1c40f\"></button>\n    <button class=\"swatch\" style=\"background:#9b59b6\" data-hex=\"#9b59b6\"></button>\n  </div>\n  <p>selected: <span id=\"selected-hex\">none</span></p>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n"
+    },
+    {
+      "name": "styles.css",
+      "language": "css",
+      "starterContent": "body {\n  font-family: sans-serif;\n  max-width: 400px;\n  margin: 40px auto;\n}\n\n.swatches {\n  display: flex;\n  gap: 10px;\n}\n\n.swatch {\n  width: 48px;\n  height: 48px;\n  border: 2px solid transparent;\n  border-radius: 6px;\n  cursor: pointer;\n}\n\n/* your code here: show which swatch is currently selected */\n",
+      "referenceContent": "body {\n  font-family: sans-serif;\n  max-width: 400px;\n  margin: 40px auto;\n}\n\n.swatches {\n  display: flex;\n  gap: 10px;\n}\n\n.swatch {\n  width: 48px;\n  height: 48px;\n  border: 2px solid transparent;\n  border-radius: 6px;\n  cursor: pointer;\n}\n\n.swatch.selected {\n  border-color: black;\n}\n"
+    },
+    {
+      "name": "app.js",
+      "language": "javascript",
+      "starterContent": "const swatches = document.querySelectorAll('.swatch');\nconst selectedHex = document.getElementById('selected-hex');\n\nswatches.forEach((swatch) => {\n  swatch.addEventListener('click', () => {\n    // your code here\n  });\n});\n",
+      "referenceContent": "const swatches = document.querySelectorAll('.swatch');\nconst selectedHex = document.getElementById('selected-hex');\n\nswatches.forEach((swatch) => {\n  swatch.addEventListener('click', () => {\n    swatches.forEach((s) => s.classList.remove('selected'));\n    swatch.classList.add('selected');\n    selectedHex.textContent = swatch.dataset.hex;\n  });\n});\n"
+    }
+  ],
+  "rubric": [
+    "Clicking a swatch visibly marks it as selected, e.g. with a border.",
+    "Selecting a new swatch clears the selected state from the previous one.",
+    "The hex readout updates to match whichever swatch was just clicked.",
+    "Only one swatch is ever selected at a time."
+  ],
+  "curveballs": [
+    "Actually, show the hex code in white text on top of the selected swatch instead of below the grid.",
+    "Add a sixth swatch for a color of your choosing.",
+    "Make the selected swatch grow slightly larger instead of just getting a border."
+  ],
+  "similarProblems": ["Theme Switcher", "Emoji Picker", "Rating Widget"]
+}
