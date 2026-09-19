@@ -107,6 +107,19 @@ body {
   }
 }
 
+/* The interviewer's face, snapping to a new expression (UI-DESIGN.md §6
+   semantics, mascot per CLAUDE.md's Fun tier). Keyed on the face string so it
+   only replays when the stage actually changes, not on every point of
+   impatience within a stage. */
+@keyframes hc-face-pop {
+  0% {
+    transform: scale(1.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .animate-turn-in {
   animation: hc-rise-in 200ms ease-out;
 }
@@ -127,6 +140,10 @@ body {
 
 .animate-meter-pulse {
   animation: hc-meter-pulse 1.6s ease-in-out infinite;
+}
+
+.animate-face-pop {
+  animation: hc-face-pop 220ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

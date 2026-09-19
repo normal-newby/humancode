@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { finishSession, sendRunResult, startSession } from './api/client'
-import type { SessionResponse, TelemetryItem, Utterance } from './api/types'
+import type { ReportCard, SessionResponse, TelemetryItem, Utterance } from './api/types'
 import { LiveTurn } from './components/LiveTurn'
 import type { TurnStamp } from './components/MetaLine'
+import { ReportView } from './components/ReportView'
 import { StatusLine } from './components/StatusLine'
 import { Transcript, type Entry, type PromptEntry } from './components/Transcript'
 import { useSessionStream } from './hooks/useSessionStream'
@@ -44,6 +45,8 @@ export default function App() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [armed, setArmed] = useState(false)
   const [escFlash, setEscFlash] = useState(false)
+  const [report, setReport] = useState<ReportCard | null>(null)
+  const [finishing, setFinishing] = useState(false)
 
   /** Utterances waiting behind their typing indicator. */
   const [queue, setQueue] = useState<Utterance[]>([])
@@ -121,6 +124,7 @@ export default function App() {
     try {
       const started = await startSession({})
       setSession(started)
+      setReport(null)
       const now = Date.now()
       setStartedAt(now)
       startedAtRef.current = now
@@ -286,9 +290,14 @@ export default function App() {
 
   const end = useCallback(async () => {
     if (!sessionId) return
+    setFinishing(true)
     try {
-      await finishSession(sessionId)
+      const result = await finishSession(sessionId)
+      setReport(result.report)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
+      setFinishing(false)
       setSession(null)
       setStartedAt(null)
       startedAtRef.current = null
@@ -341,6 +350,10 @@ export default function App() {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [sessionId])
+
+  if (report) {
+    return <ReportView report={report} onRestart={() => setReport(null)} />
+  }
 
   if (!session) {
     return (
@@ -401,6 +414,7 @@ export default function App() {
           impatience={stream.impatience}
           activity={running ? 'running' : typing ? 'writing' : 'idle'}
           running={running}
+          finishing={finishing}
           armed={armed}
           escFlash={escFlash}
           onSubmit={submit}

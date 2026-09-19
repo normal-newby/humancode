@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.example.humancode.interview.Utterance;
 import com.example.humancode.problem.Problem;
+import com.example.humancode.report.ReportCard;
 import com.example.humancode.telemetry.EventType;
 
 import jakarta.validation.constraints.NotNull;
@@ -26,7 +27,9 @@ public final class Dtos {
             int impatience,
             List<Utterance> transcript,
             List<String> notes,
-            boolean live) {
+            boolean live,
+            /** Only populated by {@code POST /sessions/{id}/finish}. */
+            ReportCard report) {
     }
 
     /**

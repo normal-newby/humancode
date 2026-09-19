@@ -45,6 +45,28 @@ export interface Utterance {
   canned: boolean
 }
 
+export interface ReportCardStats {
+  elapsedSeconds: number
+  charsWritten: number
+  charsDeleted: number
+  pasteCount: number
+  runCount: number
+  failedRunCount: number
+  finalImpatience: number
+  testsEverPassed: boolean
+}
+
+/** The end-of-session report — verdict, insults, begrudging compliments, similar problems. */
+export interface ReportCard {
+  verdict: string
+  insults: string[]
+  compliments: string[]
+  similarProblems: string[]
+  stats: ReportCardStats
+  /** True when the model was unavailable, failed, or got rejected by the guard. */
+  canned: boolean
+}
+
 export interface SessionResponse {
   sessionId: string
   problem: Problem
@@ -54,6 +76,8 @@ export interface SessionResponse {
   transcript: Utterance[]
   notes: string[]
   live: boolean
+  /** Only set by the response from `POST /sessions/{id}/finish`. */
+  report: ReportCard | null
 }
 
 export interface Metrics {

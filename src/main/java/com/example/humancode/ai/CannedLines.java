@@ -20,57 +20,63 @@ final class CannedLines {
     /**
      * Same voice as the model, or the fallback gives the game away: an
      * accusation from the model followed by "One line done." from here reads as
-     * two different interviewers. Every line is second person, 3 to 14 words,
-     * one sentence ending, and free of the words ReactionGuard forbids.
+     * two different interviewers. Every line is second person or dry
+     * third-observation, 3 to 14 words, one sentence ending, and free of the
+     * words ReactionGuard forbids. None of these lean on "why did you [verb]" —
+     * that shape is a complaint with a question mark on it, not a joke, and the
+     * fallback should not be blander than the model it is standing in for.
      */
     private static final Map<Trigger.Kind, List<String>> LINES = Map.ofEntries(
             Map.entry(Trigger.Kind.NO_START, List.of(
-                    "Why is the editor still empty?",
-                    "What exactly are you waiting for?",
-                    "Are you planning to type anything today?")),
+                    "The cursor has been blinking longer than you have been thinking.",
+                    "An empty editor is a bold opening statement.",
+                    "Somewhere, a cursor is aging.")),
             Map.entry(Trigger.Kind.IDLE, List.of(
-                    "Why are you still not changing anything?",
-                    "What are you staring at?",
-                    "Should I come back later?")),
+                    "The cursor is doing more work than you are.",
+                    "Silence, bold choice for a technical interview.",
+                    "You have entered a staring contest with the code.")),
             Map.entry(Trigger.Kind.PASTE_BURST, List.of(
-                    "Where did that block just come from?",
-                    "Want to explain that paste to me?",
-                    "Did you write any of that yourself?")),
+                    "That is a lot of clipboard for one candidate.",
+                    "Ctrl+V, bold opening move.",
+                    "That paste alone could sink this interview.")),
             Map.entry(Trigger.Kind.FIRST_IMPLEMENTATION, List.of(
-                    "Took you long enough to start.",
-                    "Is this finally going somewhere?",
-                    "What took you so long to begin?")),
+                    "And we are finally airborne.",
+                    "Look who decided to show up.",
+                    "Ten minutes for four characters, remarkable pace.")),
             Map.entry(Trigger.Kind.LINE_COMPLETED, List.of(
-                    "One line, seriously?",
-                    "What is that line supposed to be doing?",
-                    "Is that line earning its place?")),
+                    "One line, and already a headline.",
+                    "That line had better be worth the wait.",
+                    "A single line, delivered like breaking news.")),
             Map.entry(Trigger.Kind.SUBSTANTIAL_EDIT, List.of(
-                    "Where was all this ten minutes ago?",
-                    "Fine, but do you believe any of it?")),
+                    "Where was all this ten minutes ago.",
+                    "Suddenly productive, suspicious timing.",
+                    "That is a lot of code, arriving very late.")),
             Map.entry(Trigger.Kind.HEAVY_DELETE, List.of(
-                    "Why did you just throw that away?",
-                    "Was any of that worth keeping?")),
+                    "That code did not even get a eulogy.",
+                    "Gone, just like the last ten minutes.",
+                    "Deleted faster than it was written.")),
             Map.entry(Trigger.Kind.MASS_DELETION, List.of(
-                    "Why are you deleting more than you write?",
-                    "How many rewrites is this now?",
-                    "Do you actually have a plan here?")),
+                    "This is less coding, more demolition.",
+                    "Rewrite number four, and counting.",
+                    "You are deleting a novel at this point.")),
             Map.entry(Trigger.Kind.TESTS_FAILED, List.of(
-                    "Why are the tests still red?",
-                    "What did you think that would do?",
-                    "Did you read the failure at all?")),
+                    "Red, bold color choice.",
+                    "That is not the green we agreed on.",
+                    "The tests are not impressed either.")),
             Map.entry(Trigger.Kind.TESTS_PASSED, List.of(
-                    "Green at last, what took you?",
-                    "It works, but can you tell me why?",
-                    "Happy with how long that took?")),
+                    "Green, after all that drama.",
+                    "It works, try to act surprised.",
+                    "Passing tests, modest applause.")),
             Map.entry(Trigger.Kind.SLOW_PROGRESS, List.of(
-                    "What have you actually done so far?",
-                    "Why is this taking you so long?")));
+                    "Five minutes for this, quite the investment.",
+                    "The clock is winning right now.",
+                    "This pace could use a faster pace.")));
 
     private CannedLines() {
     }
 
     static Reaction forTrigger(Trigger trigger, int impatience, List<Utterance> transcript) {
-        List<String> options = LINES.getOrDefault(trigger.kind(), List.of("What are you doing exactly?"));
+        List<String> options = LINES.getOrDefault(trigger.kind(), List.of("That is one way to spend the time."));
         String previous = transcript.isEmpty() ? null : transcript.getLast().line();
         List<String> fresh = options.stream()
                 .filter(line -> !line.equalsIgnoreCase(previous))

@@ -20,6 +20,8 @@ import com.example.humancode.interview.SessionService;
 import com.example.humancode.interview.SessionState;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.ProblemBank;
+import com.example.humancode.report.ReportCard;
+import com.example.humancode.report.ReportCardGenerator;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +34,7 @@ public class SessionController {
     private final InterviewDirector director;
     private final ProblemBank problems;
     private final PromptAssembler prompts;
+    private final ReportCardGenerator reportCardGenerator;
     private final SseHub sse;
 
     @PostMapping("/sessions")
@@ -63,10 +66,13 @@ public class SessionController {
     public Dtos.SessionResponse finish(@PathVariable String id) {
         SessionState state = sessions.require(id);
         director.pushPhase(state, Phase.REPORT);
-        Dtos.SessionResponse response = toResponse(state);
 
-        // Report card generation lands here next; for now close the session out
-        // cleanly so the replay log and final code are persisted.
+        // Generated while the session is still live in memory — a generated
+        // problem exists only for the life of its session (CLAUDE.md §6), so
+        // similarProblems has to be read here or it is gone after sessions.end().
+        ReportCard report = reportCardGenerator.generate(state, sessions.problemFor(state));
+        Dtos.SessionResponse response = toResponse(state, report);
+
         sessions.end(state);
         prompts.forget(id);
         sse.close(id);
@@ -79,6 +85,10 @@ public class SessionController {
     }
 
     private Dtos.SessionResponse toResponse(SessionState state) {
+        return toResponse(state, null);
+    }
+
+    private Dtos.SessionResponse toResponse(SessionState state, ReportCard report) {
         return new Dtos.SessionResponse(
                 state.sessionId(),
                 sessions.problemFor(state).forCandidate(),
@@ -87,7 +97,8 @@ public class SessionController {
                 state.impatience(),
                 state.transcript(),
                 state.notes(),
-                true);
+                true,
+                report);
     }
 
     @org.springframework.web.bind.annotation.ExceptionHandler(SessionService.UnknownSessionException.class)
