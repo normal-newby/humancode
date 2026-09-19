@@ -88,13 +88,14 @@ Call these out in review. Any one of them collapses the whole concept back into 
 |---|---|
 | Split pane with a draggable divider | One column, no resize handles, nothing docked to an edge |
 | Bordered cards with rounded corners around every panel | **No borders anywhere.** Zones are separated by whitespace and contrast alone |
-| Green/yellow/red difficulty pills | Lowercase plain text: `easy`, `medium`, `hard`, in `--color-sub` |
+| Green/yellow/red difficulty pills | Lowercase plain text: `very easy`, `easy`, `medium`, `hard`, in `--color-sub` |
 | Tabs: Description / Solutions / Submissions | There is one view. There are no tabs anywhere |
 | A console drawer that slides up from the bottom | There is no test output on screen at all. The interviewer tells you — §4.7 |
 | A pass count, a failure list, a green check anywhere in the session | The run result is a signal for the model, never a readout for the candidate |
 | Dense icon toolbars | Key hints in the footer — `⏎ submit`, `^d end`. No filled buttons, no icons |
 | A big green "Accepted" banner | They say something begrudging in their next prompt. That is the reward |
-| Chat bubbles, avatars, speech tails, alternating alignment | Flush-left log lines under a `▌` or `•` marker. Nobody's terminal has bubbles |
+| Chat bubbles, speech tails, alternating alignment | Flush-left log lines under a marker in the same 1.25rem column. Nobody's terminal has bubbles |
+| A photo avatar, an emoji reaction, a vendor mark | The pixel face in §6a: drawn from the palette, in the marker column, one per prompt |
 | An input box around the editor | The editor is a `•` block, not a composer. A box makes you the user again and undoes the premise |
 | A tab **bar** — two tabs, a `+`, a close `×` | One tab, fill only, nothing to click (§4.0). One tab is a window title; two is IDE furniture |
 | Emoji anywhere in the chrome | The glyph set in §4.1 and nothing else |
@@ -224,6 +225,27 @@ column and its content hanging beside it, so `>` and `•` align all the way dow
 **Their standing prompt is pinned** to the top of the scroll container, at `--color-ink` even after
 everything else has dimmed. It is what you are still being asked and it does not go away. A `┄`
 hairline in `--color-faint` sits under it so it reads as pinned rather than as the newest line.
+
+**The pinned prompt folds itself to three lines once the session is under way.** Pinned still means
+pinned — the opening lines never leave, and a `└ the rest of it` / `└ fold it away` toggle under it
+puts the whole statement back, in `--color-faint` like any other aside. This is not decoration: the
+scroll container is what is left of the screen after a 38vh editor, about 210px on a laptop, and an
+unfolded four-sentence statement is 170px of it. Their heckles were landing in the 40px strip
+underneath, which is to say they were not landing at all.
+
+Two rules the first attempt got wrong, both found by running a session rather than by reading the
+code:
+
+- **It never folds mid-delivery.** Their first line can arrive while the statement is still typing
+  itself out (§4.6), and folding then means the candidate never reads the half they were not shown.
+  The fold waits for the typewriter to finish, however long they have been idle.
+- **The toggle only appears when something is actually hidden**, which has to be measured on the
+  `<p>` that carries the clamp. The wrapper around it reports no overflow at all, so measuring there
+  says nothing is ever clipped and the toggle never appears — which is the same bug again, minus the
+  way out.
+
+Once folded, the block's top padding drops from `pt-8` to `pt-4`: the session is under way and the
+gap above their prompt is space the log does not have.
 
 Below it the log alternates, the way an agent transcript does:
 
@@ -459,6 +481,45 @@ nothing re-types on a React re-render, which would be a nasty flicker every keys
 
 Your own turns do not type. You are typing them.
 
+### 6a. Their face
+
+Every `▌` prompt in the log is replaced by **the human's face at that moment**, a 12x12 pixel sprite
+in the same 1.25rem marker column, and the report card wears the same face at 64px above the verdict.
+
+This is the one exception to §2's ban on avatars, and §4.7 is what buys it: there is no pass count
+anywhere, and "finding out how you did by reading the interviewer's face" is the argument for
+keeping it that way. A face on every prompt is that sentence taken literally — the verdict on your
+last edit arrives as an expression, before you have read a word of the line.
+
+| Mood | Sprite | Colour |
+|---|---|---|
+| IMPRESSED | brows up, smile | `--color-calm` |
+| AMUSED | one brow up, smirk | `--color-calm` |
+| NEUTRAL | dot eyes, flat mouth | `--color-sub` |
+| IMPATIENT | brows angled, mouth a hard line | `--color-warm` |
+| EXASPERATED | brows in a V, frown | `--color-hot` |
+
+Rules it lives by:
+
+- **Drawn, never imported.** `<rect>`s on a 12x12 grid, horizontal runs merged so a face is about
+  sixteen nodes rather than a hundred and forty-four. No image file, no emoji, no vendor mark. The
+  head is `currentColor` at 0.3 and the features are the same colour at full strength, so a face is
+  one palette colour and reads as terminal rather than as cartoon.
+- **The same head in all five.** Only the brows, eyes and mouth move. Two faces a beat apart then
+  read as one person changing their mind, which is the entire effect.
+- **It dims with its block.** The newest prompt's face is in its mood colour; older ones drop to
+  `--color-faint` exactly as the `▌` they replaced always did, and only the newest one pops
+  (`animate-face-pop`).
+- **The standing prompt wears NEUTRAL.** They have not seen a line of your code when they set the
+  problem.
+- **The report card's face comes off the meter, never off the outcome.** `GeneratedReport.outcome`
+  knows whether the app actually works and deliberately never reaches the browser (CLAUDE.md §5); a
+  face driven by it would be the pass/fail badge §4.7 forbids, drawn instead of written. The
+  impatience number is already on screen, so a face that agrees with it leaks nothing new.
+- **The footer keeps its ASCII face** (§6). That one tracks the meter across eight stages in a
+  monospace row; this one is a per-message expression. They answer different questions and both are
+  cheap.
+
 ### 4.7 Test results are never shown
 
 The candidate presses `submit`. Their turn closes, and some seconds later the human answers. **They
@@ -513,16 +574,16 @@ The start screen is the only place a difficulty word appears. One question above
 
 ```
 how hard should this be
-easy   medium   hard
+very easy   easy   medium   hard
 ```
 
-The legend is `--color-faint`, the three words are `--color-sub`, and the chosen one is
+The legend is `--color-faint`, the four words are `--color-sub`, and the chosen one is
 `--color-accent` and underlined. Nothing else changes — no pill, no fill, no dot, no border, and no
 colour that means anything. §2 bans the green/yellow/red difficulty badge by name because it is the
 single most LeetCode thing a screen can wear, and a picker is exactly where it would come back in.
 
-**It is three radios under the hood**, visually hidden inside their labels, so arrow keys move between
-them and a screen reader is handed one labelled group rather than three unrelated buttons (§10). The
+**It is four radios under the hood**, visually hidden inside their labels, so arrow keys move between
+them and a screen reader is handed one labelled group rather than four unrelated buttons (§10). The
 whole `fieldset` disables while the session is starting, and the words drop to 40% — the same
 disabled treatment the `begin` link uses.
 

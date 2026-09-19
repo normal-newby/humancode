@@ -95,7 +95,7 @@ public class ProblemGenerator {
               case the obvious loop gets wrong. State the rules exactly, and state exactly what
               the printed output looks like, so there is one right answer to judge against.
             - Put malformed or edge-case entries in the sample data on purpose, and say in the
-              statement what should happen to them.
+              statement what should happen to them, unless the calibration rules them out.
             - Count the rules before you write the statement. If you cannot state all of them in
               four sentences a candidate can hold in their head, the puzzle is too big: cut one
               rather than writing a longer statement. The calibration below says how many the
@@ -317,6 +317,12 @@ public class ProblemGenerator {
 
     private static String webCalibration(Difficulty level) {
         return switch (level) {
+            case VERY_EASY -> "Very easy means one screen, one button and one line of state,"
+                    + " finishable in 3 to 5 minutes. Exactly one gap, in one file, filling one"
+                    + " function body that is three or four lines long — the HTML and CSS are"
+                    + " complete and the candidate never opens them. Do not add a second"
+                    + " requirement to make it feel more like an interview question. It is not"
+                    + " one, it is the shortest possible thing that still reacts to a click.";
             case EASY -> "Easy means one screen, one interaction and no state beyond what is on it,"
                     + " solvable in 10 to 15 minutes by a competent candidate. The gap left in the"
                     + " starter should be one handler or one rule.";
@@ -336,6 +342,12 @@ public class ProblemGenerator {
      */
     private static String pythonCalibration(Difficulty level) {
         return switch (level) {
+            case VERY_EASY -> "Very easy means ONE rule applied to one short list, finishable in 3"
+                    + " to 5 minutes: filter it, total it, or pick the winner. One function body"
+                    + " is the only gap, three or four lines long. No tie-breaks, no precedence,"
+                    + " no grouping, no malformed entries, and no second function. Say the rule in"
+                    + " one sentence. If the statement needs a second sentence to explain the"
+                    + " rules, the puzzle is too big for this level.";
             case EASY -> "Easy means one set of rules applied to one list, with no interaction"
                     + " between the rules, solvable in 10 to 15 minutes. The gap left in the"
                     + " starter is one function body.";

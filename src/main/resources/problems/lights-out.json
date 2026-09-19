@@ -1,0 +1,47 @@
+{
+  "id": "lights-out",
+  "title": "Lights Out",
+  "difficulty": "very-easy",
+  "type": "BUILD",
+  "tags": [
+    "dom",
+    "events"
+  ],
+  "statement": "The page has a lamp and one button. Wire the button so it turns the lamp on and off, and make the button read 'turn off' while the lamp is on and 'turn on' while it is off. Everything else is already written; you only touch app.js.",
+  "files": [
+    {
+      "name": "index.html",
+      "language": "html",
+      "starterContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <title>Lights Out</title>\n    <link rel=\"stylesheet\" href=\"styles.css\" />\n  </head>\n  <body>\n    <div id=\"lamp\" class=\"lamp\"></div>\n    <button id=\"toggle\" type=\"button\">turn on</button>\n    <script src=\"app.js\"></script>\n  </body>\n</html>\n",
+      "referenceContent": "<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <title>Lights Out</title>\n    <link rel=\"stylesheet\" href=\"styles.css\" />\n  </head>\n  <body>\n    <div id=\"lamp\" class=\"lamp\"></div>\n    <button id=\"toggle\" type=\"button\">turn on</button>\n    <script src=\"app.js\"></script>\n  </body>\n</html>\n"
+    },
+    {
+      "name": "styles.css",
+      "language": "css",
+      "starterContent": "body {\n  display: grid;\n  place-content: center;\n  gap: 24px;\n  min-height: 100vh;\n  margin: 0;\n  font: 16px system-ui, sans-serif;\n  background: #111;\n  color: #eee;\n}\n\n.lamp {\n  width: 120px;\n  height: 120px;\n  border-radius: 50%;\n  background: #2a2a2a;\n  transition: background 150ms ease;\n}\n\n.lamp.on {\n  background: #ffd76a;\n}\n\nbutton {\n  padding: 8px 16px;\n  border: 1px solid #444;\n  border-radius: 4px;\n  background: transparent;\n  color: inherit;\n  cursor: pointer;\n}\n",
+      "referenceContent": "body {\n  display: grid;\n  place-content: center;\n  gap: 24px;\n  min-height: 100vh;\n  margin: 0;\n  font: 16px system-ui, sans-serif;\n  background: #111;\n  color: #eee;\n}\n\n.lamp {\n  width: 120px;\n  height: 120px;\n  border-radius: 50%;\n  background: #2a2a2a;\n  transition: background 150ms ease;\n}\n\n.lamp.on {\n  background: #ffd76a;\n}\n\nbutton {\n  padding: 8px 16px;\n  border: 1px solid #444;\n  border-radius: 4px;\n  background: transparent;\n  color: inherit;\n  cursor: pointer;\n}\n"
+    },
+    {
+      "name": "app.js",
+      "language": "javascript",
+      "starterContent": "const lamp = document.getElementById('lamp')\nconst toggle = document.getElementById('toggle')\n\ntoggle.addEventListener('click', () => {\n  // your code here: switch the lamp's `on` class and update the button's label\n})\n",
+      "referenceContent": "const lamp = document.getElementById('lamp')\nconst toggle = document.getElementById('toggle')\n\ntoggle.addEventListener('click', () => {\n  const on = lamp.classList.toggle('on')\n  toggle.textContent = on ? 'turn off' : 'turn on'\n})\n"
+    }
+  ],
+  "rubric": [
+    "Clicking the button adds and removes the lamp's `on` class, so the lamp actually changes colour.",
+    "The button's label always matches the current state: 'turn off' while lit, 'turn on' while dark.",
+    "The label is derived from the state rather than tracked in a second variable that can drift out of step.",
+    "Nothing outside app.js is changed."
+  ],
+  "curveballs": [
+    "Actually, make the lamp start on when the page loads.",
+    "Add a count of how many times it has been switched.",
+    "Make the button say 'lights out' instead of 'turn off'."
+  ],
+  "similarProblems": [
+    "Dark Mode Switch",
+    "Password Visibility Toggle",
+    "Accordion Row"
+  ]
+}

@@ -79,7 +79,12 @@ final class CannedLines {
                 .toList();
         List<String> candidates = fresh.isEmpty() ? options : fresh;
         String line = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
-        return new Reaction(line, moodFor(impatience), trigger.urgency(), noteFor(trigger));
+        // NEUTRAL, always: there is no model here, so there is nothing that
+        // read the code. The fallback moves the meter the way it always did,
+        // on the trigger's own urgency, and the face follows the impatience it
+        // already has rather than claiming a judgement it did not make.
+        return new Reaction(Reaction.Verdict.NEUTRAL, line, moodFor(impatience),
+                trigger.urgency(), noteFor(trigger));
     }
 
     private static Reaction.Mood moodFor(int impatience) {

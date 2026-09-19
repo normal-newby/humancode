@@ -45,6 +45,7 @@ class ReactionGuardTest {
     }
 
     private Reaction reaction(String line) {
-        return new Reaction(line, Reaction.Mood.IMPATIENT, 5, "Watching the editor.");
+        return new Reaction(Reaction.Verdict.WRONG, line, Reaction.Mood.IMPATIENT, 5,
+                "Watching the editor.");
     }
 }

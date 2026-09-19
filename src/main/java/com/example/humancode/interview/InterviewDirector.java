@@ -68,7 +68,10 @@ public class InterviewDirector {
         // eat the diff either.
         state.markCodeSpokenFor();
 
-        int impatience = state.bumpImpatience(reaction.impatienceDelta());
+        // alignedDelta, not impatienceDelta: the meter answers to the verdict
+        // on the code, so wrong work costs them and good work earns some back
+        // even when the model returns a number that disagrees with itself.
+        int impatience = state.bumpImpatience(reaction.alignedDelta());
 
         Utterance utterance = new Utterance(
                 UUID.randomUUID().toString(),
@@ -87,8 +90,10 @@ public class InterviewDirector {
         sse.send(state.sessionId(), "utterance", utterance);
         sse.send(state.sessionId(), "meter", new MeterPayload(impatience, reaction.mood().name()));
 
-        log.info("[{}] {} -> \"{}\" (impatience {}{})", state.sessionId(), trigger.kind(),
-                reaction.line(), impatience, result.canned() ? ", canned" : "");
+        log.info("[{}] {} -> \"{}\" (verdict {}, mood {}, delta {} -> impatience {}{})",
+                state.sessionId(), trigger.kind(), reaction.line(), reaction.verdict(),
+                reaction.mood(), reaction.alignedDelta(), impatience,
+                result.canned() ? ", canned" : "");
         return Optional.of(utterance);
     }
 

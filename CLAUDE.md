@@ -25,7 +25,9 @@ Three tiers, in build order. Do not start a tier until the one above it demos en
 - Impatience meter that actually rises and changes the AI's tone.
 - Interviewer avatar whose expression escalates with impatience (use an **original mascot**, not
   a real vendor's logo — an angry-eyebrows Claude Code or OpenAI mark reads as an official product,
-  which is a headache you do not need at a demo table).
+  which is a headache you do not need at a demo table). Built twice over: the ASCII face in the
+  footer tracks the meter, and the pixel face on every prompt tracks that line's verdict on your
+  code (UI-DESIGN.md §6a).
 - Mid-task curveballs: "actually, make the button yellow instead of green", "now show a count of
   what's left".
 
@@ -409,6 +411,33 @@ Verified end to end against the live model, one session each: working code →
 shows the empty state."* (+3); barely started → *"What is this? My app does not work. I opened my cart
 to change quantities and there are no plus or minus buttons."* (+24).
 
+#### The meter answers to the code, not the clock
+
+`Reaction` carries a **`verdict`** — `GOOD`, `NEUTRAL` or `WRONG` — and it is declared **first** in
+the record for the same reason `GeneratedReport.outcome` is: structured output is generated in
+component order, so the model judges the code before it picks a tone. Put it after `line` and it
+writes a joke, then labels it.
+
+Three things hang off it, and the order matters:
+
+- **`Reaction.alignedDelta()` corrects the sign, never the size.** A `GOOD` verdict returning `+8`
+  is the model contradicting itself, and the candidate would watch the meter climb for work that
+  landed. `GOOD` caps at -1, `WRONG` floors at +1, `NEUTRAL` passes through untouched — the
+  trigger's own urgency, which is what moved the meter before any of this existed.
+  `InterviewDirector` calls `alignedDelta()`; nothing should call `impatienceDelta()` directly.
+- **`PromptAssembler.RULES` ties mood to the same judgement** — IMPATIENT or EXASPERATED on `WRONG`,
+  AMUSED or IMPRESSED on `GOOD` — because the face in the log (UI-DESIGN.md §6a) is drawn from mood.
+  The rule ends with the one line that keeps it honest: being unimpressed by working code is in
+  character, calling working code broken is not.
+- **Canned lines are always `NEUTRAL`.** There is no model in that path, so nothing read the code;
+  the fallback moves the meter on trigger urgency and takes its face from the impatience it already
+  has, rather than claiming a judgement it never made.
+
+Verified in a live session on `dev`: a handler wired to the wrong id and setting a colour →
+`verdict WRONG, mood IMPATIENT, delta 6`; the same file fixed and submitted →
+`verdict GOOD, mood AMUSED, delta -6`, and the meter went 42 down to 36. The line it dropped on the
+way past was *"Nice, toggle and label match."*
+
 Curveballs are neither of these. They cost no model call at all — see §2.
 
 ### Prompt caching
@@ -578,9 +607,18 @@ on anything else.
 
 ### Difficulty
 
-The candidate picks **easy, medium or hard** before starting; it rides on `POST /api/sessions` as
-`{"difficulty": "hard"}` and anything unrecognised, including null, means "any" — the behaviour from
-before the selector existed. `Difficulty.parse` is the one place that decides.
+The candidate picks **very easy, easy, medium or hard** before starting; it rides on
+`POST /api/sessions` as `{"difficulty": "hard"}` and anything unrecognised, including null, means
+"any" — the behaviour from before the selector existed. `Difficulty.parse` is the one place that
+decides, and it is the only place that knows `very-easy`, `very easy` and `VERY_EASY` are one level:
+the wire and the problem JSON use the hyphen, Java uses the underscore, and `label()` converts.
+
+**`VERY_EASY` is below easy on purpose and the calibration has to keep it there.** One thing to
+write, three or four lines, no second requirement — a candidate meeting the interviewer without also
+meeting a problem. Both calibrations say so explicitly, because "very easy" on its own reliably
+returns an easy problem with a smaller statement. On the Python side it also has to *countermand* an
+instruction: the prompt asks for malformed entries in the sample data, and a one-rule puzzle has no
+room for them, so that bullet defers to the calibration rather than fighting it.
 
 Two things it touches:
 
@@ -594,7 +632,12 @@ Two things it touches:
   empty rather than handing over the wrong level, and the source falls back to a bank problem *of
   that difficulty*.
 
-The bank carries at least one of each (`longest-valid-parentheses` is the hard one), so the `dev`
+Two costs that come with a fourth level: `ProblemPool` warms `pool-size` problems **per
+difficulty**, so a cold prod start now generates a third more than it did, and the bank needs a
+very-easy problem per runtime or `ProblemBank.random` falls back loudly to another level.
+`lights-out` and `late-arrivals` are those two.
+
+The bank carries at least one of each (`permissions-tree` is the hard one), so the `dev`
 profile serves every level offline. `ProblemBankTest.coversEveryDifficulty` fails if that stops being
 true.
 

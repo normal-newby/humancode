@@ -312,6 +312,7 @@ export default function App() {
             id: next.id,
             line: next.line,
             canned: next.canned,
+            mood: next.mood,
             notes: [],
           },
         ].slice(-MAX_ENTRIES),

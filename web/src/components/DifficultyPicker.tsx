@@ -9,7 +9,7 @@ interface Props {
 /**
  * What to ask them for (UI-DESIGN.md §4.8).
  *
- * <p>Three lowercase words, not pills and not a dropdown: §2 bans the coloured
+ * <p>Four lowercase words, not pills and not a dropdown: §2 bans the coloured
  * difficulty badge specifically because it is the single most LeetCode thing a
  * screen can wear. The chosen one is `--color-accent` and underlined; the rest
  * are `--color-sub`. Radios under the hood, so arrow keys work and a screen
@@ -20,7 +20,7 @@ export function DifficultyPicker({ value, onChange, disabled = false }: Props) {
     <fieldset className="mt-8" disabled={disabled}>
       <legend className="text-xs lowercase text-faint">how hard should this be</legend>
       <div className="mt-2 flex gap-5">
-        {DIFFICULTIES.map((difficulty) => {
+        {DIFFICULTIES.map(({ value: difficulty, label }) => {
           const selected = difficulty === value
           return (
             <label
@@ -37,7 +37,7 @@ export function DifficultyPicker({ value, onChange, disabled = false }: Props) {
                 onChange={() => onChange(difficulty)}
                 className="sr-only"
               />
-              {difficulty}
+              {label}
             </label>
           )
         })}
