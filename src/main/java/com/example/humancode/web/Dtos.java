@@ -15,13 +15,12 @@ public final class Dtos {
     private Dtos() {
     }
 
-    public record StartSessionRequest(String problemId, String persona, String language) {
+    public record StartSessionRequest(String problemId, String language) {
     }
 
     public record SessionResponse(
             String sessionId,
             Problem problem,
-            String persona,
             String language,
             String phase,
             int impatience,

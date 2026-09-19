@@ -35,6 +35,7 @@ public class PromptAssembler {
 
             Return one short reaction about the visible code, the lack of visible code, or time.
             Be blunt, dry, and human. Talk to the agent, not about the person.
+            Never use profanity or personal insults. Comment only on the code and the clock.
             Use one plain sentence of 3 to 12 words.
             Do not use an em dash, en dash, semicolon, colon, ellipsis, lists, or markdown.
             Do not explain, tutor, or stack several thoughts together.
@@ -44,15 +45,11 @@ public class PromptAssembler {
     private final Map<String, String> prefixCache = new ConcurrentHashMap<>();
 
     /**
-     * The stable prefix: rules, persona, problem, reference solution, rubric.
+     * The stable prefix: rules, problem, reference solution, rubric.
      * Byte-identical for every call within one session.
      */
-    public String instructions(SessionState state, Problem problem, String persona) {
+    public String instructions(SessionState state, Problem problem) {
         return prefixCache.computeIfAbsent(state.sessionId(), key -> """
-                %s
-
-                # Your persona
-
                 %s
 
                 # The problem you set
@@ -75,7 +72,6 @@ public class PromptAssembler {
                 %s
                 """.formatted(
                 RULES,
-                persona,
                 problem.title(),
                 problem.difficulty(),
                 String.join(", ", problem.tags()),

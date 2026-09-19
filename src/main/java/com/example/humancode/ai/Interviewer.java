@@ -31,7 +31,6 @@ public class Interviewer {
 
     private final OpenAiClientHolder clientHolder;
     private final PromptAssembler prompts;
-    private final PersonaLibrary personas;
     private final HumancodeProperties props;
     private final ReactionGuard reactionGuard;
 
@@ -46,11 +45,9 @@ public class Interviewer {
         }
 
         try {
-            String persona = personas.require(state.persona());
-
             StructuredResponseCreateParams<Reaction> params = ResponseCreateParams.builder()
                     .model(props.ai().quipModel())
-                    .instructions(prompts.instructions(state, problem, persona))
+                    .instructions(prompts.instructions(state, problem))
                     .input(prompts.input(state, trigger))
                     .maxOutputTokens(160L)
                     .text(Reaction.class)

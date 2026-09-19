@@ -25,7 +25,6 @@ public final class SessionState {
      * the life of its session, so there is nothing to look it up in.
      */
     private final Problem problem;
-    private final String persona;
     private final Instant startedAt;
 
     private volatile Phase phase = Phase.INTRO;
@@ -54,10 +53,9 @@ public final class SessionState {
     /** Triggers already fired, so one-shot triggers do not repeat. */
     private final List<String> firedOnce = new CopyOnWriteArrayList<>();
 
-    public SessionState(String sessionId, Problem problem, String persona, String language) {
+    public SessionState(String sessionId, Problem problem, String language) {
         this.sessionId = sessionId;
         this.problem = problem;
-        this.persona = persona;
         this.language = language;
         this.code = problem.starterCode();
         this.startedAt = Instant.now();
@@ -76,10 +74,6 @@ public final class SessionState {
 
     public String problemId() {
         return problem.id();
-    }
-
-    public String persona() {
-        return persona;
     }
 
     public Instant startedAt() {

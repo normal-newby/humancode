@@ -27,7 +27,6 @@ Three tiers, in build order. Do not start a tier until the one above it demos en
   a real vendor's logo — an angry-eyebrows Claude Code or OpenAI mark reads as an official product,
   which is a headache you do not need at a demo table).
 - Mid-task curveballs: "now handle duplicates", "actually make it O(1) space".
-- Persona selector: Senior Engineer, CS Professor, Football Coach, Startup Founder, Hostile FAANG Screener.
 
 **Stretch**
 - Passive mode: tab stays open, app pings you at random and demands you solve something.
@@ -158,7 +157,7 @@ Under `com.example.humancode`:
 ```
 interview/   Session lifecycle, SessionState, phase machine (INTRO → CODING → FOLLOWUP → REPORT)
 telemetry/   Event ingest, metric computation, TriggerEngine
-ai/          OpenAI client wrapper, PromptAssembler, personas, structured reaction types
+ai/          OpenAI client wrapper, PromptAssembler, structured reaction types
 problem/     Problem bank (JSON resources), selection, generation
 report/      End-of-session report card
 web/         REST controllers, SSE hub, DTOs
@@ -289,7 +288,7 @@ only kicks in above a token floor. The stable-prefix discipline therefore matter
 would with an explicit API:
 
 ```
-[ stable prefix ] system prompt → persona block → problem statement → reference solution → rubric
+[ stable prefix ] system prompt → problem statement → reference solution → rubric
 [ volatile tail ] current code snapshot → recent event digest → trigger that fired
 ```
 
@@ -301,7 +300,7 @@ Verify it is working: the response usage reports cached prompt tokens
 (`prompt_tokens_details.cached_tokens`). If that stays zero across consecutive quips in one session,
 something in your prefix is moving — find it before you tune anything else.
 
-Personas and problems are resource files precisely so swapping one swaps a whole cache namespace cleanly.
+Problems are resource files precisely so swapping one swaps a whole cache namespace cleanly.
 
 ### Structured outputs
 
@@ -312,8 +311,8 @@ the wiring has changed across 4.x releases.
 
 ### Prompt files
 
-Personas live in `src/main/resources/personas/*.md`, problems in `src/main/resources/problems/*.json`.
-Editing tone should never require a recompile.
+Problems live in `src/main/resources/problems/*.json`. The interviewer's voice is a single
+constant — `PromptAssembler.RULES`. There is no persona system: one voice, defined in one place.
 
 ---
 
@@ -395,7 +394,8 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 - Log every model call with its trigger reason, latency, and cache-hit counts. When the interviewer says
   something strange mid-demo you will want to know which trigger fired.
 - The interviewer's tone is smug, impatient, and funny. It is **never** genuinely cruel, and it never
-  comments on anything but the code and the clock. Persona prompts carry this constraint explicitly.
+  comments on anything but the code and the clock. `PromptAssembler.RULES` carries this constraint
+  explicitly — it is the only place the voice is defined.
 
 ---
 

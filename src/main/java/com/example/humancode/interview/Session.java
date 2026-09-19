@@ -30,9 +30,6 @@ public class Session {
     private String problemId;
 
     @Column(nullable = false)
-    private String persona;
-
-    @Column(nullable = false)
     private String language;
 
     @Enumerated(EnumType.STRING)
@@ -49,10 +46,9 @@ public class Session {
     @Lob
     private String finalCode;
 
-    public Session(String id, String problemId, String persona, String language, Instant startedAt) {
+    public Session(String id, String problemId, String language, Instant startedAt) {
         this.id = id;
         this.problemId = problemId;
-        this.persona = persona;
         this.language = language;
         this.startedAt = startedAt;
         this.phase = Phase.INTRO;

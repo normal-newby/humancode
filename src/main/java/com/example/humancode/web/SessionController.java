@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.example.humancode.ai.PersonaLibrary;
 import com.example.humancode.ai.PromptAssembler;
 import com.example.humancode.interview.InterviewDirector;
 import com.example.humancode.interview.Phase;
@@ -32,7 +31,6 @@ public class SessionController {
     private final SessionService sessions;
     private final InterviewDirector director;
     private final ProblemBank problems;
-    private final PersonaLibrary personas;
     private final PromptAssembler prompts;
     private final SseHub sse;
 
@@ -40,9 +38,9 @@ public class SessionController {
     @ResponseStatus(HttpStatus.CREATED)
     public Dtos.SessionResponse start(@RequestBody(required = false) Dtos.StartSessionRequest request) {
         Dtos.StartSessionRequest req = request == null
-                ? new Dtos.StartSessionRequest(null, null, null)
+                ? new Dtos.StartSessionRequest(null, null)
                 : request;
-        SessionState state = sessions.start(req.problemId(), req.persona(), req.language());
+        SessionState state = sessions.start(req.problemId(), req.language());
         return toResponse(state);
     }
 
@@ -80,16 +78,10 @@ public class SessionController {
         return problems.all().stream().map(Problem::forCandidate).toList();
     }
 
-    @GetMapping("/personas")
-    public List<String> personas() {
-        return personas.ids();
-    }
-
     private Dtos.SessionResponse toResponse(SessionState state) {
         return new Dtos.SessionResponse(
                 state.sessionId(),
                 sessions.problemFor(state).forCandidate(),
-                state.persona(),
                 state.language(),
                 state.phase().name(),
                 state.impatience(),

@@ -25,7 +25,6 @@ public record HumancodeProperties(Ai ai, Interview interview) {
             Duration idleThreshold,
             /** Hard floor between two interviewer utterances. Protects the joke. */
             Duration quipCooldown,
-            Duration telemetryBatchWindow,
-            String defaultPersona) {
+            Duration telemetryBatchWindow) {
     }
 }

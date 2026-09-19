@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.humancode.config.HumancodeProperties;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.ProblemSource;
 
@@ -33,7 +32,6 @@ public class SessionService {
     private final Map<String, SessionState> live = new ConcurrentHashMap<>();
     private final SessionRepository repository;
     private final ProblemSource problems;
-    private final HumancodeProperties props;
 
     @PostConstruct
     void announceSource() {
@@ -41,20 +39,17 @@ public class SessionService {
     }
 
     @Transactional
-    public SessionState start(String problemId, String persona, String language) {
+    public SessionState start(String problemId, String language) {
         Problem problem = problems.next(problemId);
 
-        String resolvedPersona = persona == null || persona.isBlank()
-                ? props.interview().defaultPersona()
-                : persona;
         String resolvedLanguage = language == null || language.isBlank() ? "javascript" : language;
 
         String id = UUID.randomUUID().toString();
-        SessionState state = new SessionState(id, problem, resolvedPersona, resolvedLanguage);
+        SessionState state = new SessionState(id, problem, resolvedLanguage);
         live.put(id, state);
 
-        repository.save(new Session(id, problem.id(), resolvedPersona, resolvedLanguage, state.startedAt()));
-        log.info("Session {} started: problem={} persona={}", id, problem.id(), resolvedPersona);
+        repository.save(new Session(id, problem.id(), resolvedLanguage, state.startedAt()));
+        log.info("Session {} started: problem={}", id, problem.id());
         return state;
     }
 

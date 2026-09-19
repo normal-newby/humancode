@@ -31,7 +31,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function startSession(options: {
   problemId?: string
-  persona?: string
   language?: string
 }): Promise<SessionResponse> {
   return request<SessionResponse>('/sessions', {
@@ -60,10 +59,6 @@ export function sendRunResult(sessionId: string, result: RunResult): Promise<Met
 
 export function finishSession(sessionId: string): Promise<SessionResponse> {
   return request<SessionResponse>(`/sessions/${sessionId}/finish`, { method: 'POST' })
-}
-
-export function listPersonas(): Promise<string[]> {
-  return request<string[]>('/personas')
 }
 
 export function streamUrl(sessionId: string): string {

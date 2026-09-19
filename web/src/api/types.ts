@@ -48,7 +48,6 @@ export interface Utterance {
 export interface SessionResponse {
   sessionId: string
   problem: Problem
-  persona: string
   language: string
   phase: Phase
   impatience: number
