@@ -57,7 +57,7 @@ export function ReportView({ report, onRestart }: Props) {
         {/* What the process did. Codex signs off with its own usage; this is
             that line, and it is the only place the numbers appear. */}
         <Block marker="•" tone="text-faint">
-          <p className="text-[15px] leading-relaxed text-sub">codex exited</p>
+          <p className="text-[15px] leading-relaxed text-sub">gpdetox exited</p>
           <MetaLine stamp={stamp} live />
           <Result>{submitLine}</Result>
         </Block>

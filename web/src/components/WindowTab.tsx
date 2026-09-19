@@ -1,5 +1,5 @@
 /** Where the whole session pretends to be running. Shown beside the tab. */
-export const CWD = '~/interviews/you'
+export const CWD = '~/gpdetox/you'
 
 interface Props {
   /**
@@ -14,8 +14,8 @@ interface Props {
  *
  * <p>Every screen in the app sits under it, which is the point: the start
  * screen, the prelude, the interview and the report card are not four pages,
- * they are one terminal that someone left open. It is the only piece of chrome
- * in the app and it is the only place the sponsor's name is spelled out.
+ * they are one terminal that someone left open. It is the one persistent piece
+ * of product identity.
  *
  * <p>It is a tab by fill alone — `--color-surface` against the canvas, flush
  * left, no border, no radius, no close affordance and nothing to click. §2
@@ -27,10 +27,8 @@ export function WindowTab({ status }: Props) {
   return (
     <div className="flex w-full shrink-0 items-center gap-3 pr-4 text-[11px] lowercase select-none">
       <span className="flex items-center gap-2 bg-surface px-3 py-1.5">
-        <span aria-hidden className="text-accent">
-          ▌
-        </span>
-        <span className="text-ink">openai codex</span>
+        <img src="/brand/gpdetox-mark-white.svg" alt="" aria-hidden className="h-3.5 w-3.5" />
+        <span className="text-ink">gpdetox</span>
       </span>
       <span className="truncate text-faint">
         {CWD}
