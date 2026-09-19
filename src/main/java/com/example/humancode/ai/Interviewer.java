@@ -111,8 +111,8 @@ public class Interviewer {
      * the model decides <em>what</em> is said only when it actually has to.
      */
     private Result curveball(Trigger trigger) {
-        Reaction reaction = new Reaction(trigger.detail(), Reaction.Mood.AMUSED,
-                trigger.urgency(), "Sprung a curveball.");
+        Reaction reaction = new Reaction(Reaction.Verdict.NEUTRAL, trigger.detail(),
+                Reaction.Mood.AMUSED, trigger.urgency(), "Sprung a curveball.");
         return new Result(reaction, false);
     }
 

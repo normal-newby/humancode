@@ -1,0 +1,36 @@
+{
+  "id": "late-arrivals",
+  "title": "Late Arrivals",
+  "difficulty": "very-easy",
+  "type": "BUILD",
+  "tags": [
+    "python",
+    "filtering",
+    "lists"
+  ],
+  "statement": "A list of arrival times in minutes past the hour is already in the file. Fill in `late_arrivals` so it returns the names of everyone who arrived after minute 5, in the order they appear, and `main` prints them one per line. Nothing else changes.",
+  "files": [
+    {
+      "name": "late_arrivals.py",
+      "language": "python",
+      "starterContent": "ARRIVALS = [\n    {\"name\": \"Ada\", \"minute\": 2},\n    {\"name\": \"Grace\", \"minute\": 9},\n    {\"name\": \"Alan\", \"minute\": 5},\n    {\"name\": \"Katherine\", \"minute\": 17},\n    {\"name\": \"Linus\", \"minute\": 0},\n]\n\n\ndef late_arrivals(arrivals):\n    \"\"\"Return the names of everyone whose minute is greater than 5, in order.\"\"\"\n    # your code here\n\n\ndef main():\n    for name in late_arrivals(ARRIVALS):\n        print(name)\n\n\nif __name__ == \"__main__\":\n    main()\n",
+      "referenceContent": "ARRIVALS = [\n    {\"name\": \"Ada\", \"minute\": 2},\n    {\"name\": \"Grace\", \"minute\": 9},\n    {\"name\": \"Alan\", \"minute\": 5},\n    {\"name\": \"Katherine\", \"minute\": 17},\n    {\"name\": \"Linus\", \"minute\": 0},\n]\n\n\ndef late_arrivals(arrivals):\n    \"\"\"Return the names of everyone whose minute is greater than 5, in order.\"\"\"\n    return [arrival[\"name\"] for arrival in arrivals if arrival[\"minute\"] > 5]\n\n\ndef main():\n    for name in late_arrivals(ARRIVALS):\n        print(name)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+    }
+  ],
+  "rubric": [
+    "Only arrivals after minute 5 are returned, so Alan at exactly 5 is not late.",
+    "The original order is preserved and the names are returned, not the whole records.",
+    "A list of names is returned rather than printed from inside the function, so main still does the printing.",
+    "The sample data and main are left as they are."
+  ],
+  "curveballs": [
+    "Actually, count minute 5 as late too.",
+    "Print how many were late on the last line.",
+    "Return them in alphabetical order instead."
+  ],
+  "similarProblems": [
+    "Overdue Books",
+    "Passing Scores",
+    "Unread Messages"
+  ]
+}

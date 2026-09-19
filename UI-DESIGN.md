@@ -94,7 +94,8 @@ Call these out in review. Any one of them collapses the whole concept back into 
 | A pass count, a failure list, a green check anywhere in the session | The run result is a signal for the model, never a readout for the candidate |
 | Dense icon toolbars | Key hints in the footer — `⏎ submit`, `^d end`. No filled buttons, no icons |
 | A big green "Accepted" banner | They say something begrudging in their next prompt. That is the reward |
-| Chat bubbles, avatars, speech tails, alternating alignment | Flush-left log lines under a `▌` or `•` marker. Nobody's terminal has bubbles |
+| Chat bubbles, speech tails, alternating alignment | Flush-left log lines under a marker in the same 1.25rem column. Nobody's terminal has bubbles |
+| A photo avatar, an emoji reaction, a vendor mark | The pixel face in §6a: drawn from the palette, in the marker column, one per prompt |
 | An input box around the editor | The editor is a `•` block, not a composer. A box makes you the user again and undoes the premise |
 | A tab **bar** — two tabs, a `+`, a close `×` | One tab, fill only, nothing to click (§4.0). One tab is a window title; two is IDE furniture |
 | Emoji anywhere in the chrome | The glyph set in §4.1 and nothing else |
@@ -479,6 +480,45 @@ Only prompts that arrive while you are watching type. One already on screen re-r
 nothing re-types on a React re-render, which would be a nasty flicker every keystroke.
 
 Your own turns do not type. You are typing them.
+
+### 6a. Their face
+
+Every `▌` prompt in the log is replaced by **the human's face at that moment**, a 12x12 pixel sprite
+in the same 1.25rem marker column, and the report card wears the same face at 64px above the verdict.
+
+This is the one exception to §2's ban on avatars, and §4.7 is what buys it: there is no pass count
+anywhere, and "finding out how you did by reading the interviewer's face" is the argument for
+keeping it that way. A face on every prompt is that sentence taken literally — the verdict on your
+last edit arrives as an expression, before you have read a word of the line.
+
+| Mood | Sprite | Colour |
+|---|---|---|
+| IMPRESSED | brows up, smile | `--color-calm` |
+| AMUSED | one brow up, smirk | `--color-calm` |
+| NEUTRAL | dot eyes, flat mouth | `--color-sub` |
+| IMPATIENT | brows angled, mouth a hard line | `--color-warm` |
+| EXASPERATED | brows in a V, frown | `--color-hot` |
+
+Rules it lives by:
+
+- **Drawn, never imported.** `<rect>`s on a 12x12 grid, horizontal runs merged so a face is about
+  sixteen nodes rather than a hundred and forty-four. No image file, no emoji, no vendor mark. The
+  head is `currentColor` at 0.3 and the features are the same colour at full strength, so a face is
+  one palette colour and reads as terminal rather than as cartoon.
+- **The same head in all five.** Only the brows, eyes and mouth move. Two faces a beat apart then
+  read as one person changing their mind, which is the entire effect.
+- **It dims with its block.** The newest prompt's face is in its mood colour; older ones drop to
+  `--color-faint` exactly as the `▌` they replaced always did, and only the newest one pops
+  (`animate-face-pop`).
+- **The standing prompt wears NEUTRAL.** They have not seen a line of your code when they set the
+  problem.
+- **The report card's face comes off the meter, never off the outcome.** `GeneratedReport.outcome`
+  knows whether the app actually works and deliberately never reaches the browser (CLAUDE.md §5); a
+  face driven by it would be the pass/fail badge §4.7 forbids, drawn instead of written. The
+  impatience number is already on screen, so a face that agrees with it leaks nothing new.
+- **The footer keeps its ASCII face** (§6). That one tracks the meter across eight stages in a
+  monospace row; this one is a per-message expression. They answer different questions and both are
+  cheap.
 
 ### 4.7 Test results are never shown
 

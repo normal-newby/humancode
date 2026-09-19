@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { MetaLine, type TurnStamp } from './MetaLine'
 import { TypedText } from './TypedText'
 import { TypingIndicator } from './TypingIndicator'
-import type { ProblemType } from '../api/types'
+import { PixelFace } from './PixelFace'
+import type { Mood, ProblemType } from '../api/types'
 
 /** A prompt from the human on the other side. */
 export interface PromptEntry {
@@ -10,6 +11,8 @@ export interface PromptEntry {
   id: string
   line: string
   canned: boolean
+  /** The face they were wearing when they sent it (§6a). */
+  mood: Mood
   /** What they jotted down while you worked. */
   notes: string[]
 }
@@ -37,11 +40,26 @@ interface Props {
   connected: boolean
 }
 
-/** A block: a marker in the left column, content hanging-indented beside it. */
-export function Block({ marker, tone, children }: { marker: string; tone: string; children: ReactNode }) {
+/**
+ * A block: a marker in the left column, content hanging-indented beside it.
+ *
+ * <p>`marker` is a node rather than a character because one of them is a face
+ * (§6a). It still occupies the same 1.25rem column as every `▌` and `•`, so
+ * the log stays aligned all the way down and the face reads as the marker for
+ * that block rather than as an avatar bolted onto it.
+ */
+export function Block({
+  marker,
+  tone,
+  children,
+}: {
+  marker: ReactNode
+  tone: string
+  children: ReactNode
+}) {
   return (
     <div className="grid grid-cols-[1.25rem_1fr] gap-x-2">
-      <span aria-hidden className={tone}>
+      <span aria-hidden={typeof marker === 'string'} className={tone}>
         {marker}
       </span>
       <div className="min-w-0">{children}</div>
@@ -73,7 +91,20 @@ function Prompt({ entry, newest, onTick }: { entry: PromptEntry; newest: boolean
 
   return (
     <div className={newest ? 'animate-turn-in' : 'dimmable'}>
-      <Block marker="▌" tone={newest ? 'text-accent' : 'text-faint'}>
+      {/* Their face is the marker while the line is theirs to answer for; once
+          it is old news it recedes to `--color-faint` the way the `▌` it
+          replaced always did. */}
+      <Block
+        marker={
+          <PixelFace
+            mood={entry.mood}
+            className="mt-[0.2rem] h-4 w-4"
+            tone={newest ? undefined : 'text-faint'}
+            animate={newest}
+          />
+        }
+        tone={newest ? 'text-accent' : 'text-faint'}
+      >
         <TypedText
           text={entry.line}
           animate={animate}
@@ -209,7 +240,12 @@ export function Transcript({ statement, type, entries, incoming, connected }: Pr
             collapsed ? 'pt-4' : 'pt-8'
           }`}
         >
-          <Block marker="▌" tone="text-faint">
+          {/* They have not seen a line of your code yet, so the opening face is
+              the one they set the problem with. */}
+          <Block
+            marker={<PixelFace mood="NEUTRAL" className="mt-[0.2rem] h-4 w-4" tone="text-faint" />}
+            tone="text-faint"
+          >
             <div ref={statementRef} className={collapsed ? 'overflow-hidden' : undefined}>
               {/* The clamp is spelled out, not built from COLLAPSED_LINES:
                   Tailwind scans source text, and a class it never sees written

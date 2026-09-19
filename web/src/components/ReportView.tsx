@@ -3,6 +3,7 @@ import type { ReportCard } from '../api/types'
 import { MetaLine, type TurnStamp } from './MetaLine'
 import { Block, Result } from './Transcript'
 import { TypedText } from './TypedText'
+import { PixelFace, moodForImpatience } from './PixelFace'
 import { BOOT_COMMAND } from './BootSequence'
 import { WindowTab } from './WindowTab'
 
@@ -35,6 +36,8 @@ interface Props {
 export function ReportView({ report, onRestart }: Props) {
   const [verdictDone, setVerdictDone] = useState(false)
   const { stats } = report
+  // Off the meter, never off the outcome — see PixelFace.moodForImpatience.
+  const mood = moodForImpatience(stats.finalImpatience)
 
   const stamp: TurnStamp = {
     elapsedSeconds: stats.elapsedSeconds,
@@ -62,9 +65,17 @@ export function ReportView({ report, onRestart }: Props) {
           <Result>{submitLine}</Result>
         </Block>
 
-        {/* What they made of it. */}
-        <div className="mt-6">
-          <Block marker="▌" tone="text-accent">
+        {/* What they made of it. The face lands before the sentence does,
+            which is the same order it happens in a room. */}
+        <div className="mt-8 animate-turn-in">
+          <PixelFace mood={mood} className="h-16 w-16" animate />
+        </div>
+
+        <div className="mt-4">
+          <Block
+            marker={<PixelFace mood={mood} className="mt-[0.2rem] h-4 w-4" />}
+            tone="text-accent"
+          >
             <TypedText
               text={report.verdict}
               animate
