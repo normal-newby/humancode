@@ -361,6 +361,38 @@ in words.
 
 ---
 
+### 4.8 What they ask you for, before it starts
+
+The start screen is the only place a difficulty word appears. One question above the `begin` link:
+
+```
+how hard should this be
+easy   medium   hard
+```
+
+The legend is `--color-faint`, the three words are `--color-sub`, and the chosen one is
+`--color-accent` and underlined. Nothing else changes — no pill, no fill, no dot, no border, and no
+colour that means anything. §2 bans the green/yellow/red difficulty badge by name because it is the
+single most LeetCode thing a screen can wear, and a picker is exactly where it would come back in.
+
+**It is three radios under the hood**, visually hidden inside their labels, so arrow keys move between
+them and a screen reader is handed one labelled group rather than three unrelated buttons (§10). The
+whole `fieldset` disables while the session is starting, and the words drop to 40% — the same
+disabled treatment the `begin` link uses.
+
+`medium` is preselected. A default of "any" would be more honest about what the server does with a
+null, but the picker is a question being asked of the candidate, and a question with nothing chosen
+reads as a form to fill in rather than an interviewer's opening.
+
+**The choice does not follow them into the session.** It rides on `POST /api/sessions`, and after
+that the word is gone: the footer never shows it (§5) and no prompt repeats it. What they chose is
+visible only in how hard the thing they were handed turns out to be.
+
+The picker keeps its value across sessions, so ending one with `^d` and starting another lands you on
+the same level without re-answering. Raising the stakes should be a deliberate click.
+
+---
+
 ## 5. The meta line
 
 The centrepiece, and the thing most likely to get watered down by someone who reads it as decoration.
@@ -548,6 +580,7 @@ Implemented. Recorded here so the intent survives the next refactor:
 | *new* `TypingIndicator.tsx` | §4.4. Their `>` and a blinking `▍` at the tail of the log. |
 | `MetaLine.tsx` | §5. Per-turn deltas, frozen when the turn closes; the `live` variant counts the turn in progress. |
 | `StatusLine.tsx` | §4.5. `✻ word… (clock · totals)`, the meter, `⏎ submit`, `^d end`, and the `esc` tell. |
+| `DifficultyPicker.tsx` | §4.8. Three lowercase words on the start screen, radios under the hood. The only difficulty word in the app. |
 | `ImpatienceMeter.tsx` | §6. Masked gradient, `96×8`, labelled `human impatience`; pulse on the number. |
 | `EditorPane.tsx` | Monaco with no border and no fill, background matched to `--color-canvas`. `ctrl+enter` submits. |
 | `TypedText.tsx` + `hooks/useTypewriter.ts` | §4.6. The hook owns pacing and the reduced-motion escape; the component owns the caret and the `sr-only` full text. |

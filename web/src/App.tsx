@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { finishSession, sendRunResult, startSession } from './api/client'
-import type { ReportCard, SessionResponse, TelemetryItem, Utterance } from './api/types'
-import type { Difficulty, SessionResponse, TelemetryItem, Utterance } from './api/types'
+import type {
+  Difficulty,
+  ReportCard,
+  SessionResponse,
+  TelemetryItem,
+  Utterance,
+} from './api/types'
 import { DifficultyPicker } from './components/DifficultyPicker'
 import { LiveTurn } from './components/LiveTurn'
 import type { TurnStamp } from './components/MetaLine'
@@ -149,7 +154,7 @@ export default function App() {
     } finally {
       setStarting(false)
     }
-  }, [])
+  }, [difficulty])
 
   // Local clock: telemetry only flushes when there are events, so the server's
   // elapsed count stalls the moment you stop typing — which is exactly when the
