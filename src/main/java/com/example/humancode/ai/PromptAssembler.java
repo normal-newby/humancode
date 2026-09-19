@@ -223,8 +223,10 @@ public class PromptAssembler {
 
                 The one-sentence shape rule from the rules above applies to each insult and
                 compliment line, not to the verdict — the verdict may run two to three
-                sentences. Judge the whole session, not just the final buffer. Do not repeat
-                any line you already said live during the session.
+                sentences. Judge the whole session, not just the final buffer. Before writing,
+                silently check every rubric item against the final files. A partial submission
+                must be judged as partial, and submitting alone earns no compliment. Do not
+                repeat any line you already said live during the session.
                 """.formatted(
                 renderCurrentFiles(state),
                 allLines(state),
