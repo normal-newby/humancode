@@ -33,6 +33,7 @@ public class Interviewer {
     private final PromptAssembler prompts;
     private final PersonaLibrary personas;
     private final HumancodeProperties props;
+    private final ReactionGuard reactionGuard;
 
     /**
      * Never throws and never returns empty — a session that goes silent because
@@ -41,7 +42,7 @@ public class Interviewer {
     public Result react(SessionState state, Problem problem, Trigger trigger) {
         Optional<OpenAIClient> client = clientHolder.client();
         if (client.isEmpty()) {
-            return new Result(CannedLines.forTrigger(trigger, state.impatience()), true);
+            return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
         }
 
         try {
@@ -51,7 +52,7 @@ public class Interviewer {
                     .model(props.ai().quipModel())
                     .instructions(prompts.instructions(state, problem, persona))
                     .input(prompts.input(state, trigger))
-                    .maxOutputTokens(2000L)
+                    .maxOutputTokens(160L)
                     .text(Reaction.class)
                     .build();
 
@@ -67,7 +68,12 @@ public class Interviewer {
 
             if (reaction.isEmpty()) {
                 log.warn("Model returned no structured reaction for trigger {}", trigger.kind());
-                return new Result(CannedLines.forTrigger(trigger, state.impatience()), true);
+                return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
+            }
+
+            if (!reactionGuard.isSafe(reaction.get())) {
+                log.warn("Rejected an unsafe model reaction for trigger {}", trigger.kind());
+                return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
             }
 
             logUsage(response, trigger, millis);
@@ -76,7 +82,7 @@ public class Interviewer {
         } catch (RuntimeException e) {
             log.warn("Quip call failed for trigger {} ({}); falling back to a canned line",
                     trigger.kind(), e.toString());
-            return new Result(CannedLines.forTrigger(trigger, state.impatience()), true);
+            return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
         }
     }
 

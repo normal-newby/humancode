@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
+import com.example.humancode.interview.Utterance;
 import com.example.humancode.telemetry.Trigger;
 
 /**
@@ -18,54 +19,58 @@ final class CannedLines {
 
     private static final Map<Trigger.Kind, List<String>> LINES = Map.ofEntries(
             Map.entry(Trigger.Kind.NO_START, List.of(
-                    "The problem's been up for a while. The editor is still empty. Just noting that.",
-                    "Take your time. I've only got the rest of the afternoon.",
-                    "Blank file. Bold opening move.")),
+                    "The editor is still empty.",
+                    "Time is passing.",
+                    "Start working now.")),
             Map.entry(Trigger.Kind.IDLE, List.of(
-                    "Still with me?",
-                    "That cursor hasn't moved in a while. Thinking, or stuck?",
-                    "I can hear the clock from here.",
-                    "Silence is a strategy, I suppose.")),
+                    "Still staring at it?",
+                    "The cursor is bored.",
+                    "You stopped moving.")),
             Map.entry(Trigger.Kind.PASTE_BURST, List.of(
-                    "That appeared very quickly for something you typed.",
-                    "Interesting. You paste faster than you type.",
-                    "I saw that.")),
+                    "That paste was loud.",
+                    "I saw the paste.",
+                    "Very fast typing.")),
             Map.entry(Trigger.Kind.FIRST_IMPLEMENTATION, List.of(
-                    "An implementation. At last.",
-                    "Actual code. We have movement.",
-                    "A plan has entered the editor. Promising.")),
+                    "Actual code finally.",
+                    "Something is happening.",
+                    "There we go.")),
             Map.entry(Trigger.Kind.LINE_COMPLETED, List.of(
-                    "A complete thought. Keep going.",
-                    "One line at a time. Revolutionary.",
-                    "That line has opinions. I respect that.")),
+                    "One line done.",
+                    "Keep it moving.",
+                    "That line exists now.")),
             Map.entry(Trigger.Kind.SUBSTANTIAL_EDIT, List.of(
-                    "That was a meaningful chunk of code.",
-                    "Momentum. Let's see whether it survives the tests.")),
+                    "That is more like it.",
+                    "You finally moved.")),
             Map.entry(Trigger.Kind.HEAVY_DELETE, List.of(
-                    "That was a lot of code to throw away at once.",
-                    "Large deletion. New plan, or less plan?")),
+                    "That was a large delete.",
+                    "New plan now?")),
             Map.entry(Trigger.Kind.MASS_DELETION, List.of(
-                    "Third rewrite. Is the plan coming together or going away?",
-                    "You've deleted more than you've written. Bold.",
-                    "Ctrl+A is not an algorithm.")),
+                    "You deleted more than you wrote.",
+                    "Another rewrite now?",
+                    "That was a lot of deleting.")),
             Map.entry(Trigger.Kind.TESTS_FAILED, List.of(
-                    "Red. Again.",
-                    "Not quite. Read the failing case out loud, it usually helps.",
+                    "Tests are still red.",
+                    "Tests say no.",
                     "The tests disagree with you.")),
             Map.entry(Trigger.Kind.TESTS_PASSED, List.of(
                     "Green. I'll allow it.",
-                    "It passes. Now tell me the complexity.",
-                    "Fine. That works. Don't look so pleased.")),
+                    "It finally passes.",
+                    "Fine that works.")),
             Map.entry(Trigger.Kind.SLOW_PROGRESS, List.of(
-                    "Five minutes, and not much on the board.",
-                    "We're a third of the way through the time and a tenth of the way through the problem.")));
+                    "Five minutes already.",
+                    "Not much to show.")));
 
     private CannedLines() {
     }
 
-    static Reaction forTrigger(Trigger trigger, int impatience) {
+    static Reaction forTrigger(Trigger trigger, int impatience, List<Utterance> transcript) {
         List<String> options = LINES.getOrDefault(trigger.kind(), List.of("Carry on."));
-        String line = options.get(ThreadLocalRandom.current().nextInt(options.size()));
+        String previous = transcript.isEmpty() ? null : transcript.getLast().line();
+        List<String> fresh = options.stream()
+                .filter(line -> !line.equalsIgnoreCase(previous))
+                .toList();
+        List<String> candidates = fresh.isEmpty() ? options : fresh;
+        String line = candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
         return new Reaction(line, moodFor(impatience), trigger.urgency(), noteFor(trigger));
     }
 

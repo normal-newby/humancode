@@ -13,9 +13,11 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 public record Reaction(
 
         @JsonPropertyDescription("""
-                What the interviewer says out loud. One or two sentences, maximum 200 \
-                characters. In character, dry, and specific to what the candidate just \
-                did. Never explain the solution.""")
+                What the interviewer says out loud. One plain sentence of 3 to 12 words, \
+                maximum 120 characters. Dry and specific to the visible code or clock. \
+                Never give code, solution steps, algorithms, data structures, test advice, \
+                or a next action. Do not use em dashes, en dashes, semicolons, colons, \
+                ellipses, markdown, or lists.""")
         String line,
 
         @JsonPropertyDescription("The interviewer's current mood, which drives the avatar and the meter.")

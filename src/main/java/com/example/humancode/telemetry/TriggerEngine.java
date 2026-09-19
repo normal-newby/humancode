@@ -45,14 +45,17 @@ public class TriggerEngine {
 
         Duration idleThreshold = props.interview().idleThreshold();
 
-        // One-shot: they have been handed a problem and have not started.
-        if (state.phase() == Phase.INTRO
-                && state.elapsed().compareTo(idleThreshold) > 0
-                && state.fireOnce("no-start")) {
-            return Optional.of(Trigger.of(Trigger.Kind.NO_START,
-                    "Candidate has not typed a single character since the problem was delivered %d seconds ago."
-                            .formatted(state.elapsed().toSeconds()),
-                    15));
+        // Re-arm every threshold-length window. An untouched editor should not
+        // receive one opening jab and then an hour of silence.
+        if (state.phase() == Phase.INTRO && state.elapsed().compareTo(idleThreshold) > 0) {
+            long seconds = state.elapsed().toSeconds();
+            String key = "no-start-" + (seconds / Math.max(1, idleThreshold.toSeconds()));
+            if (state.fireOnce(key)) {
+                return Optional.of(Trigger.of(Trigger.Kind.NO_START,
+                        "Candidate has not typed a single character since the problem was delivered %d seconds ago."
+                                .formatted(seconds),
+                        15));
+            }
         }
 
         // Thrashing: deleting much more than writing.

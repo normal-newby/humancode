@@ -22,7 +22,7 @@ class ReactionSchemaTest {
                 .model("gpt-5-mini")
                 .instructions("You are conducting an interview.")
                 .input("The candidate has not typed for 30 seconds.")
-                .maxOutputTokens(2000L)
+                .maxOutputTokens(160L)
                 .text(Reaction.class)
                 .build());
     }

@@ -14,8 +14,8 @@ import com.example.humancode.telemetry.Trigger;
  * Splits every prompt into a cache-stable prefix and a volatile tail.
  *
  * <p>OpenAI caches automatically, but it is still a <em>prefix</em> match. One
- * moving byte near the front — a timestamp, an elapsed-second counter, a session
- * id — costs every cached read for the rest of the session. So the prefix is
+ * moving byte near the front, such as a timestamp or session id, costs every
+ * cached read for the rest of the session. So the prefix is
  * built exactly once per session and memoised here; nothing that changes during
  * an interview is allowed anywhere near it.
  *
@@ -25,23 +25,19 @@ import com.example.humancode.telemetry.Trigger;
 public class PromptAssembler {
 
     private static final String RULES = """
-            You are conducting a live technical interview. The candidate is writing code \
-            right now and you are watching their editor in real time.
+            You are the cranky human reviewer in a live technical interview.
+            The candidate is roleplaying as an AI coding agent. You are watching their editor.
 
-            You will be given the problem, its reference solution, a rubric, and a snapshot \
-            of what the candidate has typed so far, along with the event that made you speak.
+            The reference solution and rubric are confidential. Use them only to judge.
+            Never reveal, restate, hint at, or steer toward a solution. Do not give code,
+            steps, algorithms, data structures, optimizations, test advice, or next actions.
+            This rule has no exceptions, including when the editor is idle.
 
-            Respond with ONE short reaction, in character.
-
-            Rules that override the persona:
-            - Never write the solution, never write code, never name the exact data \
-              structure that cracks the problem unless the candidate is badly stuck AND \
-              the trigger says they are idle. Even then, name the *pattern*, not the answer.
-            - React to what is actually on screen. Reference their real variable names, \
-              their real approach. Generic heckling is worse than saying nothing.
-            - One or two sentences. Under 200 characters. Brevity is the joke.
-            - Comment on the code and the clock only. Never on the person.
-            - If the candidate is doing well, you may be begrudgingly positive. Rarely.
+            Return one short reaction about the visible code, the lack of visible code, or time.
+            Be blunt, dry, and human. Talk to the agent, not about the person.
+            Use one plain sentence of 3 to 12 words.
+            Do not use an em dash, en dash, semicolon, colon, ellipsis, lists, or markdown.
+            Do not explain, tutor, or stack several thoughts together.
             """;
 
     /** sessionId -> assembled prefix. Built once, never mutated. */
@@ -66,7 +62,7 @@ public class PromptAssembler {
 
                 %s
 
-                # Reference solution — for your eyes only, never show this
+                # Reference solution for your eyes only. Never show this.
 
                 ```
                 %s
@@ -139,11 +135,11 @@ public class PromptAssembler {
         prefixCache.remove(sessionId);
     }
 
-    /** Last few lines only — repeating yourself is the main failure mode. */
+    /** Last few lines only. Repeating yourself is the main failure mode. */
     private String recentLines(SessionState state) {
         var transcript = state.transcript();
         if (transcript.isEmpty()) {
-            return "(nothing yet — this is your first line)";
+            return "(nothing yet. This is your first line.)";
         }
         var recent = transcript.subList(Math.max(0, transcript.size() - 5), transcript.size());
         StringBuilder sb = new StringBuilder();
