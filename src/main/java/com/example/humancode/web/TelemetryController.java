@@ -20,6 +20,8 @@ import com.example.humancode.telemetry.TelemetryEvent;
 import com.example.humancode.telemetry.TelemetryEventRepository;
 import com.example.humancode.telemetry.TriggerEngine;
 
+import lombok.RequiredArgsConstructor;
+
 import jakarta.validation.Valid;
 
 /**
@@ -29,6 +31,7 @@ import jakarta.validation.Valid;
  * replay log, and evaluates only the event-driven triggers (paste, test run).
  * Timer-driven triggers are the director's job.
  */
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/sessions/{id}")
 public class TelemetryController {
@@ -37,14 +40,6 @@ public class TelemetryController {
     private final TelemetryEventRepository events;
     private final TriggerEngine triggers;
     private final InterviewDirector director;
-
-    public TelemetryController(SessionService sessions, TelemetryEventRepository events,
-            TriggerEngine triggers, InterviewDirector director) {
-        this.sessions = sessions;
-        this.events = events;
-        this.triggers = triggers;
-        this.director = director;
-    }
 
     @PostMapping("/telemetry")
     @ResponseStatus(HttpStatus.ACCEPTED)

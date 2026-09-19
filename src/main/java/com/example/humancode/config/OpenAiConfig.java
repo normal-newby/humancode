@@ -2,8 +2,6 @@ package com.example.humancode.config;
 
 import java.time.Duration;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
@@ -11,10 +9,11 @@ import org.springframework.util.StringUtils;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Configuration
 public class OpenAiConfig {
-
-    private static final Logger log = LoggerFactory.getLogger(OpenAiConfig.class);
 
     /**
      * One client for the whole application — it is thread-safe and holds a

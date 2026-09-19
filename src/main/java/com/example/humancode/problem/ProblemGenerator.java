@@ -7,8 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.example.humancode.config.HumancodeProperties;
@@ -18,13 +16,16 @@ import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.StructuredResponse;
 import com.openai.models.responses.StructuredResponseCreateParams;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import tools.jackson.databind.ObjectMapper;
 
 /** Asks the model for a fresh problem, complete with runnable test cases. */
+@Slf4j
+@RequiredArgsConstructor
 @Component
 public class ProblemGenerator {
-
-    private static final Logger log = LoggerFactory.getLogger(ProblemGenerator.class);
 
     private static final String INSTRUCTIONS = """
             You write coding-interview problems for a JavaScript interview practice tool.
@@ -53,12 +54,6 @@ public class ProblemGenerator {
     private final OpenAiClientHolder clientHolder;
     private final HumancodeProperties props;
     private final ObjectMapper mapper;
-
-    public ProblemGenerator(OpenAiClientHolder clientHolder, HumancodeProperties props, ObjectMapper mapper) {
-        this.clientHolder = clientHolder;
-        this.props = props;
-        this.mapper = mapper;
-    }
 
     /** @return empty if generation is unavailable or produced something unusable. */
     public Optional<Problem> generate() {

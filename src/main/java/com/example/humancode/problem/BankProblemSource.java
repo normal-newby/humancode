@@ -3,16 +3,15 @@ package com.example.humancode.problem;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import lombok.RequiredArgsConstructor;
+
 /** The curated, hand-checked bank. Default, and what dev should use. */
 @Component
 @ConditionalOnProperty(name = "humancode.problems.source", havingValue = "bank", matchIfMissing = true)
+@RequiredArgsConstructor
 public class BankProblemSource implements ProblemSource {
 
     private final ProblemBank bank;
-
-    public BankProblemSource(ProblemBank bank) {
-        this.bank = bank;
-    }
 
     @Override
     public Problem next(String id) {

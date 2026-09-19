@@ -2,6 +2,11 @@ package com.example.humancode.interview;
 
 import java.time.Instant;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,6 +18,9 @@ import jakarta.persistence.Table;
 /** The durable record of a session. Written at phase transitions and at the end. */
 @Entity
 @Table(name = "sessions")
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA
 public class Session {
 
     @Id
@@ -41,10 +49,6 @@ public class Session {
     @Lob
     private String finalCode;
 
-    protected Session() {
-        // JPA
-    }
-
     public Session(String id, String problemId, String persona, String language, Instant startedAt) {
         this.id = id;
         this.problemId = problemId;
@@ -52,57 +56,5 @@ public class Session {
         this.language = language;
         this.startedAt = startedAt;
         this.phase = Phase.INTRO;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public String getProblemId() {
-        return problemId;
-    }
-
-    public String getPersona() {
-        return persona;
-    }
-
-    public String getLanguage() {
-        return language;
-    }
-
-    public Phase getPhase() {
-        return phase;
-    }
-
-    public void setPhase(Phase phase) {
-        this.phase = phase;
-    }
-
-    public Instant getStartedAt() {
-        return startedAt;
-    }
-
-    public Instant getEndedAt() {
-        return endedAt;
-    }
-
-    public void setEndedAt(Instant endedAt) {
-        this.endedAt = endedAt;
-    }
-
-    public int getImpatience() {
-        return impatience;
-    }
-
-    public void setImpatience(int impatience) {
-        this.impatience = impatience;
-    }
-
-    public String getFinalCode() {
-        return finalCode;
-    }
-
-    public void setFinalCode(String finalCode) {
-        this.finalCode = finalCode;
     }
 }

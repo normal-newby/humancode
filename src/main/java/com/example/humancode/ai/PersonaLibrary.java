@@ -7,11 +7,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
+
+import lombok.extern.slf4j.Slf4j;
 
 import jakarta.annotation.PostConstruct;
 
@@ -20,10 +20,10 @@ import jakarta.annotation.PostConstruct;
  * reloaded without a recompile — and so swapping one swaps a whole prompt-cache
  * namespace cleanly.
  */
+@Slf4j
 @Component
 public class PersonaLibrary {
 
-    private static final Logger log = LoggerFactory.getLogger(PersonaLibrary.class);
     private static final String LOCATION = "classpath:personas/*.md";
 
     private final Map<String, String> byId = new LinkedHashMap<>();

@@ -4,8 +4,6 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +13,9 @@ import com.example.humancode.telemetry.Trigger;
 import com.example.humancode.telemetry.TriggerEngine;
 import com.example.humancode.web.SseHub;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Joins the three halves of the loop: the {@link TriggerEngine} decides when,
  * the {@link Interviewer} decides what, and {@link SseHub} delivers it.
@@ -22,23 +23,15 @@ import com.example.humancode.web.SseHub;
  * <p>This is the only place that turns a trigger into a spoken line, so the
  * cooldown and impatience rules live here rather than being scattered.
  */
+@Slf4j
+@RequiredArgsConstructor
 @Component
 public class InterviewDirector {
-
-    private static final Logger log = LoggerFactory.getLogger(InterviewDirector.class);
 
     private final SessionService sessions;
     private final TriggerEngine triggers;
     private final Interviewer interviewer;
     private final SseHub sse;
-
-    public InterviewDirector(SessionService sessions, TriggerEngine triggers,
-            Interviewer interviewer, SseHub sse) {
-        this.sessions = sessions;
-        this.triggers = triggers;
-        this.interviewer = interviewer;
-        this.sse = sse;
-    }
 
     /**
      * The heartbeat. Cheap: it reads in-memory state and almost always finds

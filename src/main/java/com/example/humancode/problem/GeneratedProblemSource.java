@@ -2,12 +2,12 @@ package com.example.humancode.problem;
 
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.example.humancode.config.OpenAiClientHolder;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Production source: a fresh, model-written problem per session.
@@ -18,9 +18,8 @@ import com.example.humancode.config.OpenAiClientHolder;
  */
 @Component
 @ConditionalOnProperty(name = "humancode.problems.source", havingValue = "generated")
+@Slf4j
 public class GeneratedProblemSource implements ProblemSource {
-
-    private static final Logger log = LoggerFactory.getLogger(GeneratedProblemSource.class);
 
     private final ProblemGenerator generator;
     private final ProblemBank bank;

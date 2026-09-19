@@ -22,6 +22,9 @@ import com.example.humancode.interview.SessionState;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.ProblemBank;
 
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api")
 public class SessionController {
@@ -32,16 +35,6 @@ public class SessionController {
     private final PersonaLibrary personas;
     private final PromptAssembler prompts;
     private final SseHub sse;
-
-    public SessionController(SessionService sessions, InterviewDirector director, ProblemBank problems,
-            PersonaLibrary personas, PromptAssembler prompts, SseHub sse) {
-        this.sessions = sessions;
-        this.director = director;
-        this.problems = problems;
-        this.personas = personas;
-        this.prompts = prompts;
-        this.sse = sse;
-    }
 
     @PostMapping("/sessions")
     @ResponseStatus(HttpStatus.CREATED)

@@ -164,16 +164,27 @@ The caret is `--color-accent` and does not blink while typing.
 
 ### 4.3 Left rail — instruments
 
-Width `216px`. Order top to bottom, because this is descending order of how much it should worry you:
+Width `216px` (`13.5rem`). Order top to bottom, because this is descending order of how much it should
+worry you:
 
 1. **Impatience meter** (§5)
-2. **Clock** — `mm:ss`, tabular numerals, 16px. Counts up.
+2. **Clock** — `mm:ss`, tabular numerals, 16px. Counts up. Driven by a local 1s interval, **not** by
+   telemetry: telemetry only flushes when there are events, so a server-derived clock stalls the moment
+   you stop typing — exactly when the clock matters most.
 3. **Stats** — `written`, `deleted`, `pastes`, label left / value right, 11px labels.
 4. **Problem meta** — title lowercase, difficulty below it, then examples as compact mono lines
    (`in  [2,7,11,15], 9` / `out [0,1]`). No boxes.
-5. **Actions** — `run`, `end`. Text buttons, `--color-sub`, underline on hover, no fill, no border.
+5. **Test result** — after a run only: `tests  4/6`, the count in `--color-calm` when green and
+   `--color-hot` when not, with the first failure beneath it in 10px `--color-faint`. This is the one
+   place the candidate sees *which* case failed; everything else about the run goes through the
+   interviewer.
+6. **Actions** — `run`, `end`. Text buttons, `--color-sub`, underline on hover, no fill, no border.
 
-No headings on any of these groups. Separation is `2rem` of space.
+Groups carry no headings except the meter's (see §5); separation is space alone.
+
+**Only items 1–4 scroll.** The test result and the actions are pinned outside the scroll container — a
+`run` button that can scroll out of reach is a bug you find mid-demo, which is exactly how this one was
+found.
 
 ### 4.4 Right rail — private notes
 
@@ -194,7 +205,10 @@ the effect is too strong.
 The one piece of colour semantics in the app, so it must be unambiguous: **green is calm, red is
 furious.**
 
-- Horizontal bar, full rail width, `6px` tall, `border-radius: 3px`.
+- A lowercase `impatience` label above it, 11px `--color-sub`. The bar alone with a bare number read
+  as cryptic in practice — this is the one labelled group in the rail, and the §1 wireframe assumed it.
+- Horizontal bar, full rail width, `8px` tall, `border-radius: 9999px`. (Started at 6px; raised for
+  legibility from across a room, which is how a judge will see it.)
 - The **gradient lives on the track itself**, always at full width.
 - A `--color-surface` cover eats the unreached portion from the right.
 
@@ -220,7 +234,7 @@ At 20 you see only green. At 60 the bar has reached amber. At 95 it is red and n
 and the length carry the same message, which is what makes it readable at a glance from across a
 room — worth caring about, since a judge will be looking at this from two metres away.
 
-Below the bar: the number, 12px tabular, `--color-sub`, right-aligned. No `/100`, no label. Just `34`.
+Below the bar: the number, 12px tabular, `--color-sub`, right-aligned. No `/100`. Just `34`.
 
 **At ≥85**, the bar pulses: opacity `1 → 0.65 → 1` over 1.6s, infinite, `ease-in-out`. Suppressed
 under `prefers-reduced-motion`.
@@ -308,7 +322,9 @@ Implemented. Recorded here so the intent survives the next refactor:
 | `ImpatienceMeter.tsx` | Rebuilt per §5 — masked gradient, number only, pulse at ≥85. Face/avatar dropped; the mascot is a separate exercise and a placeholder ASCII face undercuts the restraint. |
 | `NotesPanel.tsx` | Restyled to margin-annotation treatment, card border removed. |
 | `EditorPane.tsx` | Monaco chrome stripped, custom theme matched to `--color-canvas`, `run` moved to the left rail. |
-| `index.css` | Token block from §3, focus-mode rules, keyframes, reduced-motion guard. |
+| `index.css` | Token block from §3, focus-mode rules, keyframes, reduced-motion guard, **thin/faint scrollbar styling** — the native scrollbar is bright and reads as exactly the bolted-on chrome §2 forbids. |
+| `LeftRail.tsx` | Instruments, scrolling; test result + actions pinned below. |
+| `hooks/useTypingFocus.ts` | The single `typing` boolean behind focus mode. |
 
 ---
 

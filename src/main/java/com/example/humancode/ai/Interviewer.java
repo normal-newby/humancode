@@ -2,8 +2,6 @@ package com.example.humancode.ai;
 
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.example.humancode.config.HumancodeProperties;
@@ -16,6 +14,9 @@ import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.StructuredResponse;
 import com.openai.models.responses.StructuredResponseCreateParams;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * The quip path: one short, in-character reaction per trigger.
  *
@@ -23,23 +24,15 @@ import com.openai.models.responses.StructuredResponseCreateParams;
  * feel instant. The deliberate path (problem delivery, hints, report card) is a
  * separate, streamed call.
  */
+@Slf4j
+@RequiredArgsConstructor
 @Service
 public class Interviewer {
-
-    private static final Logger log = LoggerFactory.getLogger(Interviewer.class);
 
     private final OpenAiClientHolder clientHolder;
     private final PromptAssembler prompts;
     private final PersonaLibrary personas;
     private final HumancodeProperties props;
-
-    public Interviewer(OpenAiClientHolder clientHolder, PromptAssembler prompts,
-            PersonaLibrary personas, HumancodeProperties props) {
-        this.clientHolder = clientHolder;
-        this.prompts = prompts;
-        this.personas = personas;
-        this.props = props;
-    }
 
     /**
      * Never throws and never returns empty — a session that goes silent because

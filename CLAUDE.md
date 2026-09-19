@@ -65,6 +65,27 @@ caching work, because the model sees a stable prefix plus a small volatile suffi
 
 If you find yourself calling the API on every edit, stop and fix the trigger engine.
 
+### What actually costs money
+
+There is exactly one `@Scheduled` in the app: `InterviewDirector.tick()`, every 2s. That tick is local
+and cheap — it reads in-memory state and almost always does nothing. A model call needs three guards to
+pass:
+
+1. a rule in `TriggerEngine` fires;
+2. `sse.isConnected(sessionId)` — **no listener, no call**, so a closed tab costs nothing;
+3. the `quip-cooldown` (15s) has elapsed — *unless the trigger is `immediate`*.
+
+**`PASTE_BURST`, `TESTS_PASSED` and `TESTS_FAILED` are `immediate` and bypass the cooldown entirely.**
+That is deliberate — a delayed reaction to a paste or a test run feels broken, and the interviewer
+catching your paste *as it happens* is the joke. It was also harmless while `run` was a stub nobody
+clicked. It is not harmless now: every `run` click is an uncooldowned call, so someone hammering the
+button while debugging generates one call per press. If cost or rate limits bite, put a short floor
+(~4s) on `immediate` triggers in `InterviewDirector.fire()` rather than removing the immediacy.
+
+With `humancode.problems.source=generated` there is also **one blocking generation call per session**, in
+front of the user pressing *begin*. Expect a visible pause; pre-generating in the background is the fix
+if it drags.
+
 ---
 
 ## 3. Stack
@@ -144,9 +165,31 @@ web/         REST controllers, SSE hub, DTOs
 
 Rules:
 - Controllers are thin. All logic lives in the service layer.
-- DTOs are Java `record`s. Entities use Lombok.
+- DTOs and value types are Java `record`s. Mutable entities use Lombok.
 - `SessionState` lives in memory (a `ConcurrentHashMap` keyed by session id) and is *snapshotted* to
   SQLite on phase transitions and at session end. Do not write to the DB on every keystroke.
+
+### Lombok conventions
+
+Applied consistently — do not hand-roll what these generate:
+
+| Annotation | Where | Replaces |
+|---|---|---|
+| `@RequiredArgsConstructor` | every `@Service` / `@Component` / `@RestController` with injected deps | the constructor; Spring injects the generated one |
+| `@Slf4j` | anything that logs | `private static final Logger log = LoggerFactory.getLogger(X.class)` |
+| `@Getter` / `@Setter` | JPA entities only | accessor walls |
+| `@NoArgsConstructor(access = PROTECTED)` | JPA entities | the `protected X() {}` JPA requires |
+
+Two deliberate exceptions:
+
+- **`GeneratedProblemSource` keeps its explicit constructor** — it logs an error when the API key is
+  missing, so there is a body to write. `@RequiredArgsConstructor` cannot express that.
+- **`SessionState` uses no Lombok at all.** Its accessors are fluent (`state.code()`, not
+  `getCode()`), most fields are `Atomic*` or `volatile` with real logic in the accessor, and the
+  concurrency intent is the point of the class. Generated accessors would hide it. Leave it hand-written.
+
+`TelemetryEvent` gets `@Getter` but **no `@Setter`** — it is the append-only replay log, and nothing
+should ever update a row.
 
 ### Core entities
 
@@ -202,6 +245,31 @@ streams, the UI still works. Every utterance carries a `canned` flag so the UI c
 This is not only for the missing-key case: a model call that times out mid-session falls back the same
 way. **An interview that goes silent because of a network blip is a broken demo.** Keep that property
 when you extend the AI layer — `Interviewer.react` must never throw and never return empty.
+
+### 5.2 Setting the key
+
+`application.properties` binds it, and nothing else needs changing:
+
+```properties
+spring.config.import=optional:file:.env[.properties]
+humancode.ai.api-key=${OPENAI_API_KEY:}
+```
+
+Three ways in, all equivalent to the app:
+
+1. **`.env` at the repo root** (gitignored) — `OPENAI_API_KEY=sk-...`. Works because of the
+   `spring.config.import` line above; Spring Boot does **not** read `.env` without it.
+2. **Environment variable** — `$env:OPENAI_API_KEY = "sk-..."` before launching (that shell only), or
+   `[Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'sk-...', 'User')` to persist. A persisted
+   variable needs a **new terminal**, and a restart of any IDE that was already running.
+3. **IDE run configuration** environment variables.
+
+The trailing `:` in `${OPENAI_API_KEY:}` is the empty default — it is what lets the app boot with no key.
+**Never** put a literal key in `application.properties`; that file is committed.
+
+Confirm which mode you are in from the startup log: `OpenAI client ready (model=…, quipModel=…)` versus
+the `OPENAI_API_KEY is not set` warning. In the UI, the faint `canned` marker beside each interviewer
+line disappears once real calls are happening.
 
 ### Two call paths
 
@@ -311,9 +379,12 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 
 - Run: `./mvnw spring-boot:run` (builds the UI too). Test: `./mvnw test`.
   Backend-only loop: add `-Dskip.frontend=true`. Frontend hot reload: `npm run dev` in `web/`.
-- `OPENAI_API_KEY` from the environment — `OpenAIOkHttpClient.fromEnv()`. Never commit a key,
-  never put a literal one in `application.properties` (`humancode.ai.api-key` reads the env var and is
-  only there as an override).
+- `OPENAI_API_KEY` via `.env` or the environment — see §5.2. Never commit a key, never put a literal
+  one in `application.properties`.
+- After touching any problem JSON, run `cd web && npm run check:problems`.
+- **Run the app through Maven**, not by launching `HumancodeApplication` from the IDE. The IDE build
+  skips the `web/dist` → `static` copy, so you get Spring's whitelabel error page instead of the UI.
+  If port 8080 is already held by an older `spring-boot:run`, new endpoints 404 — restart it.
 - Config under the `humancode.*` prefix, bound with `@ConfigurationProperties`.
 - Log every model call with its trigger reason, latency, and cache-hit counts. When the interviewer says
   something strange mid-demo you will want to know which trigger fired.
@@ -326,6 +397,18 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 
 Recorded here so they get made deliberately rather than by accident:
 
+- **Model IDs are unverified guesses.** `humancode.ai.model=gpt-5` and `quip-model=gpt-5-mini` have
+  never been exercised against the real API. A wrong id 404s, gets caught, and **silently degrades to a
+  canned line** — so the app looks fine while saying nothing real. Grep the log for `Quip call failed`
+  or `Problem generation failed` the first time the key is in.
+- Whether `immediate` triggers need a short cooldown floor (see §2).
 - Language support at demo time — JS only, or JS + Python? (Pyodide adds ~10MB and a load delay.)
 - Whether passive mode needs server-side scheduling or a client timer is enough.
 - Whether the report card's session replay ships in v1 or gets cut for time.
+
+### Still unbuilt
+
+Core loop is closed (problem → code → telemetry → trigger → reaction → tests → verdict). Not yet built:
+the **report card** (`/api/sessions/{id}/finish` closes the session but generates nothing), **hints**,
+**mid-task curveballs**, the **follow-up phase**, and the **deliberate streamed call path** — §5 describes
+it, but every call today is the quip path.

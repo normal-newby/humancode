@@ -4,16 +4,16 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import lombok.extern.slf4j.Slf4j;
+
 /** One server-sent-event stream per session. The interviewer's mouth. */
+@Slf4j
 @Component
 public class SseHub {
 
-    private static final Logger log = LoggerFactory.getLogger(SseHub.class);
     /** Sessions are long; the browser reconnects on its own if this trips. */
     private static final long TIMEOUT_MILLIS = 30 * 60 * 1000L;
 

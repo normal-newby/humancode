@@ -10,15 +10,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
-import tools.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import jakarta.annotation.PostConstruct;
+
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Loads the curated problem set off the classpath at startup.
@@ -29,18 +30,15 @@ import jakarta.annotation.PostConstruct;
  * the classpath happily, but only the Jackson 3 mapper exists as a bean — see
  * CLAUDE.md §5.
  */
+@Slf4j
+@RequiredArgsConstructor
 @Component
 public class ProblemBank {
 
-    private static final Logger log = LoggerFactory.getLogger(ProblemBank.class);
     private static final String LOCATION = "classpath:problems/*.json";
 
     private final ObjectMapper mapper;
     private final Map<String, Problem> byId = new LinkedHashMap<>();
-
-    public ProblemBank(ObjectMapper mapper) {
-        this.mapper = mapper;
-    }
 
     @PostConstruct
     void load() throws IOException {

@@ -9,6 +9,8 @@ import com.example.humancode.config.HumancodeProperties;
 import com.example.humancode.interview.Phase;
 import com.example.humancode.interview.SessionState;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Decides <em>when</em> the interviewer speaks. Plain Java, no model calls.
  *
@@ -17,6 +19,7 @@ import com.example.humancode.interview.SessionState;
  * does anything reach OpenAI. If you find yourself wanting to call the model on
  * every edit, add a rule here instead.
  */
+@RequiredArgsConstructor
 @Component
 public class TriggerEngine {
 
@@ -26,10 +29,6 @@ public class TriggerEngine {
     private static final long THRASH_MIN_CHARS = 200;
 
     private final HumancodeProperties props;
-
-    public TriggerEngine(HumancodeProperties props) {
-        this.props = props;
-    }
 
     /**
      * Evaluate every rule against current state.

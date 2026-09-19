@@ -4,6 +4,8 @@ import java.util.Optional;
 
 import com.openai.client.OpenAIClient;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Wraps the SDK client so the application starts cleanly with no API key set.
  *
@@ -12,13 +14,10 @@ import com.openai.client.OpenAIClient;
  * until the key lands, so instead we hold a possibly-absent client and let
  * callers degrade — see {@code Interviewer}, which falls back to canned lines.
  */
+@RequiredArgsConstructor
 public final class OpenAiClientHolder {
 
     private final OpenAIClient client;
-
-    public OpenAiClientHolder(OpenAIClient client) {
-        this.client = client;
-    }
 
     public boolean isConfigured() {
         return client != null;

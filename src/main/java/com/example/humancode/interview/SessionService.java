@@ -7,14 +7,15 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.humancode.config.HumancodeProperties;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.ProblemSource;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import jakarta.annotation.PostConstruct;
 
@@ -24,21 +25,15 @@ import jakarta.annotation.PostConstruct;
  * <p>Live state is in memory; SQLite gets a snapshot on phase transitions and at
  * session end.
  */
+@Slf4j
+@RequiredArgsConstructor
 @Service
 public class SessionService {
-
-    private static final Logger log = LoggerFactory.getLogger(SessionService.class);
 
     private final Map<String, SessionState> live = new ConcurrentHashMap<>();
     private final SessionRepository repository;
     private final ProblemSource problems;
     private final HumancodeProperties props;
-
-    public SessionService(SessionRepository repository, ProblemSource problems, HumancodeProperties props) {
-        this.repository = repository;
-        this.problems = problems;
-        this.props = props;
-    }
 
     @PostConstruct
     void announceSource() {
