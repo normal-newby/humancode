@@ -21,6 +21,7 @@ import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.Difficulty;
 import com.example.humancode.problem.ProblemBank;
 import com.example.humancode.problem.ProblemType;
+import com.example.humancode.problem.ProblemRuntime;
 import com.example.humancode.report.ReportCard;
 import com.example.humancode.report.ReportCardGenerator;
 
@@ -46,7 +47,8 @@ public class SessionController {
                 : request;
         SessionState state = sessions.start(req.problemId(), req.language(),
                 Difficulty.parse(req.difficulty()).orElse(null),
-                ProblemType.parse(req.problemType()).orElse(null));
+                ProblemType.parse(req.problemType()).orElse(null),
+                ProblemRuntime.parse(req.language()).orElse(null));
         return toResponse(state);
     }
 

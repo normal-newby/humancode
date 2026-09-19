@@ -101,4 +101,12 @@ class ProblemBankTest {
             assertTrue(bank.random(difficulty, ProblemType.BUILD).type() == ProblemType.BUILD);
         }
     }
+
+    @Test
+    @DisplayName("the bank can serve a Python task when Python is selected")
+    void includesPythonTask() {
+        Problem python = bank.random(null, ProblemType.BUILD, ProblemRuntime.PYTHON);
+        assertTrue(ProblemRuntime.PYTHON.matches(python));
+        assertTrue(python.files().stream().anyMatch(file -> "python".equals(file.language())));
+    }
 }

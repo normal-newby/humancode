@@ -1,0 +1,28 @@
+{
+  "id": "environment-check-regression",
+  "title": "Environment Check Regression",
+  "difficulty": "easy",
+  "type": "BUG_FIX",
+  "tags": ["python", "configuration", "debugging"],
+  "statement": "This deployment preflight script has started lying about whether a service is ready. Find and fix the regressions. A blank value is just as missing as an absent one, the missing-variable list should be stable, and the script must never print secret values.",
+  "files": [
+    {
+      "name": "preflight.py",
+      "language": "python",
+      "starterContent": "REQUIRED = [\"DATABASE_URL\", \"API_KEY\", \"LOG_LEVEL\"]\n\n\ndef missing_variables(required, environ):\n    return [name for name in required if name not in environ]\n\n\ndef readiness_line(required, environ):\n    missing = missing_variables(required, environ)\n    if missing:\n        return \"missing: \" + \", \".join(missing)\n    return \"ready with \" + str(environ)\n\n\ndef main():\n    sample = {\n        \"DATABASE_URL\": \"postgres://example\",\n        \"API_KEY\": \"\",\n        \"LOG_LEVEL\": \"info\",\n    }\n    print(readiness_line(REQUIRED, sample))\n\n\nif __name__ == \"__main__\":\n    main()\n",
+      "referenceContent": "REQUIRED = [\"DATABASE_URL\", \"API_KEY\", \"LOG_LEVEL\"]\n\n\ndef missing_variables(required, environ):\n    return sorted(\n        name\n        for name in set(required)\n        if not isinstance(environ.get(name), str) or not environ[name].strip()\n    )\n\n\ndef readiness_line(required, environ):\n    missing = missing_variables(required, environ)\n    if missing:\n        return \"missing: \" + \", \".join(missing)\n    return \"ready\"\n\n\ndef main():\n    sample = {\n        \"DATABASE_URL\": \"postgres://example\",\n        \"API_KEY\": \"\",\n        \"LOG_LEVEL\": \"info\",\n    }\n    print(readiness_line(REQUIRED, sample))\n\n\nif __name__ == \"__main__\":\n    main()\n"
+    }
+  ],
+  "rubric": [
+    "Absent, blank, and whitespace-only required values are all reported as missing.",
+    "The missing names are stable and readable even when the required list contains duplicates.",
+    "A successful preflight returns a concise ready message without serializing the environment or exposing secrets.",
+    "The existing script shape remains runnable with Python 3 and no dependency."
+  ],
+  "curveballs": [
+    "Actually, let an optional variable be absent without making the preflight fail.",
+    "Show the number of missing values before their names.",
+    "Accept a tuple of required names as well as a list."
+  ],
+  "similarProblems": ["Feature Flag Audit", "Secrets Redaction Check", "Release Configuration Validator"]
+}

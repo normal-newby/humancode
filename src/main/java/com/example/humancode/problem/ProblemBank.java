@@ -91,28 +91,49 @@ public class ProblemBank {
 
     /** A random problem matching the chosen difficulty and task shape. */
     public Problem random(Difficulty difficulty, ProblemType type) {
+        return random(difficulty, type, null);
+    }
+
+    /** A random problem matching the chosen difficulty, task shape and runtime. */
+    public Problem random(Difficulty difficulty, ProblemType type, ProblemRuntime runtime) {
         if (difficulty == null) {
             List<Problem> matchingType = all().stream()
                     .filter(problem -> type == null || problem.type() == type)
+                    .filter(problem -> runtime == null || runtime.matches(problem))
                     .toList();
             if (matchingType.isEmpty()) {
-                throw new IllegalStateException("No " + type.label() + " problem in the bank");
+                throw new IllegalStateException("No matching problem in the bank");
             }
             return matchingType.get(ThreadLocalRandom.current().nextInt(matchingType.size()));
         }
         List<Problem> matching = all().stream()
                 .filter(difficulty::matches)
                 .filter(problem -> type == null || problem.type() == type)
+                .filter(problem -> runtime == null || runtime.matches(problem))
                 .toList();
         if (matching.isEmpty()) {
             if (type != null) {
-                List<Problem> sameType = all().stream().filter(problem -> problem.type() == type).toList();
+                List<Problem> sameType = all().stream()
+                        .filter(problem -> problem.type() == type)
+                        .filter(problem -> runtime == null || runtime.matches(problem))
+                        .toList();
                 if (sameType.isEmpty()) {
                     throw new IllegalStateException("No " + type.label() + " problem in the bank");
                 }
                 Problem fallback = sameType.get(ThreadLocalRandom.current().nextInt(sameType.size()));
-                log.warn("No {} {} problem in the bank; preserving the selected mode with '{}' ({})",
-                        difficulty.label(), type.label(), fallback.id(), fallback.difficulty());
+                log.warn("No {} {} {} problem in the bank; preserving the selected mode with '{}' ({})",
+                        difficulty.label(), type.label(), runtime == null ? "" : runtime.label(),
+                        fallback.id(), fallback.difficulty());
+                return fallback;
+            }
+            if (runtime != null) {
+                List<Problem> sameRuntime = all().stream().filter(runtime::matches).toList();
+                if (sameRuntime.isEmpty()) {
+                    throw new IllegalStateException("No " + runtime.label() + " problem in the bank");
+                }
+                Problem fallback = sameRuntime.get(ThreadLocalRandom.current().nextInt(sameRuntime.size()));
+                log.warn("No {} {} problem in the bank; preserving the selected runtime with '{}' ({})",
+                        difficulty.label(), runtime.label(), fallback.id(), fallback.difficulty());
                 return fallback;
             }
             Problem any = random();

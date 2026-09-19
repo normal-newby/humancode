@@ -11,6 +11,7 @@ import type {
 } from './api/types'
 import { BOOT_COMMAND, BootSequence } from './components/BootSequence'
 import { DifficultyPicker } from './components/DifficultyPicker'
+import { LanguagePicker, type SessionLanguage } from './components/LanguagePicker'
 import { LiveTurn } from './components/LiveTurn'
 import { ProblemTypePicker } from './components/ProblemTypePicker'
 import type { TurnStamp } from './components/MetaLine'
@@ -64,6 +65,7 @@ export default function App() {
   const [escFlash, setEscFlash] = useState(false)
   /** Their choice, sent with the session. Medium is the honest default. */
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const [language, setLanguage] = useState<SessionLanguage>('javascript')
   const [problemType, setProblemType] = useState<ProblemType>('BUILD')
   const [report, setReport] = useState<ReportCard | null>(null)
   const [finishing, setFinishing] = useState(false)
@@ -187,14 +189,14 @@ export default function App() {
     setBootDone(false)
     setPending(null)
     try {
-      setPending(await startSession({ difficulty, problemType }))
+      setPending(await startSession({ difficulty, language, problemType }))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setBooting(false)
     } finally {
       setStarting(false)
     }
-  }, [difficulty, problemType])
+  }, [difficulty, language, problemType])
 
   const handleBootDone = useCallback(() => setBootDone(true), [])
 
@@ -460,6 +462,7 @@ export default function App() {
               form opinions.
             </p>
             <DifficultyPicker value={difficulty} onChange={setDifficulty} disabled={starting} />
+            <LanguagePicker value={language} onChange={setLanguage} disabled={starting} />
             <ProblemTypePicker value={problemType} onChange={setProblemType} disabled={starting} />
 
             <button

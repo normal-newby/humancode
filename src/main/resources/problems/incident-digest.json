@@ -1,0 +1,29 @@
+{
+  "id": "incident-digest",
+  "title": "Incident Digest",
+  "difficulty": "medium",
+  "type": "BUILD",
+  "tags": ["python", "data-cleanup", "reporting"],
+  "statement": "Build a small incident-digest script for an on-call handoff. It receives inconsistent event dictionaries, ignores malformed entries, groups the valid events by service, and prints a compact summary with open incidents first. Keep it standard-library Python so the script runs anywhere.",
+  "files": [
+    {
+      "name": "incident_digest.py",
+      "language": "python",
+      "starterContent": "from collections import defaultdict\n\nEVENTS = [\n    {\"service\": \"billing\", \"status\": \"open\", \"minutes\": 42},\n    {\"service\": \"search\", \"status\": \"resolved\", \"minutes\": 7},\n    {\"service\": \"billing\", \"status\": \"open\", \"minutes\": 11},\n    {\"service\": \"search\", \"status\": \"open\", \"minutes\": \"unknown\"},\n    {\"service\": \"\", \"status\": \"open\", \"minutes\": 5},\n]\n\n\ndef valid_event(raw):\n    # your code here: accept only a non-empty service, an open or resolved\n    # status, and a non-negative integer minute count\n    pass\n\n\ndef summarize(events):\n    # your code here: return one line per service in the form\n    # \"billing: 2 open, 53m total\". Sort open services before resolved-only\n    # services, then alphabetically. Return \"no valid incidents\" if empty.\n    pass\n\n\ndef main():\n    print(summarize(EVENTS))\n\n\nif __name__ == \"__main__\":\n    main()\n",
+      "referenceContent": "from collections import defaultdict\n\nEVENTS = [\n    {\"service\": \"billing\", \"status\": \"open\", \"minutes\": 42},\n    {\"service\": \"search\", \"status\": \"resolved\", \"minutes\": 7},\n    {\"service\": \"billing\", \"status\": \"open\", \"minutes\": 11},\n    {\"service\": \"search\", \"status\": \"open\", \"minutes\": \"unknown\"},\n    {\"service\": \"\", \"status\": \"open\", \"minutes\": 5},\n]\n\n\ndef valid_event(raw):\n    return (\n        isinstance(raw, dict)\n        and isinstance(raw.get(\"service\"), str)\n        and raw[\"service\"].strip()\n        and raw.get(\"status\") in {\"open\", \"resolved\"}\n        and isinstance(raw.get(\"minutes\"), int)\n        and raw[\"minutes\"] >= 0\n    )\n\n\ndef summarize(events):\n    groups = defaultdict(lambda: {\"open\": 0, \"minutes\": 0})\n    for event in events:\n        if not valid_event(event):\n            continue\n        service = event[\"service\"].strip()\n        groups[service][\"open\"] += event[\"status\"] == \"open\"\n        groups[service][\"minutes\"] += event[\"minutes\"]\n\n    if not groups:\n        return \"no valid incidents\"\n\n    ordered = sorted(groups.items(), key=lambda item: (-bool(item[1][\"open\"]), item[0]))\n    return \"\\n\".join(\n        f\"{service}: {data['open']} open, {data['minutes']}m total\"\n        for service, data in ordered\n    )\n\n\ndef main():\n    print(summarize(EVENTS))\n\n\nif __name__ == \"__main__\":\n    main()\n"
+    }
+  ],
+  "rubric": [
+    "Malformed records are skipped without crashing the digest, including missing fields, blank services, unknown statuses, negative minutes, and non-integer minutes.",
+    "The summary groups valid events by normalized service name and derives both open count and total minutes from the same data.",
+    "Services with open incidents appear before resolved-only services, with alphabetical order within each group.",
+    "An empty valid input returns a useful no-incidents message instead of a blank string or exception.",
+    "The script remains plain Python 3 with no third-party dependency."
+  ],
+  "curveballs": [
+    "Actually, include the oldest incident duration beside each service.",
+    "Make the digest accept statuses case-insensitively without changing its output casing.",
+    "Add a total open-incident count as the final line."
+  ],
+  "similarProblems": ["CSV Cleanup Tool", "Release Notes Formatter", "Support Queue Summary"]
+}

@@ -14,6 +14,7 @@ import com.example.humancode.problem.Difficulty;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.ProblemSource;
 import com.example.humancode.problem.ProblemType;
+import com.example.humancode.problem.ProblemRuntime;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,9 +50,16 @@ public class SessionService {
     }
 
     public SessionState start(String problemId, String language, Difficulty difficulty, ProblemType type) {
-        Problem problem = problems.next(problemId, difficulty, type);
+        return start(problemId, language, difficulty, type, null);
+    }
 
-        String resolvedLanguage = language == null || language.isBlank() ? "javascript" : language;
+    public SessionState start(String problemId, String language, Difficulty difficulty, ProblemType type,
+            ProblemRuntime runtime) {
+        Problem problem = problems.next(problemId, difficulty, type, runtime);
+
+        String resolvedLanguage = runtime == null
+                ? (language == null || language.isBlank() ? "javascript" : language)
+                : runtime.sessionLanguage();
 
         String id = UUID.randomUUID().toString();
         SessionState state = new SessionState(id, problem, resolvedLanguage);

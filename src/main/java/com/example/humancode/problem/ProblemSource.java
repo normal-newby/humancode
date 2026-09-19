@@ -14,11 +14,15 @@ public interface ProblemSource {
      * @param difficulty what the candidate asked for; null means any
      * @param type       requested task shape; null means any
      */
-    Problem next(String id, Difficulty difficulty, ProblemType type);
+    Problem next(String id, Difficulty difficulty, ProblemType type, ProblemRuntime runtime);
+
+    default Problem next(String id, Difficulty difficulty, ProblemType type) {
+        return next(id, difficulty, type, null);
+    }
 
     /** Compatibility path for callers that do not care which task shape they receive. */
     default Problem next(String id, Difficulty difficulty) {
-        return next(id, difficulty, null);
+        return next(id, difficulty, null, null);
     }
 
     String describe();

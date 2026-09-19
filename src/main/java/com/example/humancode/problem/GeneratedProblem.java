@@ -69,7 +69,7 @@ public record GeneratedProblem(
             @JsonPropertyDescription("Filename with extension, e.g. 'index.html', 'styles.css', 'app.js'.")
             String name,
 
-            @JsonPropertyDescription("Monaco language id for this file: 'html', 'css', or 'javascript'.")
+            @JsonPropertyDescription("Monaco language id for this file: 'html', 'css', 'javascript', or 'python'.")
             String language,
 
             @JsonPropertyDescription("What the candidate sees when the session starts.")

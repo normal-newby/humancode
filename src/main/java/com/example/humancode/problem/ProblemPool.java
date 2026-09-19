@@ -165,15 +165,20 @@ public class ProblemPool {
      * task stays in the pool for the next compatible session.
      */
     public Optional<Problem> take(Difficulty difficulty, ProblemType type) {
+        return take(difficulty, type, null);
+    }
+
+    /** Takes only a matching runtime when one was selected. */
+    public Optional<Problem> take(Difficulty difficulty, ProblemType type, ProblemRuntime runtime) {
         Problem ready = null;
         for (Difficulty level : queuesFor(difficulty)) {
-            ready = takeMatching(warm.get(level), type);
+            ready = takeMatching(warm.get(level), type, runtime);
             if (ready != null) {
                 break;
             }
         }
 
-        if (ready == null && type == null && busy(difficulty)) {
+        if (ready == null && type == null && runtime == null && busy(difficulty)) {
             log.info("No warm {} problem; giving the generation in flight {}ms to land",
                     difficulty == null ? "any" : difficulty.label(), NEARLY_READY_MILLIS);
             for (Difficulty level : queuesFor(difficulty)) {
@@ -196,12 +201,14 @@ public class ProblemPool {
         return Optional.ofNullable(ready);
     }
 
-    private static Problem takeMatching(BlockingQueue<Problem> queue, ProblemType type) {
-        if (type == null) {
+    private static Problem takeMatching(BlockingQueue<Problem> queue, ProblemType type, ProblemRuntime runtime) {
+        if (type == null && runtime == null) {
             return queue.poll();
         }
         for (Problem candidate : queue) {
-            if (candidate.type() == type && queue.remove(candidate)) {
+            boolean matchesType = type == null || candidate.type() == type;
+            boolean matchesRuntime = runtime == null || runtime.matches(candidate);
+            if (matchesType && matchesRuntime && queue.remove(candidate)) {
                 return candidate;
             }
         }

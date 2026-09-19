@@ -28,14 +28,14 @@ import lombok.extern.slf4j.Slf4j;
 public class ProblemGenerator {
 
     private static final String INSTRUCTIONS = """
-            You write small web-development interview tasks for a practice tool. The candidate
-            is not implementing an algorithm. They either build a tiny, self-contained web app
-            or find and repair bugs in one (HTML/CSS/JS).
+            You write small development interview tasks for a practice tool. The candidate is
+            not implementing an algorithm. They either build a small app or find and repair
+            bugs in one, using the runtime requested in the task prompt.
 
             Produce ONE self-contained task. Hard requirements:
 
-            - Vanilla HTML, CSS and JavaScript only. No frameworks, no build step, no imports,
-              no external resources — everything must run by opening the HTML file directly.
+            - Use only the requested runtime and its standard capabilities. No frameworks,
+              build step, imports from third parties or external resources.
             - Use however many files the task genuinely needs. Most tasks want three: an HTML
               file, a CSS file and a JS file. A simpler task can get by with fewer.
             - `starterContent` is what the candidate opens the session with. At least one file
@@ -96,12 +96,19 @@ public class ProblemGenerator {
 
     /** Generates the requested task shape when a candidate selected one. */
     public Optional<Problem> generate(Difficulty difficulty, ProblemType requestedType) {
+        return generate(difficulty, requestedType, null);
+    }
+
+    /** Generates a browser or Python task according to the candidate's selected runtime. */
+    public Optional<Problem> generate(Difficulty difficulty, ProblemType requestedType,
+            ProblemRuntime requestedRuntime) {
         Optional<OpenAIClient> client = clientHolder.client();
         if (client.isEmpty()) {
             return Optional.empty();
         }
 
         ProblemType type = requestedType == null ? nextType() : requestedType;
+        ProblemRuntime runtime = requestedRuntime == null ? ProblemRuntime.WEB : requestedRuntime;
         String seed = nextSeed(type);
         Difficulty level = difficulty != null ? difficulty : randomDifficulty();
 
@@ -109,10 +116,11 @@ public class ProblemGenerator {
             StructuredResponseCreateParams<GeneratedProblem> params = ResponseCreateParams.builder()
                     .model(props.ai().model())
                     .instructions(INSTRUCTIONS)
-                    .input(("Write a %s %s task about %s. Set type to %s. Avoid the most over-used"
+                    .input(("Write a %s %s %s task about %s. Set type to %s. %s Avoid the most over-used"
                             + " textbook examples. %s")
                             .formatted(level.label(), type == ProblemType.BUG_FIX ? "bug-fix" : "build",
-                                    seed, type.name(), calibration(level)))
+                                    runtime.label(), seed, type.name(), runtimeInstructions(runtime),
+                                    calibration(level)))
                     .maxOutputTokens(MAX_OUTPUT_TOKENS)
                     .text(GeneratedProblem.class)
                     .build();
@@ -174,6 +182,13 @@ public class ProblemGenerator {
     /** Debugging should be common enough to appear, without replacing build work. */
     private static ProblemType nextType() {
         return ThreadLocalRandom.current().nextInt(3) == 0 ? ProblemType.BUG_FIX : ProblemType.BUILD;
+    }
+
+    private static String runtimeInstructions(ProblemRuntime runtime) {
+        return runtime == ProblemRuntime.PYTHON
+                ? "Use Python 3 and the standard library only. Supply .py files with Monaco language 'python';"
+                        + " do not include HTML, CSS or JavaScript."
+                : "Use vanilla HTML, CSS and JavaScript only; do not include Python.";
     }
 
     /**

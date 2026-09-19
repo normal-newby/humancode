@@ -24,7 +24,7 @@ export const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
  */
 export interface ProblemFile {
   name: string
-  /** A Monaco language id, e.g. 'html', 'css', 'javascript'. */
+  /** A Monaco language id, e.g. 'html', 'css', 'javascript', or 'python'. */
   language: string
   starterContent: string
 }
