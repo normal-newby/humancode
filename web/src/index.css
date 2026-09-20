@@ -194,6 +194,120 @@ body {
   transform: translateY(0) scale(1);
 }
 
+.landing-scroll-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 560ms ease-out, transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.landing-scroll-reveal[data-visible="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.landing-nav-link {
+  position: relative;
+  color: #5d636e;
+  transition: color 160ms ease;
+}
+
+.landing-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: -0.45rem;
+  left: 0;
+  height: 1px;
+  background: #0b0c0e;
+  content: '';
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 180ms ease;
+}
+
+.landing-nav-link:hover,
+.landing-nav-link-active {
+  color: #0b0c0e;
+}
+
+.landing-nav-link:hover::after,
+.landing-nav-link-active::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Landing-page chrome stays quiet and supports the content beneath it. */
+.landing-header {
+  background: color-mix(in srgb, #f6f5f1 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.landing-hero-preview {
+  box-shadow: 18px 18px 0 #5aa7ff;
+}
+
+@keyframes landing-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-preview-enter {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes landing-preview-breathe {
+  from { transform: translateY(0); }
+  to { transform: translateY(-3px); }
+}
+
+.landing-enter {
+  animation: landing-enter 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.landing-enter-header { animation-delay: 20ms; }
+.landing-enter-1 { animation-delay: 90ms; }
+.landing-enter-2 { animation-delay: 150ms; }
+.landing-enter-3 { animation-delay: 230ms; }
+.landing-enter-4 { animation-delay: 300ms; }
+.landing-enter-5 { animation-delay: 370ms; }
+
+.landing-enter-preview {
+  animation: landing-preview-enter 820ms 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.landing-hero-preview img {
+  animation: landing-preview-breathe 7s 1.2s ease-in-out infinite alternate;
+}
+
+.landing-primary-action {
+  transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+@media (hover: hover) {
+  .landing-primary-action:hover {
+    box-shadow: 5px 5px 0 #5aa7ff;
+    transform: translate(-2px, -2px);
+  }
+}
+
+@media (max-width: 639px) {
+  .landing-hero-preview {
+    box-shadow: 10px 10px 0 #5aa7ff;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
