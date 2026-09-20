@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { finishSession, startSession, submitTurn } from './api/client'
+import { finishSession, requestHint, startSession, submitTurn } from './api/client'
 import type {
   Difficulty,
   ProblemType,
@@ -11,6 +11,7 @@ import type {
 } from './api/types'
 import { BOOT_COMMAND, BootSequence } from './components/BootSequence'
 import { DifficultyPicker } from './components/DifficultyPicker'
+import { HintPanel, type HintEntry } from './components/HintPanel'
 import { LanguagePicker, type SessionLanguage } from './components/LanguagePicker'
 import { LiveTurn } from './components/LiveTurn'
 import { Logo } from './components/Logo'
@@ -24,6 +25,9 @@ import { useSessionStream } from './hooks/useSessionStream'
 import { useTelemetry } from './hooks/useTelemetry'
 import { useTypingFocus } from './hooks/useTypingFocus'
 import { loadRating, saveRating } from './lib/rating'
+
+/** Mirrors `SessionState.MAX_HINTS` on the backend. */
+const MAX_HINTS = 2
 
 /** Beyond this, the closed-turn label collapses to a count rather than naming every file. */
 const MAX_NAMED_FILES_IN_LABEL = 2
@@ -86,6 +90,11 @@ export default function App() {
   /** Utterances waiting behind their typing indicator. */
   const [queue, setQueue] = useState<Utterance[]>([])
   const [composing, setComposing] = useState(false)
+
+  /** Hints received this session, in their own box — never queued into `entries`. */
+  const [hints, setHints] = useState<HintEntry[]>([])
+  const [requestingHint, setRequestingHint] = useState(false)
+  const hintsRemaining = MAX_HINTS - hints.length
 
   /**
    * Session totals, counted client-side rather than read off the server's
@@ -177,6 +186,8 @@ export default function App() {
     setEntries([])
     setQueue([])
     setComposing(false)
+    setHints([])
+    setRequestingHint(false)
     setTotals(ZERO)
     totalsRef.current = ZERO
     setTurnBase(TURN_ZERO)
@@ -362,6 +373,28 @@ export default function App() {
     }
   }, [closeTurn, finishing, running, sessionId])
 
+  /**
+   * Asks for a hint directly. Deliberately not a turn boundary and not routed
+   * through the trigger engine — it does not close the live turn, does not
+   * touch the diff baseline, and never becomes an entry in the transcript
+   * (§4.3a's file-switch is the closest precedent: a view change, not a new
+   * turn). It lands in its own list, rendered by HintPanel, never interleaved
+   * with the criticism log.
+   */
+  const handleHint = useCallback(async () => {
+    if (!sessionId || requestingHint || hintsRemaining <= 0) return
+    setRequestingHint(true)
+    setError(null)
+    try {
+      const result = await requestHint(sessionId)
+      setHints((previous) => [...previous, { text: result.text, canned: result.canned }])
+    } catch (e) {
+      setError(e instanceof Error ? `Could not get a hint. ${e.message}` : 'Could not get a hint.')
+    } finally {
+      setRequestingHint(false)
+    }
+  }, [hintsRemaining, requestingHint, sessionId])
+
   const end = useCallback(async () => {
     if (!sessionId || finishing) return
     setFinishing(true)
@@ -523,41 +556,56 @@ export default function App() {
           produced and what it cost, never the frame around it. */}
       <WindowTab status="coding" rating={rating} />
 
-      <Transcript
-        statement={session.problem.statement}
-        type={session.problem.type}
-        entries={entries}
-        incoming={composing}
-        connected={stream.connected}
-      />
+      {/* Two columns: the human's side of the glass on the left — what they
+          asked for and everything they have said about it since — and your
+          output on the right, full height, since it is no longer sharing a
+          column with the scrolled-back log. No divider: zones are told apart
+          by whitespace, the same rule that already kept this app border-free. */}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-[5] flex-col">
+          <Transcript
+            statement={session.problem.statement}
+            type={session.problem.type}
+            entries={entries}
+            incoming={composing}
+            connected={stream.connected}
+          />
 
-      <div className="shrink-0">
-        {error && (
-          <p role="alert" className="mx-auto w-full max-w-[84ch] px-6 pb-2 text-xs text-hot">
-            <span aria-hidden>└ </span>
-            {error}
-          </p>
-        )}
-        <LiveTurn
-          files={files}
-          stamp={liveStamp}
-          onTelemetry={handleTelemetry}
-          onCodeChange={handleCodeChange}
-          onSubmit={submit}
-        />
+          <div className="shrink-0">
+            <HintPanel hints={hints} />
+            {error && (
+              <p role="alert" className="w-full px-6 pb-2 text-xs text-hot">
+                <span aria-hidden>└ </span>
+                {error}
+              </p>
+            )}
+            <StatusLine
+              elapsedSeconds={elapsed}
+              totals={totals}
+              impatience={stream.impatience}
+              activity={running ? 'running' : typing ? 'writing' : 'idle'}
+              running={running}
+              finishing={finishing}
+              armed={armed}
+              escFlash={escFlash}
+              hintsRemaining={hintsRemaining}
+              requestingHint={requestingHint}
+              onSubmit={submit}
+              onEnd={requestEnd}
+              onHint={handleHint}
+            />
+          </div>
+        </div>
 
-        <StatusLine
-          elapsedSeconds={elapsed}
-          totals={totals}
-          impatience={stream.impatience}
-          activity={running ? 'running' : typing ? 'writing' : 'idle'}
-          running={running}
-          finishing={finishing}
-          armed={armed}
-          escFlash={escFlash}
-          onSubmit={submit}
-          onEnd={requestEnd}
-        />
+        <div className="flex min-h-0 min-w-0 flex-[6] flex-col">
+          <LiveTurn
+            files={files}
+            stamp={liveStamp}
+            onTelemetry={handleTelemetry}
+            onCodeChange={handleCodeChange}
+            onSubmit={submit}
+          />
+        </div>
       </div>
     </div>
   )

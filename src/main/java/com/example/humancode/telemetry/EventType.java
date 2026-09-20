@@ -5,5 +5,6 @@ public enum EventType {
     PASTE,
     SUBMIT,
     FOCUS,
-    BLUR
+    BLUR,
+    HINT
 }

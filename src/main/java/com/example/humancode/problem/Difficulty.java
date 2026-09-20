@@ -51,4 +51,25 @@ public enum Difficulty {
     public boolean matches(Problem problem) {
         return problem != null && parse(problem.difficulty()).filter(this::equals).isPresent();
     }
+
+    /**
+     * One tier below this, floored at {@code VERY_EASY}.
+     *
+     * <p>Candidates were finding "easy" too hard, and that turned out to be a
+     * calibration problem rather than a wording one: what each label actually
+     * buys needed to move, not just the text describing it. {@code SessionService}
+     * queries one tier below whatever was requested — a candidate who picks
+     * "easy" is served what used to be "very easy" content — while the label
+     * shown for the session stays what they actually chose, the same
+     * "requested wins over generated" convention {@code ProblemGenerator}
+     * already uses.
+     */
+    public Difficulty oneTierEasier() {
+        return switch (this) {
+            case VERY_EASY -> VERY_EASY;
+            case EASY -> VERY_EASY;
+            case MEDIUM -> EASY;
+            case HARD -> MEDIUM;
+        };
+    }
 }

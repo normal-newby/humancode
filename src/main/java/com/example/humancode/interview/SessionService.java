@@ -55,7 +55,10 @@ public class SessionService {
 
     public SessionState start(String problemId, String language, Difficulty difficulty, ProblemType type,
             ProblemRuntime runtime) {
-        Problem problem = problems.next(problemId, difficulty, type, runtime);
+        // Query one tier easier than what was asked for (Difficulty.oneTierEasier) —
+        // "asked for" in the log below still reports their actual choice.
+        Difficulty eased = difficulty == null ? null : difficulty.oneTierEasier();
+        Problem problem = problems.next(problemId, eased, type, runtime);
 
         String resolvedLanguage = runtime == null
                 ? (language == null || language.isBlank() ? "javascript" : language)

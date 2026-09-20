@@ -66,6 +66,15 @@ public final class Dtos {
             String detail) {
     }
 
+    /**
+     * @param text the hint itself
+     * @param hintsUsed 1-based number of the hint just spent
+     * @param hintsRemaining how many are left this session, {@code SessionState.MAX_HINTS} at most
+     * @param canned true when the model was unavailable, failed, or got rejected by the guard
+     */
+    public record HintResponse(String text, int hintsUsed, int hintsRemaining, boolean canned) {
+    }
+
     public record MetricsResponse(
             long elapsedSeconds,
             long idleSeconds,

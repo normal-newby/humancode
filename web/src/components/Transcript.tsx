@@ -230,7 +230,7 @@ export function Transcript({ statement, type, entries, incoming, connected }: Pr
 
   return (
     <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-[84ch] px-6">
+      <div className="w-full px-6">
         {/* Their standing prompt. It is what you are still being asked. */}
         {/* Once it is folded the session is under way and the top gap is just
             space the log does not have — a short window leaves the whole scroll

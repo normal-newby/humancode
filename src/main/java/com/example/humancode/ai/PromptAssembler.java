@@ -158,8 +158,7 @@ public class PromptAssembler {
                 # What changed since your last line
 
                 %s
-                %s
-                # Behaviour so far
+                %s%s# Behaviour so far
 
                 - Elapsed: %d seconds
                 - Idle for: %d seconds
@@ -194,6 +193,7 @@ public class PromptAssembler {
                 renderCurrentFiles(state),
                 changes(state),
                 inFlightNote(state),
+                curveballNote(state),
                 state.elapsed().toSeconds(),
                 state.idleFor().toSeconds(),
                 state.charsInserted(),
@@ -246,7 +246,7 @@ public class PromptAssembler {
                   register. Say what you went to do with it and what happened instead.
 
                 It is your app. Call it that. My app, my counter, my button, my list.
-
+                %s
                 # Final state of the app they handed you
 
                 %s
@@ -280,6 +280,7 @@ public class PromptAssembler {
                 sentences, and on a good one it should run short. Do not repeat any line you
                 already said live during the session.
                 """.formatted(
+                curveballNote(state),
                 renderCurrentFiles(state),
                 allLines(state),
                 state.elapsed().toSeconds(),
@@ -289,6 +290,41 @@ public class PromptAssembler {
                 state.pasteCount(),
                 state.submitCount(),
                 state.impatience());
+    }
+
+    /**
+     * The tail for a hint call. The candidate asked for this directly, which is
+     * the one deliberate exception to the "never hint" line in {@link #RULES} —
+     * spelled out here, in the volatile tail, rather than weakening the stable
+     * prefix's rule for every other call in the session.
+     */
+    public String hintInput(SessionState state, int hintNumber) {
+        return """
+                # They just asked you for a hint
+
+                This is the one deliberate exception to "never hint" above. They asked you
+                directly, out loud, for help — not code, not the fix, but a real nudge: the
+                file or function to look at, the requirement they have not satisfied, or the
+                question a good mentor asks to get someone looking in the right place. One to
+                two plain sentences. Never code, never a literal value, never the exact fix
+                spelled out, never the name of the specific technique to use.
+
+                This is hint %d of %d for this session. Make it earn its keep.
+
+                # Current state of the candidate's editor
+
+                %s
+                # What changed since your last line
+
+                %s
+                %s
+                Give them exactly one hint.
+                """.formatted(
+                hintNumber,
+                SessionState.MAX_HINTS,
+                renderCurrentFiles(state),
+                changes(state),
+                inFlightNote(state));
     }
 
     public void forget(String sessionId) {
@@ -333,8 +369,7 @@ public class PromptAssembler {
      * time it is the same reaction again.
      */
     private String changes(SessionState state) {
-        List<String> fileOrder = state.problem().files().stream().map(Problem.ProblemFile::name).toList();
-        String diff = CodeDiff.unifiedAcrossFiles(fileOrder, state.previousCode(), state.settledCode());
+        String diff = diffText(state);
         if (diff.isEmpty()) {
             return "(not one character has changed since you last spoke)";
         }
@@ -344,6 +379,27 @@ public class PromptAssembler {
 
                 ```diff
                 %s```""".formatted(diff);
+    }
+
+    /**
+     * Whether anything has actually changed since the interviewer last
+     * spoke — the same computation {@link #changes} renders as prose for the
+     * prompt tail, exposed as a plain boolean so {@link Interviewer} can
+     * check it independently of what the model claims.
+     *
+     * <p>This is the guard against the model hallucinating progress: GOOD
+     * means "the change moves toward something that works" ({@link Reaction}),
+     * which cannot be true when there was no change at all. A model call is
+     * generative text, not a fact-check against its own input, so this is
+     * enforced in code rather than trusted from the reply.
+     */
+    public boolean hasChanged(SessionState state) {
+        return !diffText(state).isEmpty();
+    }
+
+    private String diffText(SessionState state) {
+        List<String> fileOrder = state.problem().files().stream().map(Problem.ProblemFile::name).toList();
+        return CodeDiff.unifiedAcrossFiles(fileOrder, state.previousCode(), state.settledCode());
     }
 
     /**
@@ -370,6 +426,41 @@ public class PromptAssembler {
                 stops, and do not count the missing line against them. React to what is
                 finished, or to the clock.
                 """.formatted(String.join(" and ", midLine));
+    }
+
+    /**
+     * Scope changes actually delivered this session, if any.
+     *
+     * <p>The reference answer and rubric in {@link #instructions} are fixed at
+     * session start and cached byte-identical for every call after — a
+     * curveball fires mid-session, well after that prefix was built, so it
+     * cannot rewrite the rubric it references. This is how the amendment
+     * still reaches judgment: told here, in the tail, on every call from the
+     * moment it is delivered onward, so "sort alphabetically" said as a
+     * curveball is not quietly graded against "sort numerically" in the
+     * original spec above it.
+     *
+     * @return a note for the tail, or an empty string when no curveball has fired yet
+     */
+    private String curveballNote(SessionState state) {
+        List<String> issued = state.curveballsIssued();
+        if (issued.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("""
+
+                # Scope changed mid-session
+
+                You sprung these on them yourself, in your own voice, after the original
+                problem above. They are real requirements now, not flavor text — wherever one
+                conflicts with the original statement or rubric, it wins. Judge their code
+                against the task as it stands after these, not as it was written before them.
+
+                """);
+        for (String curveball : issued) {
+            sb.append("- ").append(curveball).append('\n');
+        }
+        return sb.toString();
     }
 
     /** Last few lines only. Repeating yourself is the main failure mode. */

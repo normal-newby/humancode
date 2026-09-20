@@ -42,10 +42,27 @@ public class Interviewer {
      */
     private static final long MAX_OUTPUT_TOKENS = 400L;
 
+    /**
+     * Headroom for a hint. Bigger than the quip's budget because a hint is
+     * one to two full sentences of genuine explanation rather than a
+     * one-line heckle, but it is still short — the candidate is waiting on
+     * this one, not reading it off a report card at the end.
+     */
+    private static final long HINT_MAX_OUTPUT_TOKENS = 800L;
+
+    /**
+     * Above the quip path's MINIMAL, below the report card's MEDIUM. A hint
+     * has to actually locate the gap in the code to be worth anything, which
+     * MINIMAL was not reliable at, but the candidate is watching a spinner
+     * for this one, unlike the report card's one unwatched pause at the end.
+     */
+    private static final ReasoningEffort HINT_EFFORT = ReasoningEffort.LOW;
+
     private final OpenAiClientHolder clientHolder;
     private final PromptAssembler prompts;
     private final HumancodeProperties props;
     private final ReactionGuard reactionGuard;
+    private final HintGuard hintGuard;
 
     /**
      * Never throws and never returns empty — a session that goes silent because
@@ -93,6 +110,17 @@ public class Interviewer {
                 return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
             }
 
+            // GOOD means "the change moves toward something that works" — not
+            // something that can be true when nothing changed at all. This is
+            // the guard against the model hallucinating progress that never
+            // happened: it is a fact about the diff, checked in code, not
+            // something trusted from the reply that is making the claim.
+            if (reaction.get().verdict() == Reaction.Verdict.GOOD && !prompts.hasChanged(state)) {
+                log.warn("Rejected a GOOD verdict with no diff for trigger {} (session {}) — nothing"
+                        + " could have improved when nothing changed", trigger.kind(), state.sessionId());
+                return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
+            }
+
             logUsage(response, trigger, millis);
             return new Result(reaction.get(), false);
 
@@ -100,6 +128,69 @@ public class Interviewer {
             log.warn("Quip call failed for trigger {} ({}); falling back to a canned line",
                     trigger.kind(), e.toString());
             return new Result(CannedLines.forTrigger(trigger, state.impatience(), state.transcript()), true);
+        }
+    }
+
+    /**
+     * A hint, given because the candidate asked for one directly — not a
+     * reaction to a trigger, so it never touches {@code state.transcript()}
+     * or the SSE utterance stream. It is delivered as a plain response to the
+     * request that asked for it and rendered in its own box on the client,
+     * deliberately kept out of the criticism log (CLAUDE.md §2: the model
+     * decides <em>what</em> only when it has to — here it has to, because
+     * they asked).
+     *
+     * <p>Same never-throws, never-blank guarantee as {@link #react}: a hint
+     * button that goes silent under load is a worse demo than a generic one.
+     *
+     * @param hintNumber 1-based — which of {@link com.example.humancode.interview.SessionState#MAX_HINTS} this is
+     */
+    public HintResult hint(SessionState state, Problem problem, int hintNumber) {
+        Optional<OpenAIClient> client = clientHolder.client();
+        if (client.isEmpty()) {
+            return new HintResult(CannedHints.forSession(state), true);
+        }
+
+        try {
+            StructuredResponseCreateParams<Hint> params = ResponseCreateParams.builder()
+                    .model(props.ai().model())
+                    .instructions(prompts.instructions(state, problem))
+                    .input(prompts.hintInput(state, hintNumber))
+                    .reasoning(Reasoning.builder().effort(HINT_EFFORT).build())
+                    .maxOutputTokens(HINT_MAX_OUTPUT_TOKENS)
+                    .text(Hint.class)
+                    .build();
+
+            long started = System.nanoTime();
+            StructuredResponse<Hint> response = client.get().responses().create(params);
+            long millis = (System.nanoTime() - started) / 1_000_000;
+
+            Optional<Hint> hint = response.output().stream()
+                    .flatMap(item -> item.message().stream())
+                    .flatMap(message -> message.content().stream())
+                    .flatMap(content -> content.outputText().stream())
+                    .findFirst();
+
+            if (hint.isEmpty()) {
+                log.warn("No structured hint for session {} (hint {}/{})",
+                        state.sessionId(), hintNumber, SessionState.MAX_HINTS);
+                return new HintResult(CannedHints.forSession(state), true);
+            }
+
+            if (!hintGuard.isSafe(hint.get())) {
+                log.warn("Rejected an unsafe hint for session {} (hint {}/{})",
+                        state.sessionId(), hintNumber, SessionState.MAX_HINTS);
+                return new HintResult(CannedHints.forSession(state), true);
+            }
+
+            log.debug("hint session={} number={}/{} latency={}ms",
+                    state.sessionId(), hintNumber, SessionState.MAX_HINTS, millis);
+            return new HintResult(hint.get(), false);
+
+        } catch (RuntimeException e) {
+            log.warn("Hint call failed for session {} ({}); falling back to a canned hint",
+                    state.sessionId(), e.toString());
+            return new HintResult(CannedHints.forSession(state), true);
         }
     }
 
@@ -154,5 +245,9 @@ public class Interviewer {
 
     /** @param canned true when this line came from the fallback, not the model. */
     public record Result(Reaction reaction, boolean canned) {
+    }
+
+    /** @param canned true when this hint came from the fallback, not the model. */
+    public record HintResult(Hint hint, boolean canned) {
     }
 }

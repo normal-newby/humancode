@@ -1,6 +1,7 @@
 import type {
   Difficulty,
   ProblemType,
+  HintResponse,
   Metrics,
   SessionResponse,
   TelemetryBatch,
@@ -60,6 +61,15 @@ export function sendTelemetry(sessionId: string, batch: TelemetryBatch): Promise
  */
 export function submitTurn(sessionId: string): Promise<Metrics> {
   return request<Metrics>(`/sessions/${sessionId}/submit`, { method: 'POST' })
+}
+
+/**
+ * Asks for a hint directly. Capped server-side at `SessionState.MAX_HINTS` —
+ * a 409 past that is a defensive backstop, not the normal path, since the
+ * client disables the button once `hintsRemaining` hits zero.
+ */
+export function requestHint(sessionId: string): Promise<HintResponse> {
+  return request<HintResponse>(`/sessions/${sessionId}/hint`, { method: 'POST' })
 }
 
 export function finishSession(sessionId: string): Promise<SessionResponse> {

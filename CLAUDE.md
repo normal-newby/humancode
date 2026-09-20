@@ -483,6 +483,19 @@ Two rules to keep it honest:
 - **It belongs in the tail, never the prefix.** It changes on every call by construction, so one byte
   of it near the front would cost every cached read in the session.
 
+**The prompt telling the model nothing changed does not stop it from claiming otherwise.** `RULES`
+says "if nothing moved, make them answer for that instead," but that is an instruction, not a
+guarantee — a model call is generative text, not a fact-check against its own input. So
+`Interviewer.react()` checks the fact in code: `PromptAssembler.hasChanged(state)` is the same diff
+computation `changes()` renders as prose, exposed as a boolean, and a `GOOD` verdict with no change
+is rejected outright before it ever reaches the candidate — `GOOD` means "moved toward something
+that works" (`Reaction`'s own javadoc), which cannot be true when nothing moved. A rejection here
+falls back to a canned line the same way `ReactionGuard` does, and logs which trigger and session
+tripped it. `WRONG` and `NEUTRAL` are not screened the same way — commenting on an idle candidate or
+a resubmission without a new diff is not a fabricated *change*, so only the one verdict that is
+logically impossible without one is blocked. `PromptAssemblerDiffGuardTest` pins `hasChanged` against
+the same scenarios `CodeDiffTest` covers at the pure-diff level.
+
 ### Reasoning models will eat your output budget
 
 `gpt-5` and `gpt-5-mini` are reasoning models: `maxOutputTokens` covers the reasoning tokens *and* the
@@ -612,6 +625,17 @@ The candidate picks **very easy, easy, medium or hard** before starting; it ride
 "any" — the behaviour from before the selector existed. `Difficulty.parse` is the one place that
 decides, and it is the only place that knows `very-easy`, `very easy` and `VERY_EASY` are one level:
 the wire and the problem JSON use the hyphen, Java uses the underscore, and `label()` converts.
+
+**What is actually served is one tier easier than what was picked.** Candidates were finding
+"easy" too hard even after the calibration work below, and that turned out to be the tier itself,
+not the wording — so `Difficulty.oneTierEasier()` maps EASY → VERY_EASY, MEDIUM → EASY,
+HARD → MEDIUM, VERY_EASY → itself (the floor). `SessionService.start()` is the one place this
+happens: it eases the difficulty before it ever reaches `problems.next(...)`, so both the bank and
+the generator are affected uniformly with no changes to either. The session log's `asked for` still
+reports the candidate's real choice; only `problem.difficulty()` — never shown to the candidate,
+only read by the interviewer's prompt and logged — reflects what was actually served. Nothing else
+needed to change: `ProblemPool` already warms all four tiers regardless of which ones candidates
+request, so asking for "easy" and being served from the "very-easy" bucket costs nothing extra.
 
 **`VERY_EASY` is below easy on purpose and the calibration has to keep it there.** One thing to
 write, three or four lines, no second requirement — a candidate meeting the interviewer without also
@@ -782,6 +806,12 @@ Recorded here so they get made deliberately rather than by accident:
 ### Still unbuilt
 
 Core loop is closed (problem → code → telemetry → trigger → reaction → verdict), the **report card**
-is built (§5, `report/`), and **mid-task curveballs** are built (§2, §6). Not yet built: **hints**,
-the **follow-up phase**, and **real token-by-token streaming** — every call today, including the
-report card, is non-streaming; see §5.
+is built (§5, `report/`), **mid-task curveballs** are built (§2, §6), and **hints** are built —
+`SessionState.MAX_HINTS` (2 per session), `ai/Hint.java`, `ai/HintGuard.java`,
+`ai/CannedHints.java`, `Interviewer.hint()`, `PromptAssembler.hintInput()`, and
+`POST /sessions/{id}/hint`. A hint is candidate-triggered, not trigger-engine-fired, and never
+becomes an `Utterance` — it is the one deliberate exception to the quip path's "never hint" rule,
+spelled out in the hint call's volatile tail rather than weakened in the shared prefix, and it is
+rendered client-side in its own box (UI-DESIGN.md §4.3c) rather than the criticism log. Not yet
+built: the **follow-up phase** and **real token-by-token streaming** — every call today, including
+the report card, is non-streaming; see §5.

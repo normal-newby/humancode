@@ -48,6 +48,9 @@ public class SqliteSchemaMigrator implements ApplicationRunner {
             if (telemetryNeedsSubmitValue(connection)) {
                 repair(connection, this::migrateTelemetryEvents, "telemetry_events");
             }
+            if (telemetryNeedsHintValue(connection)) {
+                repair(connection, this::migrateTelemetryEventsForHint, "telemetry_events (HINT)");
+            }
             if (sessionsMissingPersona(connection)) {
                 repair(connection, this::addPersonaColumn, "sessions");
             }
@@ -129,6 +132,57 @@ public class SqliteSchemaMigrator implements ApplicationRunner {
             throw e;
         } finally {
             connection.setAutoCommit(true);
+        }
+    }
+
+    /**
+     * Same repair as {@link #migrateTelemetryEvents}, one enum constant later:
+     * {@code EventType.HINT} is new, so a database whose {@code telemetry_events}
+     * table predates it has a check constraint that does not list it, and every
+     * hint insert throws {@code SQLITE_CONSTRAINT_CHECK} on a database that is
+     * otherwise perfectly healthy.
+     */
+    private void migrateTelemetryEventsForHint(Connection connection) throws SQLException {
+        connection.setAutoCommit(false);
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    CREATE TABLE telemetry_events_next (
+                        id integer,
+                        at timestamp not null,
+                        deleted bigint not null,
+                        detail varchar(255),
+                        inserted bigint not null,
+                        session_id varchar(255) not null,
+                        type varchar(255) not null check
+                            (type in ('EDIT','PASTE','SUBMIT','FOCUS','BLUR','HINT')),
+                        primary key (id)
+                    )
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO telemetry_events_next
+                        (id, at, deleted, detail, inserted, session_id, type)
+                    SELECT id, at, deleted, detail, inserted, session_id, type
+                    FROM telemetry_events
+                    """);
+            statement.executeUpdate("DROP TABLE telemetry_events");
+            statement.executeUpdate("ALTER TABLE telemetry_events_next RENAME TO telemetry_events");
+            statement.executeUpdate("CREATE INDEX idx_event_session ON telemetry_events (session_id, at)");
+            connection.commit();
+            log.info("Migrated telemetry_events to allow HINT values");
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(true);
+        }
+    }
+
+    private boolean telemetryNeedsHintValue(Connection connection) throws SQLException {
+        try (PreparedStatement query = connection.prepareStatement("""
+                SELECT sql FROM sqlite_master
+                WHERE type = 'table' AND name = 'telemetry_events'
+                """); ResultSet result = query.executeQuery()) {
+            return result.next() && !result.getString(1).contains("'HINT'");
         }
     }
 

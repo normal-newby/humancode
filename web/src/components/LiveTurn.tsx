@@ -16,8 +16,9 @@ interface Props {
  *
  * <p>The editor is not a composer — it is the block you are currently emitting,
  * headed by the tool call it amounts to and stamped underneath with what it has
- * cost so far. It is pinned to the bottom because that is where a terminal
- * keeps the output still being written; everything finished scrolls above it.
+ * cost so far. It now has a column of its own rather than a fixed-height strip
+ * pinned under the scrolled-back log, so it fills whatever height that column
+ * has to give it.
  *
  * <p>No border, no fill. A box would make it an input again, and the whole
  * point is that you are the one producing output here.
@@ -30,15 +31,15 @@ export function LiveTurn({ files, stamp, onTelemetry, onCodeChange, onSubmit }: 
   const label = files.length === 1 ? files[0].name : `${files.length} files`
 
   return (
-    <div className="mx-auto w-full max-w-[84ch] px-6">
-      <div className="grid grid-cols-[1.25rem_1fr] gap-x-2">
+    <div className="flex min-h-0 w-full flex-1 flex-col px-6 py-4">
+      <div className="grid min-h-0 flex-1 grid-cols-[1.25rem_1fr] gap-x-2">
         <span aria-hidden className="text-accent">
           •
         </span>
-        <div className="min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-col">
           <p className="text-[15px] leading-relaxed text-ink">Editing {label}</p>
 
-          <div className="mt-1 h-[38vh]">
+          <div className="mt-1 min-h-0 flex-1">
             <EditorPane
               files={files}
               onTelemetry={onTelemetry}

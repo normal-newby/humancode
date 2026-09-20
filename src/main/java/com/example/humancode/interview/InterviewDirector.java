@@ -59,6 +59,18 @@ public class InterviewDirector {
             return Optional.empty();
         }
 
+        // Recorded here, not inside Interviewer: a curveball is delivered
+        // verbatim with no model call at all (CLAUDE.md §2), so this is the
+        // only place that knows it actually went out. From the next call on —
+        // the very next quip, or the closing report card — PromptAssembler
+        // reads this back so the amended scope is judged against, not the
+        // original rubric alone. Deliberately after both guards above: a
+        // suppressed trigger must not start being graded on a change the
+        // candidate never actually saw.
+        if (trigger.kind() == Trigger.Kind.CURVEBALL) {
+            state.recordCurveball(trigger.detail());
+        }
+
         Interviewer.Result result = interviewer.react(state, sessions.problemFor(state), trigger);
         Reaction reaction = result.reaction();
 

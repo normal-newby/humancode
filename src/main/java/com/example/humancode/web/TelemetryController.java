@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.humancode.ai.Interviewer;
 import com.example.humancode.interview.InterviewDirector;
 import com.example.humancode.interview.SessionService;
 import com.example.humancode.interview.SessionState;
@@ -43,6 +44,7 @@ public class TelemetryController {
     private final TelemetryEventRepository events;
     private final TriggerEngine triggers;
     private final InterviewDirector director;
+    private final Interviewer interviewer;
 
     @PostMapping("/telemetry")
     @ResponseStatus(HttpStatus.ACCEPTED)
@@ -120,6 +122,27 @@ public class TelemetryController {
         triggers.onSubmit(state).ifPresent(trigger -> director.fire(state, trigger));
 
         return metrics(state);
+    }
+
+    /**
+     * The candidate asked for help directly. Unlike every other reaction in the
+     * app this does not go through {@link TriggerEngine} or {@link InterviewDirector}
+     * — it is not gated on a trigger firing or the quip cooldown, because the
+     * candidate spending one of {@link SessionState#MAX_HINTS} is the gate. It
+     * also never becomes an {@code Utterance}: it is a plain response to this
+     * request, not a line in the transcript, so it cannot land mixed in with the
+     * criticism log — the client renders it in a box of its own.
+     */
+    @PostMapping("/hint")
+    public Dtos.HintResponse hint(@PathVariable String id) {
+        SessionState state = sessions.require(id);
+        int hintNumber = state.recordHint();
+        events.save(new TelemetryEvent(id, EventType.HINT, Instant.now(), 0, 0,
+                "Hint " + hintNumber + "/" + SessionState.MAX_HINTS));
+
+        Interviewer.HintResult result = interviewer.hint(state, sessions.problemFor(state), hintNumber);
+
+        return new Dtos.HintResponse(result.hint().text(), hintNumber, state.hintsRemaining(), result.canned());
     }
 
     private Dtos.MetricsResponse metrics(SessionState state) {

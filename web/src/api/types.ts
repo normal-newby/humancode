@@ -105,6 +105,15 @@ export interface SessionResponse {
   report: ReportCard | null
 }
 
+/** Response to `POST /sessions/{id}/hint`. Never mixed into the transcript — see App.tsx. */
+export interface HintResponse {
+  text: string
+  hintsUsed: number
+  hintsRemaining: number
+  /** True when the model was unavailable, failed, or got rejected by the guard. */
+  canned: boolean
+}
+
 export interface Metrics {
   elapsedSeconds: number
   idleSeconds: number

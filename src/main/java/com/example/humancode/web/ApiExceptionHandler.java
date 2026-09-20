@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.example.humancode.interview.SessionService;
+import com.example.humancode.interview.SessionState;
 
 /**
  * Shared handlers for every {@code /api} controller.
@@ -23,5 +24,15 @@ class ApiExceptionHandler {
     @ExceptionHandler(SessionService.UnknownSessionException.class)
     ResponseEntity<String> unknownSession(SessionService.UnknownSessionException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
+    /**
+     * The client disables the hint button once {@code hintsRemaining} hits
+     * zero, so this is a defensive backstop — a double click racing the
+     * response, or a second tab on the same session — not the normal path.
+     */
+    @ExceptionHandler(SessionState.HintsExhaustedException.class)
+    ResponseEntity<String> hintsExhausted(SessionState.HintsExhaustedException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body("No hints left this session");
     }
 }

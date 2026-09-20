@@ -65,12 +65,26 @@ public final class SessionState {
     /** How many times the candidate has handed the turn back for judgment. */
     private final AtomicInteger submitCount = new AtomicInteger();
 
+    /** Hard cap on hints per session — asking for a third is a 409, not a fourth call. */
+    public static final int MAX_HINTS = 2;
+    private final AtomicInteger hintsUsed = new AtomicInteger();
+
     /** What the interviewer has said, in order. */
     private final List<Utterance> transcript = new CopyOnWriteArrayList<>();
     /** The visible "private notes" sidebar. */
     private final List<String> notes = new CopyOnWriteArrayList<>();
     /** Triggers already fired, so one-shot triggers do not repeat. */
     private final List<String> firedOnce = new CopyOnWriteArrayList<>();
+    /**
+     * Curveball text actually delivered to the candidate this session, in
+     * order — not just picked by the trigger engine, but confirmed spoken by
+     * {@code InterviewDirector.fire()}. See {@code PromptAssembler}: every
+     * judgment after this point, quip or report card, has to be graded
+     * against the amended scope, not the original rubric alone, and the
+     * cached prompt prefix is fixed at session start — this is how a
+     * mid-session scope change reaches a prompt built before it existed.
+     */
+    private final List<String> curveballsIssued = new CopyOnWriteArrayList<>();
 
     public SessionState(String sessionId, Problem problem, String language) {
         this.sessionId = sessionId;
@@ -296,6 +310,33 @@ public final class SessionState {
         return submitCount.get();
     }
 
+    /**
+     * @return the 1-based number of the hint just spent (1 or {@link #MAX_HINTS})
+     * @throws HintsExhaustedException if every hint this session already has a spent one
+     */
+    public int recordHint() {
+        int used = hintsUsed.updateAndGet(current -> {
+            if (current >= MAX_HINTS) {
+                throw new HintsExhaustedException();
+            }
+            return current + 1;
+        });
+        lastEventAt = Instant.now();
+        return used;
+    }
+
+    public int hintsUsed() {
+        return hintsUsed.get();
+    }
+
+    public int hintsRemaining() {
+        return Math.max(0, MAX_HINTS - hintsUsed.get());
+    }
+
+    /** Thrown by {@link #recordHint()} once every hint this session has been spent. */
+    public static final class HintsExhaustedException extends RuntimeException {
+    }
+
     // --- derived ------------------------------------------------------------
 
     public Duration idleFor() {
@@ -360,6 +401,21 @@ public final class SessionState {
 
     public List<String> notes() {
         return List.copyOf(notes);
+    }
+
+    /**
+     * Records a curveball as actually delivered. Called from
+     * {@code InterviewDirector.fire()}, after the same cooldown and SSE
+     * guards that gate every other side effect of a spoken line — a
+     * curveball that never reached a connected candidate must not start
+     * being graded on.
+     */
+    public void recordCurveball(String text) {
+        curveballsIssued.add(text);
+    }
+
+    public List<String> curveballsIssued() {
+        return List.copyOf(curveballsIssued);
     }
 
     /** @return true the first time this key is seen, false forever after. */

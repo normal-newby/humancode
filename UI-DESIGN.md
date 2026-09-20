@@ -74,6 +74,17 @@ viewport and the log scrolls behind them — a terminal keeps the output still b
 bottom, and everything finished above it. Markers sit in a `1.25rem` left column so `▌` and `•` line
 up all the way down; that single alignment is most of why the screen reads as one surface.
 
+**Revision: the coding screen is now two fixed columns, not one.** The diagram above is still
+accurate for the start screen, the prelude and the report card — those stay a single centred
+column. On the coding screen specifically, the log (their prompts, your closed turns, the hint
+box, the footer) now lives in a left column of its own and the live editor gets a right column at
+full viewport height, rather than a `38vh` strip pinned under a scrolled-back log that was sharing
+its space with everything else. Nothing docks to an edge and there is no draggable divider — the
+split is a fixed ratio, not IDE furniture — but it is a genuine two-pane layout, and §2's
+"one column" framing below should be read as amended for this one screen. Both columns keep the
+`1.25rem` marker column and the same `px-6` inset; they are just narrower than 84ch now, since each
+one no longer owns the full viewport width.
+
 **The log keeps its scrollback.** A meta line is a stamp on a turn, and it only means anything if the
 turn it stamps stays on screen. Closed turns and answered prompts drop to `--color-faint` so their
 newest prompt is unmistakably the live one.
@@ -86,7 +97,7 @@ Call these out in review. Any one of them collapses the whole concept back into 
 
 | Do not | Instead |
 |---|---|
-| Split pane with a draggable divider | One column, no resize handles, nothing docked to an edge |
+| A **draggable** divider, or panes that dock/resize | The coding screen's two columns are a fixed ratio — see §1's revision note. Every other screen stays one column |
 | Bordered cards with rounded corners around every panel | **No borders anywhere.** Zones are separated by whitespace and contrast alone |
 | Green/yellow/red difficulty pills | Lowercase plain text: `very easy`, `easy`, `medium`, `hard`, in `--color-sub` |
 | Tabs: Description / Solutions / Submissions | There is one view. There are no tabs anywhere |
@@ -378,6 +389,25 @@ document or storage. Adding it back would look like a fix the first time a candi
 Only files the HTML actually references are inlined. Delete the `<script src="app.js">` tag and the
 preview stops running the script — because that is what the page now does, and a preview that
 disagrees with the page the rubric is judged against is worse than a blank screen.
+
+### 4.3c Hints
+
+Two per session, asked for directly rather than volunteered — the footer carries a `hint (2 left)`
+/ `hint (1 left)` / `no hints left` button in the left column, next to `⏎ submit` and `^d end`.
+
+**A hint is not a heckle, so it does not go in the log.** Every `▌` line is a reaction to what you
+just did; a hint is the one thing on this screen that you asked for, and mixing it into the
+criticism feed would read as the interviewer volunteering help it does not volunteer anywhere
+else. It lands in a small numbered box of its own, sitting between the log and the footer:
+
+```
+   hints
+   1.  check what your click handler is actually bound to
+```
+
+No border, no card — numbered lines in `--color-faint`/`--color-sub`, the same "whitespace and
+contrast, not a panel" rule as everything else (§2). It never scrolls away with the log and never
+interleaves with a prompt mid-delivery.
 
 ### 4.4 Their caret
 

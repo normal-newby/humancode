@@ -16,8 +16,13 @@ interface Props {
   armed: boolean
   /** They pressed `esc`. It is not their key to press. */
   escFlash: boolean
+  /** How many of `SessionState.MAX_HINTS` are left this session. */
+  hintsRemaining: number
+  /** A hint call is in flight. */
+  requestingHint: boolean
   onSubmit: () => void
   onEnd: () => void
+  onHint: () => void
 }
 
 /**
@@ -37,13 +42,16 @@ export function StatusLine({
   finishing,
   armed,
   escFlash,
+  hintsRemaining,
+  requestingHint,
   onSubmit,
   onEnd,
+  onHint,
 }: Props) {
   const word = useActivity(activity, impatience)
 
   return (
-    <div className="mx-auto flex w-full max-w-[84ch] flex-wrap items-center gap-x-7 gap-y-2 px-6 pt-3 pb-5 text-[13px] text-sub">
+    <div className="flex w-full flex-wrap items-center gap-x-5 gap-y-2 px-6 pt-3 pb-5 text-[13px] text-sub">
       {/* Not dimmable: this is the read on you, and §7 says that never recedes
           — least of all while you are typing, which is the state it reports. */}
       <span className="flex items-center gap-2">
@@ -66,6 +74,17 @@ export function StatusLine({
       </span>
 
       <span className="dimmable ml-auto flex items-center gap-5">
+        <button
+          type="button"
+          onClick={onHint}
+          disabled={requestingHint || hintsRemaining === 0 || running || finishing}
+          className="lowercase transition-colors hover:text-ink disabled:opacity-40"
+        >
+          <span aria-hidden className="mr-1.5 text-faint">
+            ?
+          </span>
+          {requestingHint ? 'thinking…' : hintsRemaining === 0 ? 'no hints left' : `hint (${hintsRemaining} left)`}
+        </button>
         <button
           type="button"
           onClick={onSubmit}
