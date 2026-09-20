@@ -9,19 +9,16 @@ import type {
   TelemetryItem,
   Utterance,
 } from './api/types'
-import { BOOT_COMMAND, BootSequence } from './components/BootSequence'
-import { DifficultyPicker } from './components/DifficultyPicker'
-import { HandleLine } from './components/HandleLine'
+import { BootSequence } from './components/BootSequence'
 import { HintPanel, type HintEntry } from './components/HintPanel'
-import { LanguagePicker, type SessionLanguage } from './components/LanguagePicker'
+import type { SessionLanguage } from './components/LanguagePicker'
 import { Leaderboard } from './components/Leaderboard'
 import { LiveTurn } from './components/LiveTurn'
-import { Logo } from './components/Logo'
-import { ProblemTypePicker } from './components/ProblemTypePicker'
+import { BrandLanding } from './components/BrandLanding'
 import type { TurnStamp } from './components/MetaLine'
 import { ReportView } from './components/ReportView'
 import { StatusLine } from './components/StatusLine'
-import { Result, Transcript, type Entry, type PromptEntry } from './components/Transcript'
+import { Transcript, type Entry, type PromptEntry } from './components/Transcript'
 import { WindowTab } from './components/WindowTab'
 import { useIdentity } from './hooks/useIdentity'
 import { useSessionStream } from './hooks/useSessionStream'
@@ -89,8 +86,6 @@ export default function App() {
   const [problemType, setProblemType] = useState<ProblemType>('BUILD')
   const [report, setReport] = useState<ReportCard | null>(null)
   const [finishing, setFinishing] = useState(false)
-  /** Hovering or focusing the start control — see the aside under it. */
-  const [readying, setReadying] = useState(false)
   /**
    * The anonymous rating: every session *this browser* has finished, with no
    * handle behind it (lib/rating.ts). Signed in, the server's number wins —
@@ -609,73 +604,23 @@ export default function App() {
 
   if (!session) {
     return (
-      <main className="flex min-h-screen flex-col bg-canvas">
-        <WindowTab rating={rating} handle={handle} />
-        {/* The centring lives on a wrapper, not on the column itself — the
-            column's children are blocks and must stay left-aligned. */}
-        <div className="flex flex-1 items-center justify-center px-6">
-          <div className="w-full max-w-[52ch]">
-            <Logo />
-            <p className="mt-4 text-sm leading-relaxed text-sub">
-              the interview, inverted. they prompt. you generate. they watch the tokens go by and
-              form opinions.
-            </p>
-            <HandleLine
-              status={identity.status}
-              profile={identity.profile}
-              error={identity.error}
-              onClaim={identity.claim}
-              onSignOut={identity.signOut}
-              onLeaderboard={() => setBoard(true)}
-              disabled={starting}
-            />
-            <DifficultyPicker value={difficulty} onChange={setDifficulty} disabled={starting} />
-            <LanguagePicker value={language} onChange={setLanguage} disabled={starting} />
-            <ProblemTypePicker value={problemType} onChange={setProblemType} disabled={starting} />
-
-            <div className="mt-10">
-              <div className="flex items-baseline gap-6">
-                <button
-                  type="button"
-                  onClick={begin}
-                  disabled={starting}
-                  onMouseEnter={() => setReadying(true)}
-                  onMouseLeave={() => setReadying(false)}
-                  onFocus={() => setReadying(true)}
-                  onBlur={() => setReadying(false)}
-                  className="text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
-                >
-                  <span aria-hidden className="text-faint">$ </span>
-                  {BOOT_COMMAND}
-                </button>
-                {/* The way to the board, in the one place on this screen a
-                    person already looks for something to click. `--color-sub`
-                    rather than accent: it is the secondary command here, and
-                    accent belongs to the one that starts the interview. */}
-                <button
-                  type="button"
-                  onClick={() => setBoard(true)}
-                  disabled={starting}
-                  className="text-sm lowercase text-sub underline-offset-4 transition-colors hover:text-ink hover:underline disabled:opacity-40"
-                >
-                  <span aria-hidden className="text-faint">$ </span>
-                  {BOOT_COMMAND} --leaderboard
-                </button>
-              </div>
-              {/* The compliant beat before you actually commit — same `⎿`
-                  aside grammar as their notes, not a second button label, so
-                  the command above still reads exactly as what the boot
-                  sequence types (see BootSequence's own note on that).
-                  Not aria-hidden: onFocus reveals it too, so a keyboard user
-                  tabbing to the button gets the same beat a mouse hover does. */}
-              <div className={`transition-opacity duration-200 ${readying ? 'opacity-100' : 'opacity-0'}`}>
-                <Result tone="text-faint">yes, boss?</Result>
-              </div>
-            </div>
-            {error && <p className="mt-6 text-xs text-hot">{error}</p>}
-          </div>
-        </div>
-      </main>
+      <BrandLanding
+        difficulty={difficulty}
+        language={language}
+        problemType={problemType}
+        starting={starting}
+        error={error}
+        identityStatus={identity.status}
+        profile={identity.profile}
+        identityError={identity.error}
+        onDifficultyChange={setDifficulty}
+        onLanguageChange={setLanguage}
+        onProblemTypeChange={setProblemType}
+        onClaim={identity.claim}
+        onSignOut={identity.signOut}
+        onLeaderboard={() => setBoard(true)}
+        onBegin={begin}
+      />
     )
   }
 
