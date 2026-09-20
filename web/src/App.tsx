@@ -11,8 +11,10 @@ import type {
 } from './api/types'
 import { BOOT_COMMAND, BootSequence } from './components/BootSequence'
 import { DifficultyPicker } from './components/DifficultyPicker'
+import { HandleLine } from './components/HandleLine'
 import { HintPanel, type HintEntry } from './components/HintPanel'
 import { LanguagePicker, type SessionLanguage } from './components/LanguagePicker'
+import { Leaderboard } from './components/Leaderboard'
 import { LiveTurn } from './components/LiveTurn'
 import { Logo } from './components/Logo'
 import { ProblemTypePicker } from './components/ProblemTypePicker'
@@ -21,6 +23,7 @@ import { ReportView } from './components/ReportView'
 import { StatusLine } from './components/StatusLine'
 import { Result, Transcript, type Entry, type PromptEntry } from './components/Transcript'
 import { WindowTab } from './components/WindowTab'
+import { useIdentity } from './hooks/useIdentity'
 import { useSessionStream } from './hooks/useSessionStream'
 import { useTelemetry } from './hooks/useTelemetry'
 import { useTypingFocus } from './hooks/useTypingFocus'
@@ -77,8 +80,26 @@ export default function App() {
   const [finishing, setFinishing] = useState(false)
   /** Hovering or focusing the start control — see the aside under it. */
   const [readying, setReadying] = useState(false)
-  /** The saved rating, across every session this browser has finished — see lib/rating.ts. */
-  const [rating, setRating] = useState<number>(() => loadRating())
+  /**
+   * The anonymous rating: every session *this browser* has finished, with no
+   * handle behind it (lib/rating.ts). Signed in, the server's number wins —
+   * see `rating` below.
+   */
+  const [localRating, setLocalRating] = useState<number>(() => loadRating())
+  /** Who is playing, or nobody. Owns the claim/resume/sign-out dance. */
+  const identity = useIdentity()
+  const { adopt } = identity
+  /** The board, which is a screen rather than a panel — UI-DESIGN.md §2. */
+  const [board, setBoard] = useState(false)
+
+  /**
+   * One number for the whole app. A signed-in candidate reads their standing
+   * off the server, because that is what the board ranks; a signed-out one
+   * reads this browser's total, which is what the app did before handles
+   * existed and still does for anyone who does not want one.
+   */
+  const rating = identity.profile?.rating ?? localRating
+  const handle = identity.profile?.handle
 
   /** The prelude is on screen (§4.8a). */
   const [booting, setBooting] = useState(false)
@@ -202,18 +223,21 @@ export default function App() {
   const begin = useCallback(async () => {
     setError(null)
     setStarting(true)
+    setBoard(false)
     setBooting(true)
     setBootDone(false)
     setPending(null)
     try {
-      setPending(await startSession({ difficulty, language, problemType }))
+      setPending(
+        await startSession({ difficulty, language, problemType, identity: identity.identity }),
+      )
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setBooting(false)
     } finally {
       setStarting(false)
     }
-  }, [difficulty, language, problemType])
+  }, [difficulty, identity.identity, language, problemType])
 
   const handleBootDone = useCallback(() => setBootDone(true), [])
 
@@ -412,15 +436,23 @@ export default function App() {
       }
       const { ratingDelta } = result.report
       setReport(result.report)
-      // Applied and persisted right here, synchronously with the report
-      // landing — not in an effect — so the very first paint of the report
-      // screen's WindowTab already shows the updated total, not last
-      // session's.
-      setRating((current) => {
-        const next = current + ratingDelta
-        saveRating(next)
-        return next
-      })
+      // Applied right here, synchronously with the report landing — not in an
+      // effect — so the very first paint of the report screen's WindowTab
+      // already shows the updated total, not last session's.
+      //
+      // Signed in, the server has already done the arithmetic and
+      // `result.user` is the answer; adding the delta again here would double
+      // it. Signed out there is nobody to do it, so the browser keeps its own
+      // total the way it always has.
+      if (result.user) {
+        adopt(result.user)
+      } else {
+        setLocalRating((current) => {
+          const next = current + ratingDelta
+          saveRating(next)
+          return next
+        })
+      }
       setSession(null)
       setStartedAt(null)
       startedAtRef.current = null
@@ -431,7 +463,11 @@ export default function App() {
     } finally {
       setFinishing(false)
     }
-  }, [finishing, flush, sessionId, stop])
+    // `adopt` rather than the whole `identity` object: the hook returns a
+    // fresh literal every render, and App re-renders on every keystroke — a
+    // dependency on it would rebuild `end`, then `requestEnd`, then re-bind
+    // the ^d listener, once per character typed.
+  }, [adopt, finishing, flush, sessionId, stop])
 
   /** Mouse and keyboard both require a deliberate second end action. */
   const requestEnd = useCallback(() => {
@@ -485,17 +521,52 @@ export default function App() {
   }, [sessionId])
 
   if (report) {
-    return <ReportView report={report} rating={rating} onRestart={() => setReport(null)} />
+    return (
+      <ReportView
+        report={report}
+        rating={rating}
+        handle={handle}
+        profile={identity.profile}
+        onRestart={() => setReport(null)}
+        onLeaderboard={() => {
+          setReport(null)
+          setBoard(true)
+        }}
+      />
+    )
+  }
+
+  // Checked before `session` and after `report`: the board is reachable from
+  // the start screen and from the report card, and from nowhere during an
+  // interview — leaving the editor to go and look at a scoreboard is exactly
+  // the practice-site move UI-DESIGN.md §2 is about.
+  if (board) {
+    return (
+      <Leaderboard
+        profile={identity.profile}
+        rating={rating}
+        handle={handle}
+        onBack={() => setBoard(false)}
+        onBegin={begin}
+      />
+    )
   }
 
   if (booting) {
-    return <BootSequence ready={pending !== null} onDone={handleBootDone} rating={rating} />
+    return (
+      <BootSequence
+        ready={pending !== null}
+        onDone={handleBootDone}
+        rating={rating}
+        handle={handle}
+      />
+    )
   }
 
   if (!session) {
     return (
       <main className="flex min-h-screen flex-col bg-canvas">
-        <WindowTab rating={rating} />
+        <WindowTab rating={rating} handle={handle} />
         {/* The centring lives on a wrapper, not on the column itself — the
             column's children are blocks and must stay left-aligned. */}
         <div className="flex flex-1 items-center justify-center px-6">
@@ -505,24 +576,48 @@ export default function App() {
               the interview, inverted. they prompt. you generate. they watch the tokens go by and
               form opinions.
             </p>
+            <HandleLine
+              status={identity.status}
+              profile={identity.profile}
+              error={identity.error}
+              onClaim={identity.claim}
+              onSignOut={identity.signOut}
+              onLeaderboard={() => setBoard(true)}
+              disabled={starting}
+            />
             <DifficultyPicker value={difficulty} onChange={setDifficulty} disabled={starting} />
             <LanguagePicker value={language} onChange={setLanguage} disabled={starting} />
             <ProblemTypePicker value={problemType} onChange={setProblemType} disabled={starting} />
 
             <div className="mt-10">
-              <button
-                type="button"
-                onClick={begin}
-                disabled={starting}
-                onMouseEnter={() => setReadying(true)}
-                onMouseLeave={() => setReadying(false)}
-                onFocus={() => setReadying(true)}
-                onBlur={() => setReadying(false)}
-                className="text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
-              >
-                <span aria-hidden className="text-faint">$ </span>
-                {BOOT_COMMAND}
-              </button>
+              <div className="flex items-baseline gap-6">
+                <button
+                  type="button"
+                  onClick={begin}
+                  disabled={starting}
+                  onMouseEnter={() => setReadying(true)}
+                  onMouseLeave={() => setReadying(false)}
+                  onFocus={() => setReadying(true)}
+                  onBlur={() => setReadying(false)}
+                  className="text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline disabled:opacity-40"
+                >
+                  <span aria-hidden className="text-faint">$ </span>
+                  {BOOT_COMMAND}
+                </button>
+                {/* The way to the board, in the one place on this screen a
+                    person already looks for something to click. `--color-sub`
+                    rather than accent: it is the secondary command here, and
+                    accent belongs to the one that starts the interview. */}
+                <button
+                  type="button"
+                  onClick={() => setBoard(true)}
+                  disabled={starting}
+                  className="text-sm lowercase text-sub underline-offset-4 transition-colors hover:text-ink hover:underline disabled:opacity-40"
+                >
+                  <span aria-hidden className="text-faint">$ </span>
+                  {BOOT_COMMAND} --leaderboard
+                </button>
+              </div>
               {/* The compliant beat before you actually commit — same `⎿`
                   aside grammar as their notes, not a second button label, so
                   the command above still reads exactly as what the boot
@@ -554,7 +649,7 @@ export default function App() {
     <div data-typing={typing} className="flex h-screen flex-col bg-canvas text-ink">
       {/* Not dimmable. It is the window, not the session — §7 recedes what you
           produced and what it cost, never the frame around it. */}
-      <WindowTab status="coding" rating={rating} />
+      <WindowTab status="coding" rating={rating} handle={handle} />
 
       {/* Two columns: the human's side of the glass on the left — what they
           asked for and everything they have said about it since — and your

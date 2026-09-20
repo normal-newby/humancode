@@ -226,6 +226,7 @@ telemetry/   Event ingest, metric computation, TriggerEngine
 ai/          OpenAI client wrapper, PromptAssembler, structured reaction types
 problem/     Problem bank (JSON resources), selection, generation
 report/      End-of-session report card
+user/        Handles, ratings, the leaderboard (§6a)
 web/         REST controllers, SSE hub, DTOs
 ```
 
@@ -263,8 +264,12 @@ should ever update a row.
 
 ### Core entities
 
-`Session`, `Problem`, `TelemetryEvent`, `Utterance` (what the AI said + why it fired), `ReportCard`.
-`TelemetryEvent` is the replay log — keep it append-only and cheap to write.
+`Session`, `Problem`, `TelemetryEvent`, `Utterance` (what the AI said + why it fired), `ReportCard`,
+`User` (§6a). `TelemetryEvent` is the replay log — keep it append-only and cheap to write.
+
+`Session.userId` is **nullable and stays that way** — an anonymous session is an ordinary session that
+moves no leaderboard row. That nullability is also why adding it needed no `SqliteSchemaMigrator` step:
+the trap documented in §3 is SQLite refusing a new *`NOT NULL`* column on a table that already has rows.
 
 ---
 
@@ -365,6 +370,9 @@ bite if you forget them:
   `ReportCardGuard.MIN_VERDICT_WORDS` was 8, which rejected `Hmm. Not bad.` — and a rejected report is
   not an error, it is the canned one, so the whole register would have failed shut with nothing in the
   log but a `canned` marker on screen. It is 2 now. `ReportCardGuardTest` pins both registers.
+
+`ratingDelta` on the same reply is what moves the candidate's standing on the leaderboard, and
+`SessionController.finish` is the only place it is ever applied — see §6a.
 
 `impatienceDelta` on the same reply is applied to `SessionState` **before** the report's stats are
 read, so the number the candidate is left looking at includes what taking delivery cost. It is
@@ -741,6 +749,66 @@ self-consistent with their own reference solution, not that the problem is any g
 
 ---
 
+## 6a. Accounts and the leaderboard
+
+A candidate can claim a handle, and finished sessions then move a rating that other people can see.
+Everything about it is deliberately thin, and the thinness is the design.
+
+### The account is a handle and a token
+
+`user/User` has no email, no password and nothing to recover. Claiming a handle mints a random UUID,
+the browser keeps it in `localStorage` (`web/src/lib/identity.ts`), and that pair is the whole proof
+of identity. `UserService` is the only thing that ever compares one.
+
+This is a ceiling, not an unfinished auth system, and UI-DESIGN.md §0 is the reason: a real
+credential form on the start screen is precisely the thing that would work as the real thing. The
+screen it produces is a shell line — `$ gpdetox --as nimo` — not a login (UI-DESIGN.md §4.8b).
+
+**What it costs, and it will happen to somebody at a demo table: clearing the browser's storage
+loses the handle permanently**, because nothing else in the world knows the token. `claim` answers
+409 and they pick another name. Do not "fix" this by letting a claim on an existing handle rotate
+the token — that hands every account to whoever types the name.
+
+### Ratings are applied server-side, from a report the server wrote
+
+**`UserService.recordSession` is the only thing in the app that moves a rating, and it is reachable
+from exactly one place: `POST /sessions/{id}/finish`.** The delta is `ReportCard.ratingDelta`, off a
+report card that call just generated. It never arrives on a request, and no endpoint on
+`UserController` accepts a number. That single rule is what lets an auth model this thin carry a
+public board: you can lose your own handle, but you cannot type yourself to the top of the list.
+
+The identity rides on `POST /sessions` (`handle` + `token`) and is verified once, at start;
+`SessionState.userId` holds the id for the life of the session. **A handle that does not verify
+starts an anonymous session rather than failing the request** — losing your rating for the evening
+is a smaller problem than losing your turn at the keyboard, and `UserService.verify` exists
+alongside `resume` precisely so that path can be quiet where the sign-in path throws.
+
+Signed out, nothing changed: `web/src/lib/rating.ts` still keeps a `localStorage` total and the
+corner of every screen still shows it. `App` picks between them in one place —
+`identity.profile?.rating ?? localRating` — and the client **never** adds a delta to a server
+rating. It would double it; `/finish` already returns the applied total as `SessionResponse.user`.
+
+### The board
+
+`GET /api/leaderboard?limit=&handle=` returns ranked rows plus the viewer's own standing, which is
+how the UI shows someone their position when they are below the cut.
+
+- **Only judged candidates are on it.** `sessionsCompleted > 0` filters the query, so claiming a
+  handle and walking away puts you nowhere and `rank` is `0` — unranked, not last.
+- **Ties share a rank and the next distinct rating skips the places they used up** — 1, 2, 2, 4.
+  `UserService.rank` computes this by walking the ordered page rather than counting per row: the
+  order already *is* the ranking, and one query beats a page of them on a database that allows a
+  single writer.
+- **Negative ratings are allowed and are the point.** A floor at zero would quietly make the worst
+  session of the night identical to never having played, and the corner of every screen already
+  renders a minus sign in `--color-hot`.
+- `peakRating` survives a bad session. It is on the wire and not yet on screen.
+
+`HandlesTest` and `UserServiceTest` pin the handle rules and all of the above. The rank arithmetic
+in particular is the kind of thing that looks right until three people tie.
+
+---
+
 ## 7. Cheating detection
 
 Do the free, reliable thing first: Monaco emits paste events. A 400-character insert with no preceding
@@ -760,6 +828,9 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 - `OPENAI_API_KEY` via `.env` or the environment — see §5.2. Never commit a key, never put a literal
   one in `application.properties`.
 - After touching any problem JSON, run `cd web && npm run check:problems`.
+- **A rating only ever moves in `UserService.recordSession`, called from `/finish`** (§6a). If you
+  find yourself adding an endpoint that takes a rating, or client code that adds a delta to a total
+  the server sent, stop — the first makes the board decorative, the second double-counts.
 - **Drive a real session before believing a change to the interviewer's judgement.** The failures
   that matter here — a guard floor overruling the model, a verdict about code the model did not
   read, a reaction to a half-typed word — all look like success in the logs and pass every unit

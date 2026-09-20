@@ -7,6 +7,8 @@ import com.example.humancode.interview.Utterance;
 import com.example.humancode.problem.Problem;
 import com.example.humancode.report.ReportCard;
 import com.example.humancode.telemetry.EventType;
+import com.example.humancode.user.LeaderboardEntry;
+import com.example.humancode.user.UserProfile;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -19,11 +21,40 @@ public final class Dtos {
 
     /**
      * @param difficulty {@code very-easy}, {@code easy}, {@code medium} or
-     *                   {@code hard}. Anything
-     *                   else, including null, means "surprise me" — the
-     *                   behaviour from before the selector existed.
+     *                   {@code hard}. Anything else, including null, means
+     *                   "surprise me" — the behaviour from before the selector
+     *                   existed.
+     * @param handle     who is playing, or null to play anonymously
+     * @param token      the secret that came back when the handle was claimed.
+     *                   A handle without a matching token is not an error — the
+     *                   session just starts anonymous and moves no rating.
      */
-    public record StartSessionRequest(String problemId, String language, String difficulty, String problemType) {
+    public record StartSessionRequest(String problemId, String language, String difficulty, String problemType,
+            String handle, String token) {
+    }
+
+    public record ClaimUserRequest(String handle) {
+    }
+
+    public record ResumeUserRequest(String handle, String token) {
+    }
+
+    /**
+     * The response to a claim, and the only time a token is ever on the wire in
+     * this direction. {@code resume} answers with a profile alone, because the
+     * browser asking already had one.
+     */
+    public record ClaimUserResponse(UserProfile user, String token) {
+    }
+
+    /**
+     * @param entries the top rows, already ranked
+     * @param total   how many candidates have finished a session at all, so the
+     *                board can say what it is a top-20 <em>of</em>
+     * @param you     the viewer's own standing, whether or not they made the
+     *                cut — null when nobody is signed in
+     */
+    public record LeaderboardResponse(List<LeaderboardEntry> entries, long total, UserProfile you) {
     }
 
     public record SessionResponse(
@@ -36,7 +67,15 @@ public final class Dtos {
             List<String> notes,
             boolean live,
             /** Only populated by {@code POST /sessions/{id}/finish}. */
-            ReportCard report) {
+            ReportCard report,
+            /**
+             * Whoever this session counts for. On {@code /finish} it is their
+             * standing <em>after</em> the report's rating delta has landed —
+             * the server is the one that applies it (see {@code UserService}),
+             * so this is the number, not a suggestion the client adds up
+             * itself. Null for an anonymous session.
+             */
+            UserProfile user) {
     }
 
     /**

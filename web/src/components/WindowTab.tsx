@@ -8,12 +8,22 @@ interface Props {
    */
   status?: string
   /**
-   * The candidate's saved rating — the running total across every session
-   * this browser has ever finished, not just the current one. Always shown,
-   * on every screen, because it is meant to read as a persistent fact about
-   * them rather than something that belongs to this session.
+   * The candidate's saved rating — the running total across every session,
+   * not just the current one. Always shown, on every screen, because it is
+   * meant to read as a persistent fact about them rather than something that
+   * belongs to this session.
+   *
+   * <p>Signed in it is the server's number, applied when the session was
+   * judged; signed out it is this browser's localStorage total. The tab does
+   * not care which, and deliberately does not say — the distinction belongs on
+   * the start screen, where they can act on it.
    */
   rating: number
+  /**
+   * Whose rating it is. Omitted when nobody is signed in, and the number stands
+   * alone exactly as it did before handles existed.
+   */
+  handle?: string
 }
 
 /**
@@ -34,7 +44,7 @@ interface Props {
  * calm/hot semantics (§6) — green above zero, red below, plain `--color-faint`
  * at exactly zero, since zero is neither an achievement nor a black mark.
  */
-export function WindowTab({ status, rating }: Props) {
+export function WindowTab({ status, rating, handle }: Props) {
   const tone = rating > 0 ? 'text-calm' : rating < 0 ? 'text-hot' : 'text-faint'
   const sign = rating > 0 ? '+' : ''
 
@@ -48,11 +58,23 @@ export function WindowTab({ status, rating }: Props) {
         {CWD}
         {status && ` — ${status}`}
       </span>
-      <span className={`ml-auto shrink-0 tabular-nums ${tone}`} title="your saved rating">
-        <span className="sr-only">rating {sign}{rating}</span>
-        <span aria-hidden>
-          rating {sign}
-          {rating}
+      <span className="ml-auto flex shrink-0 items-baseline gap-2" title="your saved rating">
+        {/* The handle sits with the number rather than anywhere else in the
+            chrome: it is only here to say whose rating this is. */}
+        {handle && (
+          <span className="max-w-[16ch] truncate text-sub">
+            {handle}
+            <span aria-hidden className="text-faint">
+              {' ·'}
+            </span>
+          </span>
+        )}
+        <span className={`tabular-nums ${tone}`}>
+          <span className="sr-only">rating {sign}{rating}</span>
+          <span aria-hidden>
+            rating {sign}
+            {rating}
+          </span>
         </span>
       </span>
     </div>

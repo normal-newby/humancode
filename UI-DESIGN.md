@@ -25,6 +25,11 @@ and it is also the disclaimer — the only model in this session is the candidat
 Adding anything that would work as the real thing — a logo, a login, a plausible model id in a place
 that looks like configuration rather than a punchline — is out, and stays out.
 
+**There are handles now, and that sentence still holds.** §4.8b is what keeps it: claiming one is a
+shell line with an argument, not a sign-in — no password field, no email, no provider button, and
+nothing that would function as a credential form if you lifted it off this page. The account behind
+it is exactly that thin (CLAUDE.md §6a), so the screen is not dressing down something bigger.
+
 ---
 
 ## 1. The inversion, stated as layout
@@ -110,6 +115,8 @@ Call these out in review. Any one of them collapses the whole concept back into 
 | An input box around the editor | The editor is a `•` block, not a composer. A box makes you the user again and undoes the premise |
 | A tab **bar** — two tabs, a `+`, a close `×` | One tab, fill only, nothing to click (§4.0). One tab is a window title; two is IDE furniture |
 | Emoji anywhere in the chrome | The glyph set in §4.1 and nothing else |
+| Medals, podiums, trophies or streak flames on the leaderboard | Rank, handle, rating, session count — four aligned columns of lowercase text (§4.9) |
+| A sign-in form: labelled boxes, a password field, a provider button | One argument typed after a command (§4.8b) |
 
 The general rule: **if it looks like a tool, it is wrong. It should look like an agent session someone
 else is running, and you are the agent.**
@@ -203,6 +210,12 @@ results page that replaced the session rather than as the same window after the 
   of that and would read as a rendering glitch if it flickered on every keystroke.
 - The cwd is `~/interviews/you`, which is the same joke as `model: you` and is exported from one
   place so the prelude and the tab cannot disagree.
+- **The far end of the bar carries their standing**, in the meter's own calm/hot semantics (§6):
+  green above zero, red below, `--color-faint` at exactly zero, since zero is neither an achievement
+  nor a black mark. Signed in, their handle sits beside it in `--color-sub` — it is there only to say
+  whose number that is. **The tab does not say which kind of number it is**, and must not: signed out
+  it is this browser's own total and signed in it is the server's (CLAUDE.md §6a), and that
+  distinction belongs on the start screen where they can act on it.
 
 ### 4.1 Glyphs
 
@@ -628,6 +641,45 @@ visible only in how hard the thing they were handed turns out to be.
 The picker keeps its value across sessions, so ending one with `^d` and starting another lands you on
 the same level without re-answering. Raising the stakes should be a deliberate click.
 
+### 4.8b Who is playing
+
+Above the difficulty picker, one block in the same grammar as everything else on the screen:
+
+```
+who is playing
+$ gpdetox --as handle▍         ⏎ claim
+└ optional. without one, nothing you do lands on the board.
+```
+
+**The command prefix and the placeholder are `--color-sub`, not `--color-faint`.** The first version
+of this block was faint throughout, and on the canvas it read as texture rather than as something
+you could type into — a candidate looked straight past it. `--color-faint` in this app carries
+closed turns and glyphs (§3); a live control is never in it.
+
+It is **a command with an argument, not a login** (§0). `$ gpdetox --as` is literal, faint, and
+unselectable text; what they type is the argument, in `--color-accent` with an accent caret, because
+accent marks whoever is producing output (§4.1) and here that is them. The start control two blocks
+below is the same `$ gpdetox` without the flag, so the two read as one command line learned once.
+
+- **No border and no fill on the input.** §2 bans the box, and a bordered field here would be the one
+  piece of form furniture in the whole app. It is a bare `<input>` on the canvas with a real
+  `sr-only` label.
+- **It says it is optional, because it is.** A session with no handle runs identically; it just moves
+  no row. The aside is a `└` in `--color-faint` like any other, not a warning — and it is *prose*.
+  The word "the board" in it was a real button once, and nobody found it: an affordance hidden
+  mid-sentence in a faint aside is not an affordance. The way to the board is a command of its own,
+  next to the one that starts the interview (§4.9).
+- Once claimed the block becomes a statement — `nimo · rating +184 · rank 3` — with
+  `└ the board · not you` under it. `not you` signs out. Same calm/hot semantics as §6 on the number,
+  `--color-sub` on the rank.
+- **Errors are the server's sentence, printed verbatim** in `--color-hot` under the line: `that
+  handle is taken`, `letters, numbers, dashes and underscores only`. The endpoints are written to
+  return something a candidate can read, so the client must not wrap it in `POST /users failed: 409`
+  — that is what `ApiError.detail` exists to keep separate.
+- **A stale identity signs out silently.** A token the server no longer recognises is a wiped
+  database, not something the candidate can act on, so the stored pair is dropped and the screen is
+  simply the signed-out one again. No error, no explanation of a thing they cannot fix.
+
 ### 4.8a The prelude
 
 Clicking the start screen's `$ codex` does not drop you into the session. It cuts to a shell, at the
@@ -673,6 +725,53 @@ The rules that keep it honest:
   reason the accent is on that word and not on the version string.
 - **Under `prefers-reduced-motion` the banner is simply there**, held half a second, then it hands
   over.
+
+### 4.9 The board
+
+The fifth screen under the one window tab, and it obeys §4.0 exactly: it is not a page that replaced
+the app, it is the same terminal printing something else.
+
+```
+ ▌ gpdetox   ~/gpdetox/you — leaderboard                    nimo · rating +184
+
+   • the board
+     └  top 20 of 37 judged
+
+     1   nimo                        +184    12 sessions
+     2   dave                         +91     4 sessions
+     3   sam                          +91     9 sessions
+     └  you are 41 on +12                    ← only when the list did not reach you
+
+   $ gpdetox    back
+```
+
+A `•` block with `└` receipts, then four aligned columns of lowercase text. What is deliberately not
+here is the entire visual vocabulary a leaderboard usually arrives with: no medals, no podium, no
+trophy for first, no streak flame, no table rules, no zebra striping, no card. §2's whole point is
+that furniture is what turns this back into a practice site, and a scoreboard is exactly where it
+walks in uninvited.
+
+- **The viewer's own handle is the one accent on screen.** Same rule as §4.1 taken as far as a board
+  can take it: accent marks whoever the screen is about. It carries an `sr-only` "(you)" so the
+  colour is never the only thing saying so, and the row is marked server-side rather than by the
+  client matching handles.
+- **Rating in the meter's calm/hot colours** (§6), session count in `--color-faint` beside it. The
+  count is context, not a score — it is what tells you whether `+90` was one good night or twelve
+  grinding ones — so it never competes with the number it sits next to.
+- **The list is narrower than the 84ch column around it.** At full width the handle column shoves the
+  rating to the far edge and a row stops reading as one fact about one person.
+- **Ties share a rank** and the next distinct rating skips the places they used up — 1, 2, 2, 4
+  (CLAUDE.md §6a).
+- **Unjudged candidates are not on it at all.** Someone who claimed a handle and left reads
+  `you have not been judged yet. that is the only way onto this list.` — which is the app's own
+  register, not an empty state apologising.
+- **The way in is `$ gpdetox --leaderboard`**, sitting beside `$ gpdetox` at the foot of the start
+  screen and again at the foot of the report card — the one place on either screen a person is
+  already looking for something to click. It is `--color-sub` rather than accent, because accent
+  belongs to the command that starts an interview and this is the secondary one.
+- **It is reachable from the start screen and the report card, and from nowhere during a session.**
+  Leaving the editor to go and look at a scoreboard is exactly the move §2 exists to prevent, and
+  `App` enforces it by checking `board` after `report` and before `session`.
 
 ---
 
@@ -870,9 +969,13 @@ Implemented. Recorded here so the intent survives the next refactor:
 | `MetaLine.tsx` | §5. Per-turn deltas, frozen when the turn closes; the `live` variant counts the turn in progress. |
 | `StatusLine.tsx` | §4.5. `⠹ word… (clock · totals)`, the meter, `⏎ submit`, `^d end`, and the `esc` tell. |
 | `DifficultyPicker.tsx` | §4.8. Three lowercase words on the start screen, radios under the hood. The only difficulty word in the app. |
+| *new* `HandleLine.tsx` | §4.8b. `$ gpdetox --as <handle>` on the start screen, and the signed-in statement that replaces it. The only place a handle is ever entered. |
+| *new* `Leaderboard.tsx` | §4.9. The board, as a `•` block and four aligned columns. Fetches on mount; owns no rating arithmetic. |
+| *new* `hooks/useIdentity.ts` + `lib/identity.ts` | Who is playing, and the stored `{handle, token}`. Resumes on mount, signs out silently on a 403, and `adopt()` takes the standing `/finish` hands back — it never computes one. |
 | *new* `BootSequence.tsx` | §4.8a. The prelude: the typed `codex`, the banner, and the spinner that covers a slow session request. Reuses `Transcript`'s `Block`/`Result` so the grammar cannot drift. |
 | *new* `WindowTab.tsx` | §4.0. The one tab, and the exported `CWD` the prelude also prints. Rendered by each of the four screens, never dimmed. |
 | `ImpatienceMeter.tsx` | §6. Masked gradient, `96×8`, labelled `human impatience`; pulse on the number. |
+| `WindowTab.tsx` | §4.0. Also carries the standing and, when there is one, the handle beside it. |
 | `EditorPane.tsx` | Monaco with no border and no fill, background matched to `--color-canvas`. `ctrl+enter` submits. One model per file (§4.3a), swapped via `setModel`; owns the file navigator row itself. |
 | `TypedText.tsx` + `hooks/useTypewriter.ts` | §4.6. The hook owns pacing and the reduced-motion escape; the component owns the caret and the `sr-only` full text. |
 | `hooks/useActivity.ts` | The word pools and the 3.5s rotation. Pools are data — edit them, do not add states casually. |
@@ -883,6 +986,13 @@ Implemented. Recorded here so the intent survives the next refactor:
 
 Removed by the swap: `VoiceBand.tsx`, `LeftRail.tsx`, `NotesPanel.tsx`, `NotesBlock.tsx`. Their notes
 live under their prompts now, and there is no rail and no voice band left to put anything in.
+
+**The rating on screen has one source expression and it lives in `App`:**
+`identity.profile?.rating ?? localRating`. Signed in it is the server's number, applied when the
+session was judged; signed out it is this browser's `localStorage` total, which is what the app did
+before handles existed. Nothing in the client ever adds `report.ratingDelta` to a server rating —
+`/finish` already returns the applied total, and adding it again would double it. `App`'s `end()` is
+the one place that branches, and it branches on `result.user` being present.
 
 **Turn bookkeeping lives in `App` and nowhere else.** `turnBase` holds the counters and clock reading
 at the moment the current turn opened; `closeTurn(interrupted, idleSeconds)` diffs against it, pushes

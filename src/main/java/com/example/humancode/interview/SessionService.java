@@ -55,6 +55,17 @@ public class SessionService {
 
     public SessionState start(String problemId, String language, Difficulty difficulty, ProblemType type,
             ProblemRuntime runtime) {
+        return start(problemId, language, difficulty, type, runtime, null);
+    }
+
+    /**
+     * @param userId the candidate this session counts for, or null for an
+     *               anonymous one. Already verified by the caller — nothing here
+     *               trusts a handle, and a session that cannot prove who it
+     *               belongs to simply belongs to nobody.
+     */
+    public SessionState start(String problemId, String language, Difficulty difficulty, ProblemType type,
+            ProblemRuntime runtime, String userId) {
         // Query one tier easier than what was asked for (Difficulty.oneTierEasier) —
         // "asked for" in the log below still reports their actual choice.
         Difficulty eased = difficulty == null ? null : difficulty.oneTierEasier();
@@ -66,12 +77,16 @@ public class SessionService {
 
         String id = UUID.randomUUID().toString();
         SessionState state = new SessionState(id, problem, resolvedLanguage);
+        state.userId(userId);
         live.put(id, state);
 
-        repository.save(new Session(id, problem.id(), resolvedLanguage, state.startedAt()));
-        log.info("Session {} started: problem={} ({}, {}, asked for {})",
+        Session entity = new Session(id, problem.id(), resolvedLanguage, state.startedAt());
+        entity.setUserId(userId);
+        repository.save(entity);
+        log.info("Session {} started: problem={} ({}, {}, asked for {}, user={})",
                 id, problem.id(), problem.difficulty(),
-                problem.type().label(), difficulty == null ? "any" : difficulty.label());
+                problem.type().label(), difficulty == null ? "any" : difficulty.label(),
+                userId == null ? "anonymous" : userId);
         return state;
     }
 

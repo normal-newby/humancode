@@ -30,6 +30,14 @@ public class Session {
     private String problemId;
 
     /**
+     * The candidate this session belongs to, or null when nobody was signed in.
+     * Nullable on purpose — a handle is optional (see {@code user/User}), and an
+     * anonymous session is a perfectly ordinary one that simply moves no
+     * leaderboard row.
+     */
+    private String userId;
+
+    /**
      * Compatibility value for databases created before personas were removed
      * from the public session API. The legacy SQLite column is still NOT NULL.
      */

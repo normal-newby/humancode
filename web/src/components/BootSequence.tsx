@@ -75,6 +75,8 @@ interface Props {
   onDone: () => void
   /** Threaded straight through to the tab's own corner rating. */
   rating: number
+  /** Ditto for whose rating it is. Absent when nobody is signed in. */
+  handle?: string
 }
 
 /**
@@ -90,7 +92,7 @@ interface Props {
  * <p>It sits at the log's own column and top offset, so the `$` here and the
  * pinned `▌` that replaces it land in the same place.
  */
-export function BootSequence({ ready, onDone, rating }: Props) {
+export function BootSequence({ ready, onDone, rating, handle }: Props) {
   const reduced = useRef(usesReducedMotion()).current
   const [chars, setChars] = useState(reduced ? BOOT_COMMAND.length : 0)
   const [shown, setShown] = useState(reduced ? STEPS : 0)
@@ -129,7 +131,7 @@ export function BootSequence({ ready, onDone, rating }: Props) {
 
   return (
     <main className="flex min-h-screen flex-col bg-canvas">
-      <WindowTab status="starting" rating={rating} />
+      <WindowTab status="starting" rating={rating} handle={handle} />
       <div className="mx-auto w-full max-w-[84ch] px-6 pt-8">
         <Block marker="$" tone="text-faint">
           <p className="text-[15px] leading-relaxed text-ink">

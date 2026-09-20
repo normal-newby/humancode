@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ReportCard } from '../api/types'
+import type { ReportCard, UserProfile } from '../api/types'
 import { useCountUp } from '../hooks/useCountUp'
 import { MetaLine, type TurnStamp } from './MetaLine'
 import { Block, Result } from './Transcript'
@@ -12,7 +12,15 @@ interface Props {
   report: ReportCard
   /** The saved rating, already folded in — passed straight through to the tab. */
   rating: number
+  handle?: string
+  /**
+   * Their standing after this session, straight from the server — the delta has
+   * already been applied to it (`UserService.recordSession`). Null when nobody
+   * was signed in, and then the rating line is all there is to say.
+   */
+  profile: UserProfile | null
   onRestart: () => void
+  onLeaderboard: () => void
 }
 
 /**
@@ -36,7 +44,14 @@ interface Props {
  * before they look, and nothing here should be tempted into rendering the
  * outcome that decided the tone. The server never sends it.
  */
-export function ReportView({ report, rating, onRestart }: Props) {
+export function ReportView({
+  report,
+  rating,
+  handle,
+  profile,
+  onRestart,
+  onLeaderboard,
+}: Props) {
   const [verdictDone, setVerdictDone] = useState(false)
   const { stats } = report
   // Off the meter, never off the outcome — see PixelFace.moodForImpatience.
@@ -64,7 +79,7 @@ export function ReportView({ report, rating, onRestart }: Props) {
 
   return (
     <main className="flex min-h-screen flex-col bg-canvas">
-      <WindowTab status="session ended" rating={rating} />
+      <WindowTab status="session ended" rating={rating} handle={handle} />
 
       <div className="mx-auto w-full max-w-[84ch] px-6 pt-12 pb-16">
         {/* What the process did. Codex signs off with its own usage; this is
@@ -112,6 +127,27 @@ export function ReportView({ report, rating, onRestart }: Props) {
                     {ratingValue}
                   </Result>
                 )}
+                {/* What that leaves them on, and where it puts them. Only with
+                    a handle behind it: a signed-out total is this browser's
+                    private tally and has no rank to report, so claiming one
+                    would be an empty number. */}
+                {profile && (
+                  <Result tone="text-faint">
+                    {profile.handle} now on {profile.rating > 0 ? '+' : ''}
+                    {profile.rating}
+                    {profile.rank > 0 && ` · rank ${profile.rank}`}
+                    <span aria-hidden className="mx-2">
+                      ·
+                    </span>
+                    <button
+                      type="button"
+                      onClick={onLeaderboard}
+                      className="lowercase text-accent underline-offset-4 transition-opacity hover:underline"
+                    >
+                      the board
+                    </button>
+                  </Result>
+                )}
                 {report.similarProblems.length > 0 && (
                   <Result>similar problems: {report.similarProblems.join(', ')}</Result>
                 )}
@@ -130,14 +166,27 @@ export function ReportView({ report, rating, onRestart }: Props) {
         </div>
 
         {verdictDone && (
-          <button
-            type="button"
-            onClick={onRestart}
-            className="mt-10 text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline"
-          >
-            <span aria-hidden className="text-faint">$ </span>
-            {BOOT_COMMAND}
-          </button>
+          <div className="mt-10 flex items-baseline gap-6">
+            <button
+              type="button"
+              onClick={onRestart}
+              className="text-sm lowercase text-accent underline-offset-4 transition-opacity hover:underline"
+            >
+              <span aria-hidden className="text-faint">$ </span>
+              {BOOT_COMMAND}
+            </button>
+            {/* Shown whether or not they have a handle: signed out it is how
+                they find out what the board even is, signed in it is the same
+                command they ran to get here. */}
+            <button
+              type="button"
+              onClick={onLeaderboard}
+              className="text-sm lowercase text-sub underline-offset-4 transition-colors hover:text-ink hover:underline"
+            >
+              <span aria-hidden className="text-faint">$ </span>
+              {BOOT_COMMAND} --leaderboard
+            </button>
+          </div>
         )}
       </div>
     </main>

@@ -24,6 +24,9 @@ import com.example.humancode.problem.ProblemType;
 import com.example.humancode.problem.ProblemRuntime;
 import com.example.humancode.report.ReportCard;
 import com.example.humancode.report.ReportCardGenerator;
+import com.example.humancode.user.User;
+import com.example.humancode.user.UserProfile;
+import com.example.humancode.user.UserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -37,18 +40,25 @@ public class SessionController {
     private final ProblemBank problems;
     private final PromptAssembler prompts;
     private final ReportCardGenerator reportCardGenerator;
+    private final UserService users;
     private final SseHub sse;
 
     @PostMapping("/sessions")
     @ResponseStatus(HttpStatus.CREATED)
     public Dtos.SessionResponse start(@RequestBody(required = false) Dtos.StartSessionRequest request) {
         Dtos.StartSessionRequest req = request == null
-                ? new Dtos.StartSessionRequest(null, null, null, null)
+                ? new Dtos.StartSessionRequest(null, null, null, null, null, null)
                 : request;
+        // A handle that does not verify starts an anonymous session rather than
+        // failing the request: the interview is the product, and a candidate
+        // whose token went stale should lose their rating for the evening, not
+        // their turn at the keyboard.
+        String userId = users.verify(req.handle(), req.token()).map(User::getId).orElse(null);
         SessionState state = sessions.start(req.problemId(), req.language(),
                 Difficulty.parse(req.difficulty()).orElse(null),
                 ProblemType.parse(req.problemType()).orElse(null),
-                ProblemRuntime.parse(req.language()).orElse(null));
+                ProblemRuntime.parse(req.language()).orElse(null),
+                userId);
         return toResponse(state);
     }
 
@@ -76,7 +86,14 @@ public class SessionController {
         // problem exists only for the life of its session (CLAUDE.md §6), so
         // similarProblems has to be read here or it is gone after sessions.end().
         ReportCard report = reportCardGenerator.generate(state, sessions.problemFor(state));
-        Dtos.SessionResponse response = toResponse(state, report);
+
+        // The one place a rating moves. The delta comes off a report this
+        // server just wrote, never off a request, which is the whole reason
+        // the board means anything with an auth model this thin.
+        UserProfile profile = state.userId() == null
+                ? null
+                : users.recordSession(state.userId(), report.ratingDelta());
+        Dtos.SessionResponse response = toResponse(state, report, profile);
 
         sessions.end(state);
         prompts.forget(id);
@@ -90,10 +107,15 @@ public class SessionController {
     }
 
     private Dtos.SessionResponse toResponse(SessionState state) {
-        return toResponse(state, null);
+        // Their standing as it stands, so the tab shows the right number from
+        // the first paint of the session rather than only after it ends.
+        UserProfile profile = state.userId() == null
+                ? null
+                : users.profileById(state.userId()).orElse(null);
+        return toResponse(state, null, profile);
     }
 
-    private Dtos.SessionResponse toResponse(SessionState state, ReportCard report) {
+    private Dtos.SessionResponse toResponse(SessionState state, ReportCard report, UserProfile profile) {
         return new Dtos.SessionResponse(
                 state.sessionId(),
                 sessions.problemFor(state).forCandidate(),
@@ -103,6 +125,7 @@ public class SessionController {
                 state.transcript(),
                 state.notes(),
                 true,
-                report);
+                report,
+                profile);
     }
 }

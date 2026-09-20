@@ -40,6 +40,13 @@ public final class SessionState {
      */
     private final Map<String, String> previousCode = new ConcurrentHashMap<>();
     private volatile String language;
+    /**
+     * Whose session this is, or null for an anonymous one. Set once at start
+     * and read once at the end, when the report card's rating delta is folded
+     * into their standing — the id, never the handle, so renaming is a database
+     * concern rather than a live-session one.
+     */
+    private volatile String userId;
 
     private volatile Instant lastEventAt;
     private volatile Instant firstKeystrokeAt;
@@ -120,6 +127,15 @@ public final class SessionState {
 
     public Phase phase() {
         return phase;
+    }
+
+    /** Null when nobody was signed in — see the field. */
+    public String userId() {
+        return userId;
+    }
+
+    public void userId(String userId) {
+        this.userId = userId;
     }
 
     public void phase(Phase phase) {

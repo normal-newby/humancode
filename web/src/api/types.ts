@@ -83,13 +83,54 @@ export interface ReportCard {
   stats: ReportCardStats
   /**
    * How this session moves the candidate's saved rating, -15 to 30. Unlike
-   * everything else here, not scoped to this session — the client persists
-   * it (localStorage; there is no account to hang it on server-side) and
-   * folds it into the running total shown in the corner of every screen.
+   * everything else here, not scoped to this session. Signed in, the server
+   * has already applied it and `SessionResponse.user` carries the total;
+   * signed out, the client folds it into a localStorage running total
+   * (lib/rating.ts) so the corner of the screen still means something.
    */
   ratingDelta: number
   /** True when the model was unavailable, failed, or got rejected by the guard. */
   canned: boolean
+}
+
+/**
+ * A candidate, across sessions. The server owns every number here — the client
+ * never adds a delta to a rating it was given, it just renders what came back
+ * from `/finish`.
+ */
+export interface UserProfile {
+  handle: string
+  rating: number
+  /** The best it has ever been, which a bad session cannot take away. */
+  peakRating: number
+  sessionsCompleted: number
+  /** 1-based, ties shared, `0` for a candidate no session has judged yet. */
+  rank: number
+}
+
+/** What comes back from claiming a handle. The token is on the wire exactly once. */
+export interface ClaimResponse {
+  user: UserProfile
+  token: string
+}
+
+export interface LeaderboardEntry {
+  rank: number
+  handle: string
+  rating: number
+  peakRating: number
+  sessionsCompleted: number
+  lastSeenAt: string
+  /** The viewer's own row, marked server-side so the client never matches handles. */
+  you: boolean
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[]
+  /** Everyone who has finished a session, not just the rows above. */
+  total: number
+  /** The viewer's standing, whether or not they made the cut. Null when signed out. */
+  you: UserProfile | null
 }
 
 export interface SessionResponse {
@@ -103,6 +144,13 @@ export interface SessionResponse {
   live: boolean
   /** Only set by the response from `POST /sessions/{id}/finish`. */
   report: ReportCard | null
+  /**
+   * Whoever the session counts for. On the `/finish` response this is their
+   * standing *after* `report.ratingDelta` has landed — the server applies it,
+   * so this is the number rather than something to add up here. Null when
+   * nobody was signed in.
+   */
+  user: UserProfile | null
 }
 
 /** Response to `POST /sessions/{id}/hint`. Never mixed into the transcript — see App.tsx. */
