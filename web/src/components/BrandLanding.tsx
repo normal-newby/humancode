@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { BOOT_COMMAND } from './BootSequence'
 import { DifficultyPicker } from './DifficultyPicker'
 import { HandleLine } from './HandleLine'
@@ -26,6 +27,55 @@ interface Props {
 
 const scrollTo = (id: string) => {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/** Reveals the real product UI as it enters the reader's view. */
+function ProductShowcase() {
+  const element = useRef<HTMLElement>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const node = element.current
+    if (!node) return
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setVisible(true)
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setVisible(true)
+        observer.disconnect()
+      },
+      { threshold: 0.18 },
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <figure
+      ref={element}
+      data-visible={visible}
+      className="product-showcase mx-auto mt-12 max-w-[1120px]"
+    >
+      <div className="bg-[#0b0c0e] p-2 shadow-[0_20px_45px_rgba(11,12,14,0.16)] sm:p-3">
+        <img
+          src="/brand/coding-workspace.png"
+          alt="The gpdetox coding workspace with interviewer feedback and a multi-file editor"
+          width={2560}
+          height={1440}
+          className="block h-auto w-full"
+        />
+      </div>
+      <figcaption className="mt-4 flex flex-wrap items-baseline justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.13em] text-[#5d636e]">
+        <span>the actual workspace</span>
+        <span>scripted demo</span>
+      </figcaption>
+    </figure>
+  )
 }
 
 /**
@@ -114,20 +164,15 @@ export function BrandLanding({
       </section>
 
       <section className="mx-auto max-w-[1440px] px-5 py-16 sm:px-8 lg:px-12 lg:py-24">
-        <div className="mb-10 flex items-end justify-between gap-6">
+        <div className="mx-auto flex max-w-[1120px] items-end justify-between gap-6">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#5d636e]">not another coding drill</p>
             <h2 className="mt-3 text-4xl font-medium tracking-[-0.05em] sm:text-6xl">Your code. Their patience.</h2>
           </div>
           <p className="hidden max-w-[28ch] text-sm leading-relaxed text-[#5d636e] lg:block">Build a small interface or track down a bug in code that already exists.</p>
         </div>
-        <div className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
-          <img src="/brand/coding-session.png" alt="A multi-file gpdetox coding session" className="h-auto w-full self-start bg-[#0b0c0e]" />
-          <div className="flex flex-col gap-5">
-            <img src="/brand/live-feedback.png" alt="Interviewer feedback during a gpdetox session" className="w-full bg-[#0b0c0e]" />
-            <p className="max-w-md text-lg leading-relaxed text-[#4d535c]">No pass counter. No green banner. Hand it over and read the room.</p>
-          </div>
-        </div>
+        <ProductShowcase />
+        <p className="mx-auto mt-10 max-w-[42ch] text-center text-lg leading-relaxed text-[#4d535c]">No pass counter. No green banner. Hand it over and read the room.</p>
       </section>
 
       <section id="challenge" className="bg-[#5aa7ff] px-5 py-16 sm:px-8 lg:px-12 lg:py-24">
