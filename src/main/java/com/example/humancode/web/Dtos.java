@@ -69,6 +69,13 @@ public final class Dtos {
             /** Only populated by {@code POST /sessions/{id}/finish}. */
             ReportCard report,
             /**
+             * Where to fetch the problem statement read aloud, or null when the
+             * app is running silent. Synthesis began when the session was
+             * created, so by the time the prelude hands over it is normally
+             * waiting — see {@code speech/SpeechService}.
+             */
+            String statementSpeechId,
+            /**
              * Whoever this session counts for. On {@code /finish} it is their
              * standing <em>after</em> the report's rating delta has landed —
              * the server is the one that applies it (see {@code UserService}),

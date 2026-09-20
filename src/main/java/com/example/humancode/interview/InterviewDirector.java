@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.example.humancode.ai.Interviewer;
 import com.example.humancode.ai.Reaction;
+import com.example.humancode.speech.SpeechService;
 import com.example.humancode.telemetry.Trigger;
 import com.example.humancode.telemetry.TriggerEngine;
 import com.example.humancode.web.SseHub;
@@ -31,6 +32,7 @@ public class InterviewDirector {
     private final SessionService sessions;
     private final TriggerEngine triggers;
     private final Interviewer interviewer;
+    private final SpeechService speech;
     private final SseHub sse;
 
     /**
@@ -94,6 +96,14 @@ public class InterviewDirector {
                 impatience,
                 result.canned());
         state.addUtterance(utterance);
+
+        // Before the SSE push, deliberately. The client holds a new line behind
+        // an 850ms typing indicator and then reveals it over ~2.8s, and a v3
+        // synthesis takes about a second — so starting here means the clip is
+        // normally waiting by the time the candidate could hear it, and
+        // starting when the browser asks would spend that second in silence
+        // with the sentence already on screen.
+        speech.prepare(utterance.id(), state.sessionId(), reaction.line(), reaction.mood(), impatience);
 
         if (reaction.note() != null && !reaction.note().isBlank() && state.addNote(reaction.note())) {
             sse.send(state.sessionId(), "note", new NotePayload(reaction.note(), Instant.now()));

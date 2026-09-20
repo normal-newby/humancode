@@ -112,7 +112,8 @@ the interviewer catching it *as it happens* is the joke. `CURVEBALL` is immediat
 reason: it is a one-shot, timer-gated event, not a reaction to typing, so there is nothing to
 protect it from — see below, it costs no model call either way. `SUBMITTED` (what `TESTS_PASSED`/
 `TESTS_FAILED` used to be, before there was anything to run) respects the cooldown normally, so
-hammering the submit button while debugging does not generate one call per press.
+hammering the submit button while debugging does not generate one call per press. (That path is
+dormant now — the UI has no per-turn submit; see §6.)
 
 **`FIRST_IMPLEMENTATION` being `immediate` is exactly why it needed the line gate below.** Skipping
 the cooldown to land mid-identifier is worse than landing late.
@@ -151,6 +152,7 @@ screen came from an OpenAI model. `model: you` is both the joke and the disclaim
 | Backend | Spring Boot 4.1.1, Java 25, Maven (`./mvnw`) |
 | Persistence | Spring Data JPA + SQLite (`org.xerial:sqlite-jdbc`) |
 | AI | OpenAI, official `com.openai:openai-java` SDK |
+| Voice | ElevenLabs `eleven_v3`, plain `java.net.http` (§5a) |
 | Frontend | React 19 + TypeScript + Vite 8 (`.tsx`), `@monaco-editor/react`, Tailwind 4 |
 | Client→server | REST, telemetry batched ~1.5s |
 | Server→client | SSE (`SseEmitter`), one stream per session |
@@ -226,6 +228,7 @@ telemetry/   Event ingest, metric computation, TriggerEngine
 ai/          OpenAI client wrapper, PromptAssembler, structured reaction types
 problem/     Problem bank (JSON resources), selection, generation
 report/      End-of-session report card
+speech/      The interviewer read aloud, ElevenLabs (§5a)
 user/        Handles, ratings, the leaderboard (§6a)
 web/         REST controllers, SSE hub, DTOs
 ```
@@ -308,8 +311,17 @@ Spring Boot 4 ships **Jackson 3** (`tools.jackson.databind`). The OpenAI SDK pul
 current surface and handles reasoning models and structured output more cleanly.
 
 Model IDs are **configuration, not constants** — `humancode.ai.model` and `humancode.ai.quip-model`.
-The defaults are starting guesses; verify them against what the credits actually cover before the first
-run and change them in `application.properties`, never in code.
+Change them in `application.properties`, never in code.
+
+**Both are `gpt-5-mini` now**, chosen for latency. They stay two properties because they are two
+jobs, and one of them is carrying more than it looks: `humancode.ai.model` is what writes the
+report card, which with no test runner **is the only verification in the app** (§6). It was moved
+to `MEDIUM` reasoning effort precisely because a weaker setting produced a confidently wrong
+verdict about working code — see below — and moving it off `gpt-5` pushes on that same judgement
+from the other side. The effort is unchanged, so this is a smaller step than that one was, but if
+verdicts start being wrong about code that works, **this property is the first thing to put back**.
+Problem generation runs on it too, and a generated reference solution has nothing to check it
+(§6).
 
 ### 5.1 Running without a key
 
@@ -392,6 +404,15 @@ runs at `MEDIUM`. Three things follow, and each one cost a live session to find:
 - **The call now runs past the client-wide 30s `request-timeout`, which does not fail a slow call,
   it retries it.** `humancode.ai.report-timeout` (120s) is applied per request via `RequestOptions`,
   the same fix as `problems.generation-timeout`.
+
+There is a third instance of this same mistake, in `speech` rather than `ai`, and it is worth
+reading as one pattern: **a feature has several deadlines and fixing the visible ones is not
+fixing it.** `humancode.speech.request-timeout` sat at 8s, sized when a line was thought to take
+1-4 seconds. The problem statement turned out to take 6.3-7.6s, and when that was discovered the
+two budgets that produce a *404* were raised — `SpeechController.WAIT` and the client's own net —
+while the one that produces an *exception* was left alone. Result: intermittent
+`Speech failed ... HttpTimeoutException` and a statement that was silent at random. It is 30s now.
+When a timeout is wrong, enumerate every deadline on the path before declaring it fixed.
 - **The prompt has to forbid unverified claims**, not just ask for a verdict: find the handler and
   follow it before saying a click misbehaves. Being unimpressed by working code is the job; being
   wrong about it is not.
@@ -538,6 +559,108 @@ constant — `PromptAssembler.RULES`. There is no persona system: one voice, def
 
 ---
 
+## 5a. The interviewer's voice (ElevenLabs)
+
+Every `▌` line is spoken — the problem statement that opens the session, every heckle, and the
+closing verdict. `speech/` owns it; the key is `ELEVENLABS_API_KEY` in `.env`, bound the same way
+the OpenAI one is (§5.2).
+
+**With no key the app is silent and otherwise identical** — same rule as §5.1, and for the same
+reason. `SpeechService` never throws, never blocks the loop, and a missing clip is a 404 that the
+client reads as "this line is silent", never as an error worth showing anyone.
+
+### One voice, five deliveries
+
+The voice id never changes with mood. That is the same rule §6a of UI-DESIGN.md gives the face —
+the same head in all five expressions — and for the same reason: two lines a beat apart have to
+read as one person changing their mind, not as two people. Swapping voices per mood would undo the
+whole effect in the most obvious way available.
+
+What changes is `Delivery`: an **audio tag** prefixed to the line, plus stability and style.
+
+| Mood | Delivery | Tag |
+|---|---|---|
+| IMPRESSED | `CALM` | — |
+| AMUSED | `WRY` | `[amused]` |
+| NEUTRAL | `FLAT` | — |
+| IMPATIENT | `TENSE` | `[annoyed]` |
+| EXASPERATED | `YELLING` | `[shouting]` |
+
+Mood sets the base, the meter escalates it: at **60** a `FLAT` or `WRY` line becomes `TENSE`, and at
+**85** a `TENSE` one becomes `YELLING`. `CALM` never escalates — grudging approval from someone
+furious is funnier flat, and it is the only thing stopping the top of the meter being one continuous
+shout. Verified in a live session: impatience 70-83 with mood IMPATIENT gave `TENSE`, 93 with
+EXASPERATED gave `YELLING`, and **100 with mood IMPATIENT gave `YELLING`** — the meter overriding
+the mood, which is the rule doing its job.
+
+### Three facts that were measured, not assumed
+
+- **Audio tags are a v3 feature and v3 does not read them aloud.** Synthesising the bare text
+  `[shouting]` returns 284 bytes of silence; the word `shouting` returns 1.1 seconds of speech.
+  **On `eleven_turbo_v2_5` or `eleven_flash_v2_5` the same string is spoken as the word**, so
+  `SpeechService` drops the tags when the model id is not `eleven_v3`. Keep
+  `humancode.speech.model` on v3 or you keep the app and lose the feature.
+- **`speed` does nothing on v3.** Turbo honours it — 1.15 and 0.85 produce clearly different
+  lengths — but the same v3 request at 1.05 and 1.15 came back byte-identical. It is deliberately
+  not sent. Pace comes from the tag.
+- **Synthesis takes one to four seconds for a line and about six for the statement**, not the
+  sub-second the flash models advertise. Those are the numbers every timeout in the feature is
+  sized against, below.
+
+### The statement is the slow one, and it set every timeout
+
+The opening statement is a paragraph, not a line: **231 characters measured 6.6 seconds to
+synthesise and 17 seconds to say.** That broke the first version of this feature in a way that was
+easy to miss — `SpeechController.WAIT` was 4s, the client asks about 1.9s after the session is
+created (once the prelude has run), so the wait expired at 5.9s and a synthesis finishing at 6.6s
+was 404'd. The opening line of every session was silent, by a margin small enough to look like a
+flake. `WAIT` is 12s now and `useSpeech`'s own net is 12s to match.
+
+Holding a request open that long costs nothing in the cases that matter: an id with no clip behind
+it — no key, evicted, already failed — returns immediately rather than waiting, so only a synthesis
+genuinely in flight ever occupies a thread.
+
+**The statement is deliberately not waited on the way a heckle is.** Six seconds of synthesis
+against a 2.8s reveal cannot be lined up without stalling the begin button, and the trade runs the
+other way: a heckle is a punchline and needs its timing, while the statement stays pinned all
+session and is no worse for being read aloud a beat after it appears. That is also what a room
+sounds like — they write the problem, then read it to you.
+
+One consequence worth knowing: at 17 seconds the statement is often still playing when the first
+heckle lands at the 20s idle threshold. There is **one `<audio>` element**, so the new line replaces
+it rather than talking over it — no overlap is possible by construction, and the interviewer moving
+on mid-sentence is in character anyway.
+
+### The line waits for its own voice
+
+Synthesis starts in `InterviewDirector.fire()` **before** the SSE push, not when the browser asks —
+that head start is the whole latency budget. It is still not enough: the caret before a prompt
+blinks for 850ms (UI-DESIGN.md §4.4) and the reveal runs 2.8s, so a fire-and-forget play starts the
+voice about two seconds into a line that is nearly finished. The interviewer types the whole
+sentence and only then starts shouting.
+
+So the client waits: `App`'s queue effect holds the line until the clip is loaded **or** 3s have
+passed, whichever is first. That turns latency into the one thing it can usefully become on that
+screen — a longer beat of knowing something is coming. Muted, or with no key, nothing is waited on.
+
+**`useSpeech.load` always settles**, including on a timer, because a hidden tab defers media
+loading entirely: `readyState` sits at 0 and neither `canplay` nor `error` ever fires. That was
+observed, not guessed, and a promise that never settles would hang the log on a backgrounded tab.
+
+### Cost and cleanup
+
+One synthesis per spoken line, plus one when the session starts for the statement and one for the
+verdict — the per-line calls are exactly the ones the trigger engine already gated (§2), so nothing
+new needed rate limiting. The statement is **one call per session started**, on the same footing as
+a generated problem, and it is the longest text the app ever synthesises. Clips are held in memory and evicted
+oldest-first at `humancode.speech.max-clips`.
+
+**There is deliberately no per-session cleanup.** The obvious tidy-up — drop a session's clips when
+it ends, the way `PromptAssembler.forget` does — silences the one line that matters most: the
+verdict is synthesised during `/finish` and fetched by the report card *after* that call returns.
+
+---
+
 ## 6. Verification — there is no runner
 
 **Problems are small apps to build (HTML/CSS/JS), not pure functions with test cases, and there is
@@ -564,6 +687,20 @@ rather than sitting beside it. What it deliberately does **not** do is assert an
 reads the frame, nothing scores it, and no result leaves it; verification is still the interviewer
 reading the diff against the rubric. The moment something starts asserting against that DOM, this
 section is wrong and the runner is back.
+
+**The footer has one action now, `^d submit`, and it ends the session** (UI-DESIGN.md §4.5). Two
+consequences that are not cosmetic:
+
+- **`SUBMITTED` no longer fires.** Nothing calls `/submit` mid-session, so that whole trigger kind
+  is dormant. The endpoint is left in place and still works if a per-turn submit ever comes back;
+  it is simply unreachable from the UI.
+- **`SessionController.finish` records the submission itself**, and it has to. `submitCount` would
+  otherwise be zero for every session ever run, and it is read in three places that matter:
+  `CannedReportCard` branches on it *first* and answers "you never handed anything over",
+  `PromptAssembler` tells the model "Times submitted: 0", and the report card prints it. Every
+  verdict in the app would have accused the candidate of not submitting work they had just
+  submitted. Verified after the change: a finished session reports `submitCount: 1` and gets a real
+  verdict rather than the canned never-submitted one.
 
 **`POST /api/sessions/{id}/submit`** (was `/run`) replaced the old test-result endpoint. It takes no
 body — there is no local result to report — increments `SessionState.submitCount()`, and fires
@@ -644,6 +781,49 @@ reports the candidate's real choice; only `problem.difficulty()` — never shown
 only read by the interviewer's prompt and logged — reflects what was actually served. Nothing else
 needed to change: `ProblemPool` already warms all four tiers regardless of which ones candidates
 request, so asking for "easy" and being served from the "very-easy" bucket costs nothing extra.
+
+**Very easy Python is a beginner exercise, not a small interview question.** Written for someone
+who has just met `for` and `if` and nothing else: one flat list of four to six plain numbers, and
+**the answer is one value rather than a list** — a count, a total, a largest. Returning a new list
+is the next level up; here the candidate keeps a single variable and updates it in a loop. One to
+three minutes, one sentence of statement, and it has to be writable without a comprehension,
+sorting, slicing, `enumerate`, `zip` or any builtin that solves it in one call. The opposite guard
+matters too: the rule needs one condition, or `sum(values)` alone is the answer and there is no
+exercise left.
+
+`late-arrivals` is that shape, and its reference is deliberately written the beginner way rather
+than the idiomatic way:
+
+```python
+ARRIVALS = [2, 9, 5, 17, 0]      # was a list of {"name", "minute"} dicts
+count = 0
+for minute in minutes:
+    if minute > 5:
+        count = count + 1
+return count                      # was [a["name"] for a in arrivals if a["minute"] > 5]
+```
+
+**No dictionaries at this level**, in the data or the answer. A list of dicts doubles what the
+candidate holds in their head (`arrival["minute"]` rather than `minute`) before they have written
+anything. Three things enforce it, and all three are needed:
+
+- `pythonCalibration(VERY_EASY)` says it in capitals, and gives the model a way to comply rather
+  than fight the seed: if the situation only makes sense with records, take one field of it —
+  shift lengths rather than shifts, prices rather than orders. The rest of the beginner shaping
+  lives there too and is **prompt-only on purpose**: a reference solution that used a
+  comprehension is still a perfectly good problem, since the candidate is free to solve the
+  starter however they like, so it is not worth a rejected 40-second generation.
+- **`ProblemGenerator.requireFlatData` rejects a generation that used one anyway**, because an
+  instruction is not a guarantee (same lesson as `PromptAssembler.hasChanged`). The pattern is
+  deliberately narrow — the dict methods can only be dict methods, and the literal branch needs a
+  quoted key and a colon, so `f"{total:.2f}"` does not trip it. A rejection costs a whole call.
+- **The bank's very-easy Python problem has to match by construction**, since it is the fallback.
+  `late-arrivals` was itself a list of dicts and was rewritten as a flat list of minutes; a
+  fallback that breaks the rule makes the rule decorative. `check:problems` now enforces the same
+  pattern over the bank and the warm pool.
+
+Easy and above are unaffected: `environment-check-regression` and `incident-digest` use
+dictionaries and should carry on.
 
 **`VERY_EASY` is below easy on purpose and the calibration has to keep it there.** One thing to
 write, three or four lines, no second requirement — a candidate meeting the interviewer without also
@@ -838,6 +1018,10 @@ GPTZero is a stretch-tier add-on for the report card, not a core dependency.
 - **Run the app through Maven**, not by launching `HumancodeApplication` from the IDE. The IDE build
   skips the `web/dist` → `static` copy, so you get Spring's whitelabel error page instead of the UI.
   If port 8080 is already held by an older `spring-boot:run`, new endpoints 404 — restart it.
+- **Keep `humancode.speech.model` on a v3 model.** The angry end of the meter shouts by prefixing
+  the line with an audio tag, and only v3 treats that as performance — every other model reads
+  "[shouting]" out loud. `SpeechService` strips the tags when it sees a non-v3 id, so the failure is
+  a flat interviewer rather than an absurd one, but the feature is gone either way (§5a).
 - Config under the `humancode.*` prefix, bound with `@ConfigurationProperties`.
 - Log every model call with its trigger reason, latency, and cache-hit counts. When the interviewer says
   something strange mid-demo you will want to know which trigger fired.

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 /** What the candidate is visibly doing right now. */
-export type Activity = 'writing' | 'idle' | 'running'
+export type Activity = 'writing' | 'idle' | 'submitting'
 
 /** Rotates on this cadence while the state holds. */
 const ROTATE_MS = 3500
@@ -26,7 +26,7 @@ export function useActivity(activity: Activity, impatience: number): string {
   const hot = impatience >= HOT_AT
 
   const pool = useMemo(() => {
-    if (activity === 'running') return SUBMITTING
+    if (activity === 'submitting') return SUBMITTING
     if (activity === 'writing') return WRITING
     return hot ? IDLE_HOT : IDLE
   }, [activity, hot])

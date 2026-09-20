@@ -129,7 +129,8 @@ class ProblemPoolTest {
                         Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500),
                         Duration.ofSeconds(90), 40),
                 new HumancodeProperties.Problems("generated", size, Duration.ofSeconds(180),
-                        cache.toString()));
+                        cache.toString()),
+                new HumancodeProperties.Speech("", "voice", "eleven_v3", false, Duration.ofSeconds(8), 8));
 
         // Keyless: generate() returns empty without touching the network.
         ProblemGenerator generator = new ProblemGenerator(new OpenAiClientHolder(null), props);

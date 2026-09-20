@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.humancode.ai.PromptAssembler;
 import com.example.humancode.config.HumancodeProperties;
+import com.example.humancode.speech.SpeechService;
 import com.example.humancode.config.OpenAiClientHolder;
 import com.example.humancode.interview.SessionState;
 import com.example.humancode.problem.Problem;
@@ -81,6 +82,7 @@ public class ReportCardGenerator {
     private final PromptAssembler prompts;
     private final HumancodeProperties props;
     private final ReportCardGuard guard;
+    private final SpeechService speech;
 
     /**
      * The closing reaction still moves the meter. Taking delivery of an app that
@@ -101,8 +103,17 @@ public class ReportCardGenerator {
         boolean canned = content == null;
         GeneratedReport safe = canned ? CannedReportCard.forSession(state, problem) : content;
 
-        state.bumpImpatience(Math.clamp(safe.impatienceDelta(), MIN_CLOSING_DELTA, MAX_CLOSING_DELTA));
+        int impatience = state.bumpImpatience(
+                Math.clamp(safe.impatienceDelta(), MIN_CLOSING_DELTA, MAX_CLOSING_DELTA));
         int ratingDelta = Math.clamp(safe.ratingDelta(), MIN_RATING_DELTA, MAX_RATING_DELTA);
+
+        // Read aloud off the meter, never off `outcome`. The reasoning is the
+        // same as the report card's face (UI-DESIGN.md §6a): outcome knows
+        // whether the app works and deliberately never leaves this class, so a
+        // delivery chosen by it would be the pass/fail badge §4.7 forbids —
+        // announced out loud, which is worse than drawn. Started here so the
+        // clip is in flight while the verdict types itself out on screen.
+        String speechId = speak(state, safe.verdict(), impatience);
 
         return new ReportCard(
                 safe.verdict(),
@@ -111,7 +122,18 @@ public class ReportCardGenerator {
                 problem.similarProblems() == null ? List.of() : problem.similarProblems(),
                 stats(state),
                 ratingDelta,
+                speechId,
                 canned);
+    }
+
+    /** @return the id the browser fetches the clip by, or null when running silent */
+    private String speak(SessionState state, String verdict, int impatience) {
+        if (!speech.configured()) {
+            return null;
+        }
+        String speechId = "verdict-" + state.sessionId();
+        speech.prepareVerdict(speechId, state.sessionId(), verdict, impatience);
+        return speechId;
     }
 
     /** @return the generated report, or {@code null} on any failure — caller falls back to canned. */

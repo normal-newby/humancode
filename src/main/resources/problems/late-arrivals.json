@@ -5,32 +5,33 @@
   "type": "BUILD",
   "tags": [
     "python",
-    "filtering",
-    "lists"
+    "loops",
+    "counting"
   ],
-  "statement": "A list of arrival times in minutes past the hour is already in the file. Fill in `late_arrivals` so it returns the names of everyone who arrived after minute 5, in the order they appear, and `main` prints them one per line. Nothing else changes.",
+  "statement": "A list of arrival times, in minutes past the hour, is already in the file. Fill in `count_late` so it returns how many of them are after minute 5, and `main` prints that number.",
   "files": [
     {
       "name": "late_arrivals.py",
       "language": "python",
-      "starterContent": "ARRIVALS = [\n    {\"name\": \"Ada\", \"minute\": 2},\n    {\"name\": \"Grace\", \"minute\": 9},\n    {\"name\": \"Alan\", \"minute\": 5},\n    {\"name\": \"Katherine\", \"minute\": 17},\n    {\"name\": \"Linus\", \"minute\": 0},\n]\n\n\ndef late_arrivals(arrivals):\n    \"\"\"Return the names of everyone whose minute is greater than 5, in order.\"\"\"\n    # your code here\n\n\ndef main():\n    for name in late_arrivals(ARRIVALS):\n        print(name)\n\n\nif __name__ == \"__main__\":\n    main()\n",
-      "referenceContent": "ARRIVALS = [\n    {\"name\": \"Ada\", \"minute\": 2},\n    {\"name\": \"Grace\", \"minute\": 9},\n    {\"name\": \"Alan\", \"minute\": 5},\n    {\"name\": \"Katherine\", \"minute\": 17},\n    {\"name\": \"Linus\", \"minute\": 0},\n]\n\n\ndef late_arrivals(arrivals):\n    \"\"\"Return the names of everyone whose minute is greater than 5, in order.\"\"\"\n    return [arrival[\"name\"] for arrival in arrivals if arrival[\"minute\"] > 5]\n\n\ndef main():\n    for name in late_arrivals(ARRIVALS):\n        print(name)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+      "starterContent": "ARRIVALS = [2, 9, 5, 17, 0]\n\n\ndef count_late(minutes):\n    \"\"\"Return how many of the arrival times are greater than 5.\"\"\"\n    # your code here\n\n\ndef main():\n    print(count_late(ARRIVALS))\n\n\nif __name__ == \"__main__\":\n    main()\n",
+      "referenceContent": "ARRIVALS = [2, 9, 5, 17, 0]\n\n\ndef count_late(minutes):\n    \"\"\"Return how many of the arrival times are greater than 5.\"\"\"\n    count = 0\n    for minute in minutes:\n        if minute > 5:\n            count = count + 1\n    return count\n\n\ndef main():\n    print(count_late(ARRIVALS))\n\n\nif __name__ == \"__main__\":\n    main()\n"
     }
   ],
   "rubric": [
-    "Only arrivals after minute 5 are returned, so Alan at exactly 5 is not late.",
-    "The original order is preserved and the names are returned, not the whole records.",
-    "A list of names is returned rather than printed from inside the function, so main still does the printing.",
-    "The sample data and main are left as they are."
+    "Only times after minute 5 are counted, so the 5 in the sample data is not late.",
+    "The answer is a number, returned from the function rather than printed inside it.",
+    "The count is right for the sample data: 9 and 17 are late, so it is 2.",
+    "The sample data and main are left as they are.",
+    "A loop and a counter are enough - nothing here needs a dictionary, sorting or slicing."
   ],
   "curveballs": [
     "Actually, count minute 5 as late too.",
-    "Print how many were late on the last line.",
-    "Return them in alphabetical order instead."
+    "Now count the ones that were on time instead.",
+    "Only count the ones after minute 10."
   ],
   "similarProblems": [
-    "Overdue Books",
     "Passing Scores",
-    "Unread Messages"
+    "Items Over Budget",
+    "Days Above Freezing"
   ]
 }

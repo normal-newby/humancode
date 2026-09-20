@@ -141,6 +141,17 @@ export function finishSession(sessionId: string): Promise<SessionResponse> {
   return request<SessionResponse>(`/sessions/${sessionId}/finish`, { method: 'POST' })
 }
 
+/**
+ * Where a line's audio lives. A plain URL rather than a fetch: it goes straight
+ * into an `<audio>` element's `src`, so the browser streams it and starts
+ * playing before the whole clip has arrived.
+ *
+ * <p>A 404 from here means silence, not failure — see `useSpeech`.
+ */
+export function speechUrl(speechId: string): string {
+  return `${BASE}/speech/${encodeURIComponent(speechId)}`
+}
+
 export function streamUrl(sessionId: string): string {
   return `${BASE}/sessions/${sessionId}/stream`
 }

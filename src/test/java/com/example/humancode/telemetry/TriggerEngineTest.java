@@ -27,7 +27,8 @@ class TriggerEngineTest {
             new HumancodeProperties.Interview(
                     Duration.ofSeconds(20), Duration.ofSeconds(8), Duration.ofMillis(1500),
                     Duration.ofSeconds(90), 40),
-            new HumancodeProperties.Problems("bank", 0, Duration.ofSeconds(180), ""));
+            new HumancodeProperties.Problems("bank", 0, Duration.ofSeconds(180), ""),
+            new HumancodeProperties.Speech("", "voice", "eleven_v3", false, Duration.ofSeconds(8), 8));
 
     private final TriggerEngine engine = new TriggerEngine(PROPS);
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { finishSession, requestHint, startSession, submitTurn } from './api/client'
+import { finishSession, requestHint, startSession } from './api/client'
 import type {
   Difficulty,
   ProblemType,
@@ -25,6 +25,7 @@ import { Result, Transcript, type Entry, type PromptEntry } from './components/T
 import { WindowTab } from './components/WindowTab'
 import { useIdentity } from './hooks/useIdentity'
 import { useSessionStream } from './hooks/useSessionStream'
+import { useSpeech } from './hooks/useSpeech'
 import { useTelemetry } from './hooks/useTelemetry'
 import { useTypingFocus } from './hooks/useTypingFocus'
 import { loadRating, saveRating } from './lib/rating'
@@ -47,6 +48,18 @@ const MAX_ENTRIES = 50
 /** How long their caret blinks before the prompt it is composing lands. */
 const COMPOSING_MS = 850
 
+/**
+ * The longest that beat stretches while a line's audio is still being made.
+ *
+ * <p>Synthesis measured one to three seconds, which is slower than the 850ms
+ * above, so the caret waits for the clip rather than letting the voice start
+ * two seconds into a reveal that lasts 2.8. The wait is capped because a
+ * failing key or a slow night must not hold the log open indefinitely — past
+ * this the line lands and is simply read. Muted, or with no audio at all, the
+ * floor is all that applies and nothing here is reached.
+ */
+const MAX_COMPOSING_MS = 3000
+
 interface Counters {
   written: number
   deleted: number
@@ -67,11 +80,9 @@ export default function App() {
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [starting, setStarting] = useState(false)
-  const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [entries, setEntries] = useState<Entry[]>([])
   const [armed, setArmed] = useState(false)
-  const [escFlash, setEscFlash] = useState(false)
   /** Their choice, sent with the session. Medium is the honest default. */
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [language, setLanguage] = useState<SessionLanguage>('javascript')
@@ -143,6 +154,8 @@ export default function App() {
   const stream = useSessionStream(sessionId)
   const { record, setCode, flush, stop } = useTelemetry(sessionId)
   const { typing, mark } = useTypingFocus()
+  /** The interviewer, out loud. Silent when there is no key or they muted it. */
+  const speech = useSpeech()
   /** Readable inside callbacks: were you mid-sentence when they cut in? */
   const typingRef = useRef(false)
   useEffect(() => {
@@ -197,30 +210,51 @@ export default function App() {
   }, [files])
 
   /** Everything a fresh session has to zero. Runs when the prelude hands over. */
-  const enter = useCallback((started: SessionResponse) => {
-    setSession(started)
-    setReport(null)
-    const now = Date.now()
-    setStartedAt(now)
-    startedAtRef.current = now
-    setElapsed(0)
-    setEntries([])
-    setQueue([])
-    setComposing(false)
-    setHints([])
-    setRequestingHint(false)
-    setTotals(ZERO)
-    totalsRef.current = ZERO
-    setTurnBase(TURN_ZERO)
-    turnBaseRef.current = TURN_ZERO
-    lastActivityRef.current = now
-    seenRef.current = new Set()
-    seenNotesRef.current = 0
-    turnSeqRef.current = 0
-    touchedFilesRef.current = new Set()
-  }, [])
+  const enter = useCallback(
+    (started: SessionResponse) => {
+      // Anything left over from the last session's verdict, before the new
+      // problem is read out over the top of it.
+      speech.stop()
+      setSession(started)
+      setReport(null)
+      const now = Date.now()
+      setStartedAt(now)
+      startedAtRef.current = now
+      setElapsed(0)
+      setEntries([])
+      setQueue([])
+      setComposing(false)
+      setHints([])
+      setRequestingHint(false)
+      setTotals(ZERO)
+      totalsRef.current = ZERO
+      setTurnBase(TURN_ZERO)
+      turnBaseRef.current = TURN_ZERO
+      lastActivityRef.current = now
+      seenRef.current = new Set()
+      seenNotesRef.current = 0
+      turnSeqRef.current = 0
+      touchedFilesRef.current = new Set()
+
+      // The problem, read out under the pinned prompt as it types itself.
+      //
+      // Deliberately *not* waited on the way a heckle is. A paragraph takes
+      // about six seconds to synthesise against a 2.8s reveal, so nothing
+      // short of stalling the begin button would line them up, and the trade
+      // is the wrong way round: a heckle is a punchline and needs its timing,
+      // while the statement stays pinned for the whole session and is no worse
+      // for being read aloud a beat after it appears. That is also what a room
+      // sounds like — they write the problem, then read it to you.
+      void speech.say(started.statementSpeechId)
+    },
+    [speech],
+  )
 
   const begin = useCallback(async () => {
+    // Inside the click, before the await: a browser only grants a page the
+    // right to make noise from a real user gesture, and the grant attaches to
+    // the element played on. Miss this and the first heckle is swallowed.
+    speech.prime()
     setError(null)
     setStarting(true)
     setBoard(false)
@@ -237,7 +271,7 @@ export default function App() {
     } finally {
       setStarting(false)
     }
-  }, [difficulty, identity.identity, language, problemType])
+  }, [difficulty, identity.identity, language, problemType, speech])
 
   const handleBootDone = useCallback(() => setBootDone(true), [])
 
@@ -332,13 +366,30 @@ export default function App() {
       return
     }
     setComposing(true)
-    const timer = window.setTimeout(() => {
-      const [next, ...rest] = queue
+    let cancelled = false
+    const [next, ...rest] = queue
+
+    // The beat ends when the caret has blinked its minimum *and* the voice is
+    // ready — or when the ceiling runs out, whichever comes first. Fetching
+    // starts now rather than at landing, so the wait is the remainder of a
+    // synthesis already in flight server-side, not a fresh round trip.
+    const floor = new Promise<void>((resolve) => window.setTimeout(resolve, COMPOSING_MS))
+    const ceiling = new Promise<void>((resolve) => window.setTimeout(resolve, MAX_COMPOSING_MS))
+    const audible = speech.load(next.id).then((ready) => {
+      if (!ready) throw new Error('silent')
+    })
+
+    void Promise.all([floor, Promise.race([audible.catch(() => {}), ceiling])]).then(() => {
+      if (cancelled) return
       const idleSeconds = IDLE_TRIGGERS.has(next.trigger)
         ? Math.round((Date.now() - lastActivityRef.current) / 1000)
         : null
 
       closeTurn(typingRef.current, idleSeconds)
+      // Played as the line lands, never during the caret: that beat is the one
+      // moment they know something is coming and can do nothing about it
+      // (UI-DESIGN.md §4.4), and a voice starting inside it spends the dread.
+      speech.play()
       setEntries((previous) =>
         [
           ...previous,
@@ -353,10 +404,15 @@ export default function App() {
         ].slice(-MAX_ENTRIES),
       )
       setQueue(rest)
-    }, COMPOSING_MS)
+    })
 
-    return () => window.clearTimeout(timer)
-  }, [closeTurn, queue])
+    // Same contract as the timer this replaced: a second prompt arriving
+    // mid-beat re-runs the effect and re-arms it for the one already waiting,
+    // rather than cancelling it. Guarding on `composing` deadlocks it.
+    return () => {
+      cancelled = true
+    }
+  }, [closeTurn, queue, speech])
 
   /** Their notes hang under whichever prompt they were taken during. */
   useEffect(() => {
@@ -373,29 +429,6 @@ export default function App() {
       return copy
     })
   }, [stream.notes])
-
-  /**
-   * Hand the turn back: close it, then let them judge what you handed over.
-   * There is nothing to run locally anymore (CLAUDE.md §6) — the interviewer
-   * judges the current diff against the rubric, same as every other reaction.
-   */
-  const submit = useCallback(async () => {
-    if (!sessionId || running || finishing) return
-    setRunning(true)
-    setError(null)
-    closeTurn(false, null)
-    try {
-      await submitTurn(sessionId)
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? `Could not submit this turn. Your work is still here; try again. ${e.message}`
-          : 'Could not submit this turn. Your work is still here; try again.',
-      )
-    } finally {
-      setRunning(false)
-    }
-  }, [closeTurn, finishing, running, sessionId])
 
   /**
    * Asks for a hint directly. Deliberately not a turn boundary and not routed
@@ -436,6 +469,14 @@ export default function App() {
       }
       const { ratingDelta } = result.report
       setReport(result.report)
+
+      // Cut off any heckle still playing before the verdict starts: two
+      // voices over each other is the one thing worse than silence. The
+      // clip has been synthesising since the end of /finish, so it lands
+      // while the verdict is still typing itself out.
+      speech.stop()
+      void speech.say(result.report.speechId)
+
       // Applied right here, synchronously with the report landing — not in an
       // effect — so the very first paint of the report screen's WindowTab
       // already shows the updated total, not last session's.
@@ -465,12 +506,16 @@ export default function App() {
     }
     // `adopt` rather than the whole `identity` object: the hook returns a
     // fresh literal every render, and App re-renders on every keystroke — a
-    // dependency on it would rebuild `end`, then `requestEnd`, then re-bind
+    // dependency on it would rebuild `end`, then `requestSubmit`, then re-bind
     // the ^d listener, once per character typed.
-  }, [adopt, finishing, flush, sessionId, stop])
+  }, [adopt, finishing, flush, sessionId, speech, stop])
 
-  /** Mouse and keyboard both require a deliberate second end action. */
-  const requestEnd = useCallback(() => {
+  /**
+   * The footer's `submit`, which is also the end of the session — there is no
+   * per-turn submit any more, so handing the work in and finishing are one
+   * action. Mouse and keyboard both require a deliberate second press.
+   */
+  const requestSubmit = useCallback(() => {
     if (!sessionId || finishing) return
     if (armed) {
       setArmed(false)
@@ -481,7 +526,7 @@ export default function App() {
   }, [armed, end, finishing, sessionId])
 
   /**
-   * `^d` ends the session, on the second press — the terminal's own way out,
+   * `^d` submits, on the second press — the terminal's own way out,
    * and it leaves `esc` alone, which in this layout is theirs (§4.5). `^c`
    * would have been more idiomatic still, but it is copy, and a candidate
    * copying a line should not end their interview.
@@ -489,29 +534,28 @@ export default function App() {
   useEffect(() => {
     if (!sessionId) return
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setEscFlash(true)
+      if (!event.ctrlKey) return
+      // `^m` mutes. Same shape as `^d`: a control chord, not a key that
+      // belongs to the editor, and it takes effect on the first press because
+      // unlike ending a session there is nothing to confirm.
+      if (event.key.toLowerCase() === 'm') {
+        event.preventDefault()
+        speech.toggleMuted()
         return
       }
-      if (!event.ctrlKey || event.key.toLowerCase() !== 'd') return
+      if (event.key.toLowerCase() !== 'd') return
       event.preventDefault()
-      requestEnd()
+      requestSubmit()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [requestEnd, sessionId])
+  }, [requestSubmit, sessionId, speech])
 
   useEffect(() => {
     if (!armed) return
     const timer = window.setTimeout(() => setArmed(false), 3000)
     return () => window.clearTimeout(timer)
   }, [armed])
-
-  useEffect(() => {
-    if (!escFlash) return
-    const timer = window.setTimeout(() => setEscFlash(false), 2000)
-    return () => window.clearTimeout(timer)
-  }, [escFlash])
 
   useEffect(() => {
     if (!sessionId) return
@@ -678,15 +722,14 @@ export default function App() {
               elapsedSeconds={elapsed}
               totals={totals}
               impatience={stream.impatience}
-              activity={running ? 'running' : typing ? 'writing' : 'idle'}
-              running={running}
+              activity={finishing ? 'submitting' : typing ? 'writing' : 'idle'}
               finishing={finishing}
               armed={armed}
-              escFlash={escFlash}
               hintsRemaining={hintsRemaining}
               requestingHint={requestingHint}
-              onSubmit={submit}
-              onEnd={requestEnd}
+              muted={speech.muted}
+              onToggleMuted={speech.toggleMuted}
+              onSubmit={requestSubmit}
               onHint={handleHint}
             />
           </div>
@@ -698,7 +741,6 @@ export default function App() {
             stamp={liveStamp}
             onTelemetry={handleTelemetry}
             onCodeChange={handleCodeChange}
-            onSubmit={submit}
           />
         </div>
       </div>

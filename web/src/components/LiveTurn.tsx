@@ -8,7 +8,6 @@ interface Props {
   stamp: TurnStamp
   onTelemetry: (item: TelemetryItem) => void
   onCodeChange: (file: string, code: string) => void
-  onSubmit: () => void
 }
 
 /**
@@ -23,7 +22,7 @@ interface Props {
  * <p>No border, no fill. A box would make it an input again, and the whole
  * point is that you are the one producing output here.
  */
-export function LiveTurn({ files, stamp, onTelemetry, onCodeChange, onSubmit }: Props) {
+export function LiveTurn({ files, stamp, onTelemetry, onCodeChange }: Props) {
   // The accurate, per-file record lives in the closed turn's meta line (built
   // from what was actually touched); this header is a live label and settles
   // for "how many files" once there is more than one, rather than trying to
@@ -44,7 +43,6 @@ export function LiveTurn({ files, stamp, onTelemetry, onCodeChange, onSubmit }: 
               files={files}
               onTelemetry={onTelemetry}
               onCodeChange={onCodeChange}
-              onRun={onSubmit}
             />
           </div>
 

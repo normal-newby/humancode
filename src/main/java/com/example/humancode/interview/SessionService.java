@@ -15,6 +15,7 @@ import com.example.humancode.problem.Problem;
 import com.example.humancode.problem.ProblemSource;
 import com.example.humancode.problem.ProblemType;
 import com.example.humancode.problem.ProblemRuntime;
+import com.example.humancode.speech.SpeechService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class SessionService {
     private final Map<String, SessionState> live = new ConcurrentHashMap<>();
     private final SessionRepository repository;
     private final ProblemSource problems;
+    private final SpeechService speech;
     private final ObjectMapper mapper;
 
     @PostConstruct
@@ -78,6 +80,12 @@ public class SessionService {
         String id = UUID.randomUUID().toString();
         SessionState state = new SessionState(id, problem, resolvedLanguage);
         state.userId(userId);
+        // Started here rather than when the browser asks, and this is the
+        // longest head start in the app: the prelude plays for about two
+        // seconds before the statement is on screen at all (UI-DESIGN.md
+        // §4.8a), which is most of a synthesis paid for by an animation that
+        // was going to run anyway.
+        state.statementSpeechId(speech.prepareStatement(id, problem.statement()));
         live.put(id, state);
 
         Session entity = new Session(id, problem.id(), resolvedLanguage, state.startedAt());

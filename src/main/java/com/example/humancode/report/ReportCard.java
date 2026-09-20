@@ -22,6 +22,13 @@ public record ReportCard(
          * folds it into the running total shown in the corner of every screen.
          */
         int ratingDelta,
+        /**
+         * Where the browser fetches the verdict read aloud, or null when the
+         * app is running silent. It is an id rather than audio because the clip
+         * is still being synthesised when this record is built — see
+         * {@code speech/SpeechService}.
+         */
+        String speechId,
         /** True when the model was unavailable, failed, or got rejected by the guard. */
         boolean canned) {
 

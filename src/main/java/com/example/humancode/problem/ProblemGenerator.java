@@ -235,6 +235,12 @@ public class ProblemGenerator {
             Problem problem = convert(generated.get(), level, type);
             if (runtime == ProblemRuntime.PYTHON) {
                 requirePureLogic(problem);
+                // Read off the problem rather than the requested level: a null
+                // request means "any", and then the only thing that knows this
+                // is a very-easy puzzle is the label convert() settled on.
+                if (Difficulty.parse(problem.difficulty()).orElse(null) == Difficulty.VERY_EASY) {
+                    requireFlatData(problem);
+                }
             }
             log.info("Generated {} {} problem '{}' ({} files, seed '{}') in {}ms",
                     problem.difficulty(), problem.type(), problem.title(), problem.files().size(), seed, millis);
@@ -273,6 +279,20 @@ public class ProblemGenerator {
                 + (runtime == ProblemRuntime.PYTHON ? PYTHON_INSTRUCTIONS : WEB_INSTRUCTIONS);
     }
 
+    /**
+     * Dictionary use, in the forms a generated puzzle actually takes.
+     *
+     * <p>Deliberately narrow. The three method names can only belong to a
+     * dict, and the literal branch requires a quoted key followed by a colon,
+     * so {@code {"name": ...}} matches while an f-string like
+     * {@code f"{'late' if x else 'on time'}"} does not. A rejection costs a
+     * whole generation (see {@link #convert}), so the pattern has to be one a
+     * legitimate flat-list puzzle cannot trip.
+     */
+    private static final Pattern PYTHON_DICT = Pattern.compile(
+            "\\bdict\\s*\\(|\\b(defaultdict|OrderedDict|Counter|namedtuple)\\b"
+                    + "|\\.(items|keys|values)\\s*\\(|\\{\\s*[\"'][^\"']*[\"']\\s*:");
+
     /** Anything that opens a window or waits on a human. */
     private static final Pattern PYTHON_INTERFACE = Pattern.compile(
             "\\b(tkinter|Tkinter|curses|pygame|PyQt\\d?|PySide\\d?|kivy)\\b|\\binput\\s*\\(");
@@ -287,6 +307,34 @@ public class ProblemGenerator {
      * enough that a real logic puzzle cannot trip it, and the fallback is a
      * bank Python problem, which is the right shape by construction.
      */
+    /**
+     * Keeps the very-easy Python level to lists.
+     *
+     * <p>At this level the candidate is meeting the interviewer, not the
+     * problem: one rule, one flat list, three or four lines. A list of dicts
+     * doubles what they have to hold in their head before they have written
+     * anything — {@code arrival["minute"]} instead of {@code minute} — and the
+     * calibration says so in capitals. This is the check that makes it true,
+     * because an instruction is not a guarantee: the same lesson as
+     * {@code PromptAssembler.hasChanged}, where telling the model something in
+     * the prompt lost to what the model felt like doing.
+     *
+     * <p>Only VERY_EASY. Easy and above are welcome to use dictionaries, and
+     * two of the three bank Python problems do.
+     */
+    static void requireFlatData(Problem problem) {
+        for (Problem.ProblemFile file : problem.files()) {
+            if (!"python".equals(file.language()) && !file.name().endsWith(".py")) {
+                continue;
+            }
+            var match = PYTHON_DICT.matcher(file.starterContent() + "\n" + file.referenceContent());
+            if (match.find()) {
+                throw new IllegalStateException("generated very-easy python problem uses a dictionary ('"
+                        + match.group().trim() + "' in " + file.name() + ")");
+            }
+        }
+    }
+
     static void requirePureLogic(Problem problem) {
         for (Problem.ProblemFile file : problem.files()) {
             if (!"python".equals(file.language()) && !file.name().endsWith(".py")) {
@@ -342,12 +390,29 @@ public class ProblemGenerator {
      */
     private static String pythonCalibration(Difficulty level) {
         return switch (level) {
-            case VERY_EASY -> "Very easy means ONE rule applied to one short list, finishable in 3"
-                    + " to 5 minutes: filter it, total it, or pick the winner. One function body"
-                    + " is the only gap, three or four lines long. No tie-breaks, no precedence,"
-                    + " no grouping, no malformed entries, and no second function. Say the rule in"
-                    + " one sentence. If the statement needs a second sentence to explain the"
-                    + " rules, the puzzle is too big for this level.";
+            case VERY_EASY -> "Very easy is a BEGINNER EXERCISE, not a small interview question."
+                    + " Write it for someone who has just learned the `for` loop and the `if`"
+                    + " statement and has met nothing else yet. One to three minutes."
+                    + " THE SAMPLE DATA IS ONE FLAT LIST OF FOUR TO SIX PLAIN NUMBERS, or plain"
+                    + " short strings if the situation needs words. No dictionaries anywhere, in"
+                    + " the data or the answer, and no sets, tuples, classes, nested lists or"
+                    + " imports."
+                    + " THE ANSWER IS ONE VALUE, NOT A LIST - how many of them pass the rule, or"
+                    + " what they add up to, or the largest one. Returning a new list is the next"
+                    + " level up; here the candidate keeps a single variable and updates it in a"
+                    + " loop."
+                    + " The whole solution is a counter or a running total, one `for`, one `if`"
+                    + " and a `return`: three or four lines, and it must be writable WITHOUT a"
+                    + " comprehension, without sorting, without slicing, and without enumerate,"
+                    + " zip, lambda or any builtin that would solve it in a single call. Do not"
+                    + " let the rule be so bare that `sum(values)` alone is the answer - the loop"
+                    + " needs its one condition to be worth writing."
+                    + " ONE sentence of statement, naming the rule and what gets printed. No"
+                    + " tie-breaks, no precedence, no grouping, no edge cases, no malformed"
+                    + " entries, no second function."
+                    + " If the situation you were given only makes sense with records, take one"
+                    + " field of it and use that instead - shift lengths rather than shifts,"
+                    + " prices rather than orders, arrival minutes rather than arrivals.";
             case EASY -> "Easy means one set of rules applied to one list, with no interaction"
                     + " between the rules, solvable in 10 to 15 minutes. The gap left in the"
                     + " starter is one function body.";

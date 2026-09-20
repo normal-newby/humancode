@@ -9,19 +9,23 @@ interface Props {
   impatience: number
   /** Drives the word: typing, sitting there, or waiting on a submit. */
   activity: Activity
-  running: boolean
   /** Report card is being generated — `^d` was pressed and confirmed. */
   finishing: boolean
   /** `^d` has been pressed once and is waiting for the confirming second. */
   armed: boolean
-  /** They pressed `esc`. It is not their key to press. */
-  escFlash: boolean
   /** How many of `SessionState.MAX_HINTS` are left this session. */
   hintsRemaining: number
   /** A hint call is in flight. */
   requestingHint: boolean
+  /** The interviewer's voice is off. */
+  muted: boolean
+  onToggleMuted: () => void
+  /**
+   * Hands the work in, which also ends the session — there is only one of
+   * these now. It is armed on the first press and acts on the second, because
+   * it is the last thing you do.
+   */
   onSubmit: () => void
-  onEnd: () => void
   onHint: () => void
 }
 
@@ -38,14 +42,13 @@ export function StatusLine({
   totals,
   impatience,
   activity,
-  running,
   finishing,
   armed,
-  escFlash,
   hintsRemaining,
   requestingHint,
+  muted,
+  onToggleMuted,
   onSubmit,
-  onEnd,
   onHint,
 }: Props) {
   const word = useActivity(activity, impatience)
@@ -77,7 +80,7 @@ export function StatusLine({
         <button
           type="button"
           onClick={onHint}
-          disabled={requestingHint || hintsRemaining === 0 || running || finishing}
+          disabled={requestingHint || hintsRemaining === 0 || finishing}
           className="lowercase transition-colors hover:text-ink disabled:opacity-40"
         >
           <span aria-hidden className="mr-1.5 text-faint">
@@ -85,34 +88,37 @@ export function StatusLine({
           </span>
           {requestingHint ? 'thinking…' : hintsRemaining === 0 ? 'no hints left' : `hint (${hintsRemaining} left)`}
         </button>
+        {/* Words, not a speaker icon: §2 bans icons in the chrome and §4.1
+            fixes the glyph set, so the voice gets the same `^x verb` shape the
+            keys beside it already use. */}
+        <button
+          type="button"
+          onClick={onToggleMuted}
+          title={muted ? 'Let them speak' : 'Silence them'}
+          className="lowercase transition-colors hover:text-ink"
+        >
+          <span aria-hidden className="mr-1.5 text-faint">
+            ^m
+          </span>
+          {muted ? 'muted' : 'mute'}
+        </button>
+        {/* The one terminal action. Handing the work in *is* the end of the
+            session now, so there is no separate `end` beside it and nothing
+            that closes a turn without closing the interview. Still two
+            presses: it is irreversible, and `^d` is EOF, which is the right
+            verb for it. */}
         <button
           type="button"
           onClick={onSubmit}
-          disabled={running || finishing}
-          className="lowercase transition-colors hover:text-ink disabled:opacity-40"
-        >
-          <span aria-hidden className="mr-1.5 text-faint">
-            ⏎
-          </span>
-          {running ? 'submitting…' : 'submit'}
-        </button>
-        <button
-          type="button"
-          onClick={onEnd}
           disabled={finishing}
-          title={armed ? 'Click again to end the session' : 'Click once, then again to end'}
+          title={armed ? 'Click again to submit' : 'Click once, then again to submit'}
           className={`lowercase transition-colors hover:text-ink disabled:opacity-40 ${armed ? 'text-hot' : ''}`}
         >
           <span aria-hidden className="mr-1.5 text-faint">
             ^d
           </span>
-          {finishing ? 'grading…' : armed ? 'again to end' : 'end'}
+          {finishing ? 'grading…' : armed ? 'again to submit' : 'submit'}
         </button>
-        {/* The tell. In a terminal this hint belongs to whoever is waiting on
-            the model, and here that is not you. */}
-        <span className={`lowercase ${escFlash ? 'text-hot' : 'text-faint'}`}>
-          {escFlash ? 'esc is theirs' : 'esc to interrupt'}
-        </span>
       </span>
     </div>
   )

@@ -47,6 +47,8 @@ public final class SessionState {
      * concern rather than a live-session one.
      */
     private volatile String userId;
+    /** See {@link #statementSpeechId()}. */
+    private volatile String statementSpeechId;
 
     private volatile Instant lastEventAt;
     private volatile Instant firstKeystrokeAt;
@@ -127,6 +129,19 @@ public final class SessionState {
 
     public Phase phase() {
         return phase;
+    }
+
+    /**
+     * Where the browser fetches the problem statement read aloud, or null when
+     * the app is running silent. Set once at session start, because that is
+     * when the synthesis is kicked off — see {@code speech/SpeechService}.
+     */
+    public String statementSpeechId() {
+        return statementSpeechId;
+    }
+
+    public void statementSpeechId(String statementSpeechId) {
+        this.statementSpeechId = statementSpeechId;
     }
 
     /** Null when nobody was signed in — see the field. */

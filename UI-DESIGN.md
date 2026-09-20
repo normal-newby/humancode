@@ -71,7 +71,7 @@ framing is wrong here. So:
      13    const seen = new Map();
      14    for (let i = 0; i < nums.length; i++) {
      └  00:12 · ↑ 84 · ↓ 3                                ← live, this turn
-   ⠹ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ⏎ submit  ^d end  esc to interrupt
+   ⠹ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ? hint (2 left)  ^m mute  ^d submit
 ```
 
 Column is `max-width: 84ch`, centred. The live turn and the footer are pinned to the bottom of the
@@ -108,7 +108,7 @@ Call these out in review. Any one of them collapses the whole concept back into 
 | Tabs: Description / Solutions / Submissions | There is one view. There are no tabs anywhere |
 | A console drawer that slides up from the bottom | There is no test output on screen at all. The interviewer tells you — §4.7 |
 | A pass count, a failure list, a green check anywhere in the session | The run result is a signal for the model, never a readout for the candidate |
-| Dense icon toolbars | Key hints in the footer — `⏎ submit`, `^d end`. No filled buttons, no icons |
+| Dense icon toolbars | Key hints in the footer — `^d submit`, `^m mute`. No filled buttons, no icons |
 | A big green "Accepted" banner | They say something begrudging in their next prompt. That is the reward |
 | Chat bubbles, speech tails, alternating alignment | Flush-left log lines under a marker in the same 1.25rem column. Nobody's terminal has bubbles |
 | A photo avatar, an emoji reaction, a vendor mark | The pixel face in §6a: drawn from the palette, in the marker column, one per prompt |
@@ -250,6 +250,13 @@ column and its content hanging beside it, so `>` and `•` align all the way dow
 everything else has dimmed. It is what you are still being asked and it does not go away. A `┄`
 hairline in `--color-faint` sits under it so it reads as pinned rather than as the newest line.
 
+**It is read aloud too.** The statement is a `▌` line like any other, so it is spoken in the same
+voice (CLAUDE.md §5a) — flat and unhurried, matching the NEUTRAL face §6a already gives it, because
+they have not seen a line of your code when they set the problem. Unlike a heckle it is not waited
+for: a paragraph takes about six seconds to synthesise against a 2.8s reveal, and the statement
+stays pinned all session, so it can be read out a beat after it appears without costing anything.
+A heckle cannot — that one is a punchline.
+
 **The pinned prompt folds itself to three lines once the session is under way.** Pinned still means
 pinned — the opening lines never leave, and a `└ the rest of it` / `└ fold it away` toggle under it
 puts the whole statement back, in `--color-faint` like any other aside. This is not decoration: the
@@ -302,7 +309,7 @@ A turn closes when:
 
 | Event | Closes with |
 |---|---|
-| `⏎ submit` | a plain stamp — you handed it over |
+| `^d submit` | a plain stamp — you handed it over, and the session is over |
 | their prompt, while you were typing | `└ Interrupted by user` |
 | their prompt, while you were idle | a stamp carrying `idle 47s` |
 
@@ -323,7 +330,8 @@ navigator between the header and the editor — see §4.3a.
   place: their notes refer to them ("staring at line 12"), and that joke needs the reader to be able
   to look.
 - Caret is `--color-accent` and does not blink while typing. Theirs blinks; yours does not.
-- `ctrl+enter` submits.
+- **No `ctrl+enter`.** It used to submit a turn; with the per-turn submit gone the only thing
+  left for it to mean is "end the session", and a chord that easy to hit by accident must not.
 
 ### 4.3a The file navigator
 
@@ -406,7 +414,7 @@ disagrees with the page the rubric is judged against is worse than a blank scree
 ### 4.3c Hints
 
 Two per session, asked for directly rather than volunteered — the footer carries a `hint (2 left)`
-/ `hint (1 left)` / `no hints left` button in the left column, next to `⏎ submit` and `^d end`.
+/ `hint (1 left)` / `no hints left` button in the left column, next to `^m mute` and `^d submit`.
 
 **A hint is not a heckle, so it does not go in the log.** Every `▌` line is a reaction to what you
 just did; a hint is the one thing on this screen that you asked for, and mixing it into the
@@ -436,6 +444,16 @@ paid for in 850ms.
 Their caret blinks at `1.1s`, `steps(1, end)` — a hard terminal blink, not a fade. Yours never blinks.
 The asymmetry is the tell.
 
+**Since the lines are spoken, the beat also waits for the voice** — 850ms is the floor, not the
+whole story, and the line lands when its clip is ready or at 3s, whichever comes first. Synthesis
+measured one to four seconds (CLAUDE.md §5a), so playing on arrival would start the voice two
+seconds into a 2.8s reveal: the interviewer finishes typing, then starts shouting. Waiting spends
+the latency on the one thing this beat already exists to do. Muted, or with no key, only the floor
+applies and the pacing is exactly as it was.
+
+**The voice starts when the line lands, never during the caret.** That beat is the one moment they
+know something is coming and can do nothing about it, and a voice inside it spends the dread early.
+
 ### 4.5 The footer
 
 One line under your live turn, 13px `--color-sub`, wrapping only below `900px`, key hints
@@ -446,14 +464,14 @@ It takes the shape a coding agent's footer takes — spinner, what is happening,
 one parenthesis:
 
 ```
-⠹ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ⏎ submit  ^d end  esc to interrupt
+⠹ writing… (04:12 · ↑1.2k ↓431 ⧉2)   human impatience 34% ▓▓▓░░░   ? hint (2 left)  ^m mute  ^d submit
 ```
 
 | Segment | Content |
 |---|---|
 | activity | the braille dot spinner, one lowercase word for what you are doing, then `(clock · totals)` |
 | impatience | §6 — **theirs**, and labelled as such |
-| hints | `⏎ submit`, `^d end`, and the tell |
+| hints | `? hint`, `^m mute`, `^d submit` |
 
 **The problem's title and difficulty are not here, and are nowhere.** Their prompt said what the
 problem is; repeating `two sum · easy` for the whole session is a label on a product. What replaces
@@ -481,19 +499,35 @@ are events, so a server-derived clock stalls the moment you stop typing — exac
 matters most. The parenthesised numbers are **session totals**; everything in the log is a per-turn
 delta of them.
 
-**`⏎ submit`**, not "run". Pressing it hands the turn back (§4.3); that it also runs the tests is an
-implementation detail the candidate never sees (§4.7). `ctrl+enter` in the editor, and a real click
-target too, because a judge at a demo table will reach for the mouse.
+**There is one action in the footer and it is `^d submit`.** Handing the work in *is* the end of the
+session — there is no separate `end` beside it, and nothing that closes a turn without closing the
+interview.
 
-**`^d` ends the session, on the second press.** The hint flips to `^d again to end` in `--color-hot`
+It replaced a pair that read as near-duplicates: a `⏎ submit` that closed a turn and a `^d end` that
+finished the session. Two adjacent controls both meaning "I am done with something", only one of
+them final. A real click target as well as the chord, because a judge at a demo table reaches for
+the mouse.
+
+**What it costs, and it is worth knowing:** turns now close only when the interviewer speaks (§4.3),
+and `SUBMITTED` never fires, because nothing calls that endpoint mid-session any more. The server
+records the submission during `/finish` instead — see CLAUDE.md §6, where that count is
+load-bearing for the report card rather than cosmetic.
+
+**`^d` submits, on the second press.** The hint flips to `^d again to submit` in `--color-hot`
 for three seconds, then disarms. `^c` would be the more idiomatic terminal exit, but it is copy, and a
 candidate copying a line must not end their interview. `^d` is EOF, which is the right verb anyway.
 
-**`esc to interrupt` is the tell, and it is not yours.** In a terminal that hint belongs to whoever is
-waiting on the model. Here that is the human on the other side, so the hint sits in `--color-faint`
-and does nothing when you press it — except flash `esc is theirs` for two seconds, which is the
-cheapest way to teach the premise. Do not wire esc to anything; the moment a candidate discovers the
-key does not belong to them is the moment the whole layout clicks.
+**`^m` mutes them.** Every `▌` line is spoken aloud (CLAUDE.md §5a) and some rooms cannot have
+that, so the footer carries it in the same `^x verb` shape as `^d submit` — **words, not a speaker
+icon**. §2 bans icons in the chrome and §4.1 fixes the glyph set; a voice control is not a reason
+to reopen either. The label flips `mute` / `muted`, the choice survives the tab, and unlike `^d`
+it takes effect on the first press because there is nothing to confirm.
+
+**The `esc to interrupt` tell is gone.** It sat in `--color-faint` doing nothing but flashing
+`esc is theirs`, as a way of teaching the premise through a key that was not yours to press. It was
+removed deliberately, so do not re-add it on the strength of the paragraph that used to be here:
+the premise is carried by the layout, the meter and now the voice, and a hint that exists only to
+reject you spends a line of chrome every session to land a joke once.
 
 Worked examples (`in [2,7,11,15], 9` / `out [0,1]`) are **not** here, and they are not under their
 prompt either — they are not anywhere. See §4.7.
@@ -899,7 +933,7 @@ every terminal uses and it is the rate that makes the footer read as a live proc
 | Spinner | braille dot cycle `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` | 110ms/frame |
 | Caret `▍` while revealing | none — solid, does not blink | — |
 | Their caret (§4.4) | hard blink, `steps(1, end)` | 1.1s loop |
-| Their caret, before a prompt | held before delivery | 850ms |
+| Their caret, before a prompt | held before delivery | 850ms, or until the voice is ready (max 3s) |
 | New prompt or closed turn | fade + 4px rise | 200ms |
 | Previous prompt dimming to faint | colour | 400ms |
 | Meta line, their notes | fade, 300ms after the line above finishes | 200ms |
@@ -967,7 +1001,7 @@ Implemented. Recorded here so the intent survives the next refactor:
 | *new* `TypingIndicator.tsx` | §4.4. Their `>` and a blinking `▍` at the tail of the log. |
 | `PreviewPane.tsx` + `lib/buildPreview.ts` | §4.3b. The candidate's page in a sandboxed frame; the lib assembles the files into one document. |
 | `MetaLine.tsx` | §5. Per-turn deltas, frozen when the turn closes; the `live` variant counts the turn in progress. |
-| `StatusLine.tsx` | §4.5. `⠹ word… (clock · totals)`, the meter, `⏎ submit`, `^d end`, and the `esc` tell. |
+| `StatusLine.tsx` | §4.5. `⠹ word… (clock · totals)`, the meter, `? hint`, `^m mute` and the one `^d submit`. |
 | `DifficultyPicker.tsx` | §4.8. Three lowercase words on the start screen, radios under the hood. The only difficulty word in the app. |
 | *new* `HandleLine.tsx` | §4.8b. `$ gpdetox --as <handle>` on the start screen, and the signed-in statement that replaces it. The only place a handle is ever entered. |
 | *new* `Leaderboard.tsx` | §4.9. The board, as a `•` block and four aligned columns. Fetches on mount; owns no rating arithmetic. |
@@ -976,10 +1010,11 @@ Implemented. Recorded here so the intent survives the next refactor:
 | *new* `WindowTab.tsx` | §4.0. The one tab, and the exported `CWD` the prelude also prints. Rendered by each of the four screens, never dimmed. |
 | `ImpatienceMeter.tsx` | §6. Masked gradient, `96×8`, labelled `human impatience`; pulse on the number. |
 | `WindowTab.tsx` | §4.0. Also carries the standing and, when there is one, the handle beside it. |
-| `EditorPane.tsx` | Monaco with no border and no fill, background matched to `--color-canvas`. `ctrl+enter` submits. One model per file (§4.3a), swapped via `setModel`; owns the file navigator row itself. |
+| `EditorPane.tsx` | Monaco with no border and no fill, background matched to `--color-canvas`. No key chords. One model per file (§4.3a), swapped via `setModel`; owns the file navigator row itself. |
 | `TypedText.tsx` + `hooks/useTypewriter.ts` | §4.6. The hook owns pacing and the reduced-motion escape; the component owns the caret and the `sr-only` full text. |
 | `hooks/useActivity.ts` | The word pools and the 3.5s rotation. Pools are data — edit them, do not add states casually. |
 | `Spinner.tsx` | The braille dot spinner. Static under reduced motion. |
+| *new* `hooks/useSpeech.ts` | The interviewer read aloud. One `<audio>` element, unlocked on the click that starts a session; `load` always settles, `play` is called as the line lands. A 404 means silence, never an error. |
 | `hooks/useTypingFocus.ts` | The single `typing` boolean behind focus mode — and the same boolean decides whether a prompt counts as an interrupt. |
 | `lib/format.ts` | `clock()` and `compact()` — the `1.2k` rule lives in one place, since the meta lines and the footer must agree. |
 | `index.css` | Tokens from §3, focus-mode rules, reveal/blink/pulse keyframes, reduced-motion guard, **thin/faint scrollbar styling** — the native scrollbar is bright and reads as exactly the bolted-on chrome §2 forbids. |

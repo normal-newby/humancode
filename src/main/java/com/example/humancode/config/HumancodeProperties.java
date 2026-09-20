@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * pacing and model choice can be changed without a recompile.
  */
 @ConfigurationProperties(prefix = "humancode")
-public record HumancodeProperties(Ai ai, Interview interview, Problems problems) {
+public record HumancodeProperties(Ai ai, Interview interview, Problems problems, Speech speech) {
 
     public record Ai(
             String apiKey,
@@ -31,6 +31,41 @@ public record HumancodeProperties(Ai ai, Interview interview, Problems problems)
              * as {@code problems.generation-timeout}, same fix.
              */
             @DefaultValue("120s") Duration reportTimeout) {
+    }
+
+    /**
+     * The interviewer's voice (ElevenLabs). Absent key means a silent app that
+     * otherwise behaves identically — see {@code speech/SpeechService}.
+     */
+    public record Speech(
+            String apiKey,
+            /**
+             * One voice for the whole session, whatever mood it is in — see
+             * {@code Delivery}. Swap it here; there is no picker, because the
+             * interviewer is one person.
+             */
+            @DefaultValue("nPczCjzI2devNBz1zQrb") String voiceId,
+            /**
+             * <b>Keep this on a v3 model unless you also remove the audio
+             * tags.</b> They are what make the angry end actually shout, and a
+             * model that does not interpret them reads "[shouting]" aloud.
+             * {@code SpeechService} checks, but the check is a guard, not a
+             * licence to point this somewhere else and hope.
+             */
+            @DefaultValue("eleven_v3") String model,
+            /** Set false to run silent with a key present — cheaper demos, same app. */
+            @DefaultValue("true") boolean enabled,
+            /**
+             * Deadline for one synthesis. Short on purpose: the line is already
+             * on screen being typed out, and a late arrival is worse than none.
+             */
+            @DefaultValue("8s") Duration requestTimeout,
+            /**
+             * How many clips to hold at once. Each is tens of kilobytes and
+             * lives only until the tab has played it, so this is a leak stop
+             * rather than a cache anyone benefits from.
+             */
+            @DefaultValue("64") int maxClips) {
     }
 
     public record Problems(

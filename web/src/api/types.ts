@@ -89,6 +89,12 @@ export interface ReportCard {
    * (lib/rating.ts) so the corner of the screen still means something.
    */
   ratingDelta: number
+  /**
+   * Where to fetch the verdict read aloud, or null when the app is running
+   * silent. The clip is still being synthesised when this arrives, which is
+   * why it is an id and not audio — see `useSpeech`.
+   */
+  speechId: string | null
   /** True when the model was unavailable, failed, or got rejected by the guard. */
   canned: boolean
 }
@@ -144,6 +150,12 @@ export interface SessionResponse {
   live: boolean
   /** Only set by the response from `POST /sessions/{id}/finish`. */
   report: ReportCard | null
+  /**
+   * Where to fetch the problem statement read aloud, or null when the app is
+   * running silent. Synthesis began when the session was created, so it has
+   * the whole prelude to finish in — see `useSpeech`.
+   */
+  statementSpeechId: string | null
   /**
    * Whoever the session counts for. On the `/finish` response this is their
    * standing *after* `report.ratingDelta` has landed — the server applies it,

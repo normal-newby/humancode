@@ -50,6 +50,17 @@ const MIN_CURVEBALLS = 1
  */
 const PYTHON_INTERFACE = /\b(tkinter|Tkinter|curses|pygame|PyQt\d?|PySide\d?|kivy)\b|\binput\s*\(/
 
+/**
+ * Very easy python is lists only. One rule, one flat list, three or four lines
+ * — a list of dicts doubles what the candidate is holding in their head
+ * (`arrival["minute"]` rather than `minute`) before they have written anything.
+ *
+ * Mirrors ProblemGenerator.PYTHON_DICT. Only very-easy is restricted; the easy
+ * and medium python problems in the bank use dictionaries and should carry on.
+ */
+const PYTHON_DICT =
+  /\bdict\s*\(|\b(defaultdict|OrderedDict|Counter|namedtuple)\b|\.(items|keys|values)\s*\(|\{\s*["'][^"']*["']\s*:/
+
 let failures = 0
 
 const problems = load()
@@ -86,9 +97,18 @@ for (const problem of problems) {
       anyFileHasWork = true
     }
     if (f.language === 'python' || f.name?.endsWith('.py')) {
-      const hit = `${f.starterContent ?? ''}\n${f.referenceContent ?? ''}`.match(PYTHON_INTERFACE)
+      const source = `${f.starterContent ?? ''}\n${f.referenceContent ?? ''}`
+      const hit = source.match(PYTHON_INTERFACE)
       if (hit) {
         problemFailures.push(`file '${f.name}' builds an interface ('${hit[0].trim()}') instead of a logic puzzle`)
+      }
+      if (difficulty === 'very-easy') {
+        const dict = source.match(PYTHON_DICT)
+        if (dict) {
+          problemFailures.push(
+            `file '${f.name}' uses a dictionary ('${dict[0].trim()}'), but very easy python is lists only`,
+          )
+        }
       }
     }
   }

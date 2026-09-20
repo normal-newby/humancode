@@ -14,7 +14,6 @@ interface Props {
   files: ProblemFile[]
   onTelemetry: (item: TelemetryItem) => void
   onCodeChange: (file: string, code: string) => void
-  onRun: () => void
 }
 
 /**
@@ -39,7 +38,7 @@ interface Props {
  * as part of the page. Line numbers stay on — their notes refer to them
  * ("staring at line 12").
  */
-function EditorPaneImpl({ files, onTelemetry, onCodeChange, onRun }: Props) {
+function EditorPaneImpl({ files, onTelemetry, onCodeChange }: Props) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const modelsRef = useRef<Map<string, TextModel>>(new Map())
   const [activeFile, setActiveFile] = useState(files[0]?.name ?? '')
@@ -71,12 +70,6 @@ function EditorPaneImpl({ files, onTelemetry, onCodeChange, onRun }: Props) {
     // files is fixed for the life of a session — see handleMount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  /** Kept in a ref so ctrl+enter never rebinds against a stale closure. */
-  const runRef = useRef(onRun)
-  useEffect(() => {
-    runRef.current = onRun
-  }, [onRun])
 
   const handleBeforeMount = useCallback<BeforeMount>((monaco) => {
     monaco.editor.defineTheme('humancode', {
@@ -117,8 +110,9 @@ function EditorPaneImpl({ files, onTelemetry, onCodeChange, onRun }: Props) {
         editor.setModel(first)
       }
 
-      // Plain enter is a newline, obviously.
-      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => runRef.current())
+      // No ctrl+enter binding. It used to submit a turn; with the per-turn
+      // submit gone the only thing left for it to mean is "end the session",
+      // and a chord this easy to hit by accident must not do that.
 
       editor.onDidChangeModelContent((event) => {
         let inserted = 0

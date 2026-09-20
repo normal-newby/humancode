@@ -80,6 +80,17 @@ public class SessionController {
     @PostMapping("/sessions/{id}/finish")
     public Dtos.SessionResponse finish(@PathVariable String id) {
         SessionState state = sessions.require(id);
+
+        // Finishing *is* handing the work in. The footer has one action now
+        // (UI-DESIGN.md §4.5) and it does both, so the submission has to be
+        // recorded here or `submitCount` is zero for every session that ever
+        // runs — which is not a cosmetic wrong number. `CannedReportCard`
+        // branches on it first and answers "you never handed anything over",
+        // and `PromptAssembler` tells the model "Times submitted: 0", so every
+        // verdict in the app would accuse a candidate of not submitting the
+        // work they just submitted.
+        state.recordSubmit();
+
         director.pushPhase(state, Phase.REPORT);
 
         // Generated while the session is still live in memory — a generated
@@ -126,6 +137,7 @@ public class SessionController {
                 state.notes(),
                 true,
                 report,
+                state.statementSpeechId(),
                 profile);
     }
 }
