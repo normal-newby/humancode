@@ -19,6 +19,7 @@
 
   --font-mono: "JetBrains Mono", "Roboto Mono", ui-monospace, SFMono-Regular,
     Menlo, monospace;
+  --font-sans: "Adwaita Sans", Inter, ui-sans-serif, system-ui, sans-serif;
 
   --breakpoint-wide: 900px;
 }
@@ -216,4 +217,16 @@ body {
 
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* The public setup form needs readable labels; leave the terminal's muted
+   transcript colors untouched. */
+.landing-session-setup legend,
+.landing-session-setup fieldset > p {
+  color: #9aa3b2;
+}
+
+#how-it-works,
+#challenge {
+  scroll-margin-top: 24px;
 }
